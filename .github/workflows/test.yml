@@ -1,0 +1,80 @@
+name: test
+
+# TASK-130 — lint and test on every push and pull request.
+# Deliberately separate from the daily workflow (ARCHITECTURE.md §18): a broken
+# test must never be able to stop the market from being monitored, and a data
+# outage must never look like a code failure.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Tests must never touch the operational database.
+  REGIME_MONITOR_DB: ${{ github.workspace }}/.test-artifacts/test.db
+  PYTHONUTF8: "1"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,dashboard]"
+
+      - name: Lint
+        run: ruff check src tests scripts app
+
+      - name: Type check
+        # Advisory for now: the type surface is still settling.
+        continue-on-error: true
+        run: mypy
+
+      - name: Test
+        # Network tests are excluded here on purpose. A CI run must not fail
+        # because a third-party endpoint is rate-limiting; live sources are
+        # checked on demand with `-m network`.
+        run: pytest -m "not network" --cov=regime_monitor --cov-report=term-missing
+
+      - name: Check the shipped configuration still loads
+        run: |
+          python - <<'PY'
+          from regime_monitor.config.loader import load_config, load_research_placeholder_config
+          operational = load_config()
+          placeholder = load_research_placeholder_config()
+          print(f"operational: {operational.strategy.strategy_version} "
+                f"({operational.strategy.parameter_status.value}), "
+                f"{len(operational.unresolved_parameters())} unresolved")
+          print(f"placeholder: {placeholder.strategy.strategy_version} "
+                f"({placeholder.strategy.parameter_status.value})")
+          PY
+
+      - name: Check the placeholder profile is still generated, not hand-edited
+        run: |
+          python scripts/make_placeholder_indicators.py
+          git diff --exit-code config/research/placeholder.indicators.yaml
+
+      - name: Refuse a committed secret
+        # ARCHITECTURE.md §9 — config holds variable names, never values.
+        run: |
+          if grep -rInE '(bot_token|chat_id)\s*:\s*["'"'"']?[0-9]{6,}' config/; then
+            echo "::error::a literal token or chat id appears in config/"
+            exit 1
+          fi

@@ -1,0 +1,177 @@
+name: daily-monitor
+
+# TASK-131, TASK-132, TASK-133 — the operational daily worker.
+#
+# Timing: US equities close at 16:00 America/New_York. Cron only understands UTC
+# and does not follow daylight saving, so the schedule is pinned late enough to
+# be after the close in *both* offsets: 22:30 UTC is 17:30 EST and 18:30 EDT.
+# Running late costs nothing; running early would read an unsettled close.
+#
+# The job is a no-op on non-trading days by construction: the pipeline finds no
+# new data, reports the last trading day it already has, and the database ends
+# up unchanged, so nothing is committed.
+
+on:
+  schedule:
+    - cron: "30 22 * * 1-5" # weekdays, after the US close in either offset
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Run as of this date (YYYY-MM-DD). Safe to repeat: idempotent."
+        required: false
+        type: string
+      dry_run:
+        description: "Compute and persist, but send no notifications"
+        required: false
+        type: boolean
+        default: false
+      profile:
+        description: "Strategy profile"
+        required: false
+        type: choice
+        options: [operational, placeholder]
+        default: operational
+
+# Never let two runs write the same SQLite file at once.
+concurrency:
+  group: daily-monitor
+  cancel-in-progress: false
+
+permissions:
+  contents: write # TASK-132 commits the updated database back
+
+env:
+  PYTHONUTF8: "1"
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Preflight — is the strategy frozen?
+        id: preflight
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          from regime_monitor.config.loader import load_config
+          config = load_config()
+          unresolved = config.unresolved_parameters()
+          ready = config.is_production_ready
+          print(f"ready={'true' if ready else 'false'}")
+          print(f"version={config.strategy.strategy_version}")
+          print(f"status={config.strategy.parameter_status.value}")
+          print(f"unresolved={len(unresolved)}")
+          PY
+
+      - name: Stop here until the strategy is frozen
+        if: >-
+          steps.preflight.outputs.ready != 'true' &&
+          inputs.profile != 'placeholder'
+        run: |
+          echo "::notice title=Strategy not frozen::\
+          ${{ steps.preflight.outputs.version }} is \
+          ${{ steps.preflight.outputs.status }} with \
+          ${{ steps.preflight.outputs.unresolved }} unresolved parameters. \
+          Phase 10 (TASK-100) has not run, so there is no strategy to operate. \
+          This is the documented current state, not a failure."
+          echo "Run scripts/freeze.py once the research is complete."
+
+      # Everything below only runs once there is something to operate.
+      - name: Run the tests that guard the pipeline
+        if: >-
+          steps.preflight.outputs.ready == 'true' ||
+          inputs.profile == 'placeholder'
+        run: |
+          pip install -e ".[dev]"
+          pytest -m "not network" -q
+
+      - name: Daily run
+        id: run
+        if: >-
+          steps.preflight.outputs.ready == 'true' ||
+          inputs.profile == 'placeholder'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # The placeholder profile is for manual testing only, and opening the
+          # research gate is what makes that possible. The scheduled path never
+          # takes this branch.
+          REGIME_MONITOR_ALLOW_RESEARCH_PARAMS: ${{ inputs.profile == 'placeholder' && '1' || '' }}
+        run: |
+          python scripts/daily_runner.py \
+            --profile "${{ inputs.profile || 'operational' }}" \
+            ${{ inputs.date && format('--date {0}', inputs.date) || '' }} \
+            ${{ inputs.dry_run && '--dry-run' || '' }} \
+            | tee run.log
+          echo "summary=$(tail -n 1 run.log)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the database is still readable
+        # TASK-132: never push a database the next run could not open. This is
+        # the last point at which a corrupt file can be caught cheaply.
+        if: steps.run.outcome == 'success'
+        run: |
+          python - <<'PY'
+          from regime_monitor.data.repositories.connection import connect
+          from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
+
+          connection = connect(read_only=True)
+          integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
+          if integrity != "ok":
+              raise SystemExit(f"integrity check failed: {integrity}")
+          connection.close()
+
+          with SQLiteUnitOfWork() as uow:
+              state = uow.states.get_latest_state()
+              print(f"latest state: {state.observation_date} {state.regime}" if state
+                    else "no state recorded yet")
+          PY
+
+      - name: Commit the updated database
+        if: steps.run.outcome == 'success' && inputs.dry_run != true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/regime_monitor.db
+          if git diff --cached --quiet; then
+            echo "::notice::database unchanged (likely a non-trading day); nothing to commit"
+            exit 0
+          fi
+          git commit -m "chore(data): daily state ${{ steps.run.outputs.summary }}
+
+          Automated by .github/workflows/daily_monitor.yml
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          # Another run may have pushed while this one was working.
+          git pull --rebase --autostash origin "${{ github.ref_name }}"
+          git push
+
+      - name: Publish the run log
+        if: always() && steps.run.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-run-${{ github.run_id }}
+          path: run.log
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Report a failure loudly
+        # TASK-131 requires failure visibility. A monitoring system that stops
+        # monitoring silently is the failure mode worth the most noise.
+        if: failure()
+        run: |
+          echo "::error title=Daily monitor failed::\
+          The run did not complete, so no state was committed. \
+          Check the log above, then re-run this workflow manually: it is \
+          idempotent, so re-running the same date is safe."
