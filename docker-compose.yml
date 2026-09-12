@@ -1,0 +1,43 @@
+# TASK-151 — local development.
+#
+#   docker compose run --rm daily --profile placeholder --dry-run
+#   docker compose up dashboard      # http://localhost:8501
+#
+# The database is bind-mounted from the working tree, so a container run and a
+# `python scripts/daily_runner.py` run touch exactly the same file.
+
+services:
+  daily:
+    build: .
+    image: regimepilot:local
+    command: ["daily"]
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config:ro
+    environment:
+      # Secrets stay in the environment or a local .env, never in this file
+      # or in config/ (ARCHITECTURE.md §9).
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      REGIME_MONITOR_LOG_LEVEL: ${REGIME_MONITOR_LOG_LEVEL:-INFO}
+
+  dashboard:
+    build: .
+    image: regimepilot:local
+    command: ["dashboard"]
+    ports:
+      - "8501:8501"
+    volumes:
+      # Read-only: the dashboard never writes (ARCHITECTURE.md §4.2).
+      - ./data:/app/data:ro
+      - ./config:/app/config:ro
+      - ./reports:/app/reports:ro
+
+  backtest:
+    build: .
+    image: regimepilot:local
+    command: ["backtest", "--profile", "placeholder", "--report"]
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config:ro
+      - ./reports:/app/reports

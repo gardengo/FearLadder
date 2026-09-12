@@ -1,0 +1,13 @@
+# Streamlit Cloud reads this file (TASK-152). It mirrors the `dashboard` extra
+# in pyproject.toml, which stays the source of truth for local installs.
+#
+# Keep in sync with pyproject.toml.
+pandas>=2.2
+numpy>=1.26
+PyYAML>=6.0
+pydantic>=2.6
+requests>=2.31
+finance-datareader>=0.9.90
+tzdata>=2024.1
+streamlit>=1.63
+plotly>=5.20
