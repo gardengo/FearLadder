@@ -137,9 +137,17 @@ class StrategyBacktest:
         name: str = "strategy",
     ) -> BacktestRun:
         strategy = self.config.strategy
-        windowed = data.window(start, end)
 
-        scores, indicator_results = self._score(windowed)
+        # Indicators, scores and the regime replay run over the *whole* history,
+        # and only the simulation is windowed. Two reasons this matters:
+        #
+        #   1. Windowing first would truncate indicator warm-up, so the first
+        #      years of every window would be blank — and a 5-year validation
+        #      window would lose most of itself.
+        #   2. The same date must produce the same regime no matter which window
+        #      is being evaluated. Otherwise a walk-forward fold and the live
+        #      worker disagree about history, and "backtest == live" is false.
+        scores, indicator_results = self._score(data)
         composite = ScoreEngine.from_config(self.config).composite_series(scores)
 
         scale = RegimeScale.from_spec(strategy.regime)
@@ -147,11 +155,21 @@ class StrategyBacktest:
         decisions = transitions.run(composite)
 
         allocations = self._allocate(decisions, indicator_results)
+
+        windowed = data.window(start, end)
+        first, last = windowed.closes.index.min(), windowed.closes.index.max()
         targets = {
             day: decision.allocation.weights
             for day, decision in allocations.items()
-            if decision.allocation is not None
+            if decision.allocation is not None and first <= day <= last
         }
+        # The simulator reads targets decided strictly before each day, so the
+        # window's opening day needs the standing target carried in.
+        carried = [day for day in sorted(allocations) if day < first]
+        if carried and targets:
+            standing = allocations[carried[-1]]
+            if standing.allocation is not None:
+                targets.setdefault(first, standing.allocation.weights)
 
         simulator = PortfolioSimulator(
             closes=windowed.closes,
@@ -160,7 +178,10 @@ class StrategyBacktest:
             execution_timing=strategy.execution.timing,
         )
         result = simulator.run(targets, name=name)
-        regime_changes = sum(1 for decision in decisions if decision.changed)
+        windowed_decisions = [
+            decision for decision in decisions if first <= decision.observation_date <= last
+        ]
+        regime_changes = sum(1 for decision in windowed_decisions if decision.changed)
         metrics = metrics_from_result(result, regime_change_count=regime_changes)
 
         benchmarks: dict[str, BacktestResult] = {}
@@ -175,18 +196,22 @@ class StrategyBacktest:
             metrics=metrics,
             benchmarks=benchmarks,
             benchmark_metrics=benchmark_metrics,
-            composite_score=composite,
-            indicator_scores=scores,
+            composite_score=composite.loc[(composite.index >= first) & (composite.index <= last)],
+            indicator_scores=scores.loc[(scores.index >= first) & (scores.index <= last)],
             regimes=Series(
-                [decision.regime for decision in decisions],
+                [decision.regime for decision in windowed_decisions],
                 index=pd.Index(
-                    [decision.observation_date for decision in decisions],
+                    [decision.observation_date for decision in windowed_decisions],
                     name="observation_date",
                 ),
                 name="regime",
             ),
-            decisions=tuple(decisions),
-            allocations=allocations,
+            decisions=tuple(windowed_decisions),
+            allocations={
+                day: decision
+                for day, decision in allocations.items()
+                if first <= day <= last
+            },
         )
 
     # -- steps -------------------------------------------------------------

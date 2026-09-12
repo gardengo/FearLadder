@@ -20,7 +20,15 @@ from regime_monitor.data.collectors.fdr import (
     FinanceDataReaderPriceProvider,
     FinanceDataReaderSeriesProvider,
 )
-from regime_monitor.data.collectors.files import AaiiSentimentProvider, CsvSeriesProvider
+from regime_monitor.data.collectors.files import (
+    AaiiSentimentProvider,
+    CompositeSeriesProvider,
+    CsvSeriesProvider,
+)
+from regime_monitor.data.collectors.synthetic import (
+    SplicedIndexProvider,
+    SyntheticLeveragedProvider,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,11 +60,13 @@ def build_registry(
     config: DataSourcesConfig, *, reference_dir: Path | None = None
 ) -> ProviderRegistry:
     reference = reference_dir or REFERENCE_DIR
-    price = FinanceDataReaderPriceProvider(
+    price: PriceProvider = FinanceDataReaderPriceProvider(
         underlying_sources=dict.fromkeys(
             config.price.symbols, "FinanceDataReader US equity feed"
         )
     )
+    if config.price.reconstruction.enabled:
+        price = _wrap_with_reconstruction(price, config)
 
     series: dict[str, SeriesProvider] = {}
     disabled: dict[str, str] = {}
@@ -78,7 +88,28 @@ def _build_series_provider(
                 underlying_source=spec.underlying_source,
             )
         case "cnn":
-            return CnnFearGreedProvider()
+            # CNN's endpoint serves about a year. For anything longer the
+            # reconstructed file has to carry the history, with the live
+            # endpoint layered on top for the most recent days (PRD.md 6.5).
+            history = reference / "cnn" / "fear_greed_history.csv"
+            live = CnnFearGreedProvider()
+            if not history.is_file():
+                logger.warning(
+                    "no CNN history at %s; only the last ~year is available. "
+                    "Run scripts/fetch_reference.py.",
+                    history,
+                )
+                return live
+            return CompositeSeriesProvider(
+                history=CsvSeriesProvider(
+                    path=history,
+                    underlying_source=(
+                        "CNN Fear & Greed - reconstructed secondary dataset"
+                    ),
+                    source_ref="reconstructed",
+                ),
+                live=live,
+            )
         case "aaii":
             return AaiiSentimentProvider(
                 path=reference / "aaii" / "sentiment.csv",
@@ -96,6 +127,60 @@ def _build_series_provider(
             raise UnknownProviderError(
                 f"series {name!r} names provider {unknown!r}, which is not implemented"
             )
+
+
+def _wrap_with_reconstruction(
+    price: PriceProvider, config: DataSourcesConfig
+) -> PriceProvider:
+    """Layer the two reconstructions in dependency order.
+
+    The splice runs first so the leveraged reconstruction has a QQQ history long
+    enough to build on; wrapping them the other way round would leave the
+    synthetic sleeves with nothing to extend.
+    """
+    spec = config.price.reconstruction
+    spliced = SplicedIndexProvider(
+        base=price,
+        index_provider=FinanceDataReaderSeriesProvider(
+            symbol=spec.index_symbol,
+            underlying_source="FRED Nasdaq-100 index",
+            column=None,
+        ),
+        index_symbol=spec.index_symbol,
+    )
+    return SyntheticLeveragedProvider(
+        base=spliced,
+        leverages={
+            symbol: symbol_spec.leverage
+            for symbol, symbol_spec in config.price.symbols.items()
+            if symbol_spec.leverage > 1.0
+        },
+        financing_rates=_financing_rates(spec.financing_symbol),
+    )
+
+
+def _financing_rates(symbol: str | None):
+    """Fetch the borrowing-cost series, or ``None`` if it is unavailable.
+
+    A missing rate does not stop the reconstruction; it makes it optimistic, and
+    :class:`SyntheticLeveragedProvider` says so loudly in the log.
+    """
+    if not symbol:
+        return None
+    try:
+        import FinanceDataReader as fdr  # noqa: N813
+
+        frame = fdr.DataReader(symbol, "1985-01-01")
+    except Exception as exc:
+        logger.warning("financing rate %s unavailable (%s); reconstruction will "
+                       "ignore borrowing cost", symbol, exc)
+        return None
+
+    import pandas as pd
+
+    series = frame.iloc[:, 0].dropna()
+    series.index = pd.to_datetime(series.index).normalize()
+    return series
 
 
 def historical_cnn_provider(reference_dir: Path | None = None) -> CsvSeriesProvider:

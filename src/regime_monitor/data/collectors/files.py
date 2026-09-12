@@ -179,3 +179,49 @@ def _as_fraction(column: pd.Series) -> pd.Series:
     if numeric.dropna().empty:
         return numeric
     return numeric / 100.0 if numeric.dropna().abs().max() > 1.5 else numeric
+
+
+@dataclass(frozen=True, slots=True)
+class CompositeSeriesProvider:
+    """A long file history with a live feed layered on top.
+
+    CNN needs this: its endpoint serves about a year, while a backtest needs a
+    decade. The file supplies the history, the endpoint supplies the days the
+    file has not caught up with, and the live values win where both have an
+    opinion — the endpoint is the publisher, the file is a copy of it.
+
+    The whole series is REVIEW-grade regardless. A series that contains
+    reconstructed values is a reconstructed series, and downgrading only the old
+    rows would let a summary statistic quietly mix the two.
+    """
+
+    history: CsvSeriesProvider
+    live: object
+    quality_status: DataQualityStatus = DataQualityStatus.REVIEW
+
+    def fetch(self, start: date, end: date) -> DataFrame:
+        frames: list[DataFrame] = []
+        for source, label in ((self.history, "history"), (self.live, "live")):
+            try:
+                frames.append(source.fetch(start, end))  # type: ignore[attr-defined]
+            except (CollectorError, DataUnavailableError) as exc:
+                logger.info("composite series: %s unavailable (%s)", label, exc)
+
+        if not frames:
+            raise DataUnavailableError(
+                f"neither the file history nor the live feed covered {start}..{end}"
+            )
+
+        combined = pd.concat(frames)
+        # Later frames win, so the live feed overrides the file where they overlap.
+        combined = combined[~combined.index.duplicated(keep="last")]
+        return combined.sort_index()
+
+    def describe(self) -> SourceDescription:
+        base = self.history.describe()
+        return SourceDescription(
+            provider_library=base.provider_library,
+            provider_library_version=base.provider_library_version,
+            underlying_source=f"{base.underlying_source} + live endpoint",
+            source_ref="composite",
+        )

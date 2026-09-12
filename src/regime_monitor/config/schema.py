@@ -102,6 +102,29 @@ class CrossValidationSpec(_Base):
         return self
 
 
+class ReconstructionSpec(_Base):
+    """Extending the tradable sleeves before their inception.
+
+    Off by default: a reconstructed price is a *model*, and turning it on has to
+    be a deliberate act recorded in configuration.
+    """
+
+    enabled: bool = False
+    index_symbol: str = "FRED:NASDAQ100"
+    financing_symbol: str | None = "FRED:DFF"
+    quality_status: DataQualityStatus = DataQualityStatus.REVIEW
+
+    @model_validator(mode="after")
+    def _reconstruction_is_never_official(self) -> Self:
+        # A modelled price must never be stored as if it had been observed.
+        if self.enabled and self.quality_status is DataQualityStatus.OK:
+            raise ConfigError(
+                "reconstructed prices cannot be quality_status OK; they are "
+                "modelled, not observed (PRD.md 6.5)"
+            )
+        return self
+
+
 class PriceSourceSpec(_Base):
     provider: Literal["finance_datareader"] = "finance_datareader"
     symbols: dict[str, SymbolSpec]
@@ -109,6 +132,7 @@ class PriceSourceSpec(_Base):
     mandatory: bool = True
     max_staleness_days: Annotated[int, Field(ge=0, le=90)] = 5
     retry: RetryPolicy = RetryPolicy()
+    reconstruction: ReconstructionSpec = ReconstructionSpec()
     cross_validation: CrossValidationSpec = CrossValidationSpec()
 
     @model_validator(mode="after")

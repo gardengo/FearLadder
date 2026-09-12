@@ -7,7 +7,9 @@ version: 1
 
 price:
   provider: finance_datareader
-  start_date: "1999-03-10" # QQQ inception; per-symbol inception is below
+  # Reconstruction (below) extends the tradable sleeves back to here, so the
+  # dot-com crash and the financial crisis are inside the research window.
+  start_date: "1996-01-02"
   symbols:
     QQQ:
       role: base_index_proxy
@@ -26,6 +28,19 @@ price:
   retry:
     attempts: 3
     backoff_seconds: 2.0
+
+  # Neither leveraged sleeve existed during the periods this strategy is
+  # calibrated on. Both are reconstructed before their inception and stored
+  # REVIEW-grade with provenance that says so. Every indicator is computed from
+  # QQQ, so reconstruction prices the portfolio but never moves the signal.
+  # See src/regime_monitor/data/collectors/synthetic.py for the measured
+  # tracking error against the real funds.
+  reconstruction:
+    enabled: true
+    index_symbol: "FRED:NASDAQ100" # QQQ is spliced with the index it tracks
+    financing_symbol: "FRED:DFF" # effective fed funds, the borrowing leg
+    quality_status: REVIEW
+
   cross_validation: # TASK-028
     enabled: true
     reference: proshares

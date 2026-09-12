@@ -101,14 +101,22 @@ class CollectionService:
     def _collect_prices(self, symbol: str, start: date, end: date) -> list[MarketObservation]:
         spec = self.config.price
         inception = spec.symbols[symbol].inception
-        # Asking before a fund existed is not a failure, it is arithmetic.
-        effective_start = max(start, inception) if inception else start
-        if effective_start > end:
-            raise CollectorError(
-                f"{symbol} did not exist before {inception}; nothing to collect "
-                f"for {start}..{end}"
-            )
-        return self.collector.price_observations(
+        reconstructing = spec.reconstruction.enabled
+
+        # Asking before a fund existed is normally just arithmetic, so the
+        # request is clamped to its inception. When reconstruction is on, the
+        # provider is the thing that knows how to go further back, so clamping
+        # here would silently discard exactly the history it exists to supply.
+        effective_start = start
+        if inception and not reconstructing:
+            effective_start = max(start, inception)
+            if effective_start > end:
+                raise CollectorError(
+                    f"{symbol} did not exist before {inception}; nothing to collect "
+                    f"for {start}..{end}"
+                )
+
+        observations = self.collector.price_observations(
             self.registry.price,
             symbol,
             effective_start,
@@ -116,6 +124,17 @@ class CollectionService:
             attempts=spec.retry.attempts,
             backoff_seconds=spec.retry.backoff_seconds,
         )
+        if reconstructing and inception:
+            # Days before inception are modelled, not observed. Mark them so a
+            # backtest can never present them as real prices (PRD.md 6.5).
+            status = spec.reconstruction.quality_status
+            observations = [
+                obs.flagged(status, f"reconstructed: before {symbol} inception {inception}")
+                if obs.observation_date < inception
+                else obs
+                for obs in observations
+            ]
+        return observations
 
     def _collect_series(self, name: str, start: date, end: date) -> list[MarketObservation]:
         spec = self.config.series[name]
