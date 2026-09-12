@@ -275,11 +275,13 @@ indicators:
 
   aaii_bull_bear_spread:
     family: sentiment
-    compute: spread
-    params: { minuend: bullish, subtrahend: bearish }
+    compute: level
+    params: {}
     source: AAII_SENTIMENT
     direction: HIGHER_IS_GREED
-    description: "AAII bullish% - bearish%, weekly, used only after publication"
+    # The collected AAII_SENTIMENT series is already bullish% - bearish%
+    # (see AaiiSentimentProvider), so the indicator reads it as published.
+    description: "AAII bullish% - bearish% spread, weekly, used only after publication"
     normalization:
       method: rolling_percentile
       window: null
