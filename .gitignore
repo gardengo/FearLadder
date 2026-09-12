@@ -36,6 +36,9 @@ htmlcov/
 data/raw/
 data/processed/
 data/snapshots/
+# Operator-supplied reference exports (see data/reference/README.md).
+data/reference/*
+!data/reference/README.md
 *.db-journal
 *.db-wal
 *.db-shm
