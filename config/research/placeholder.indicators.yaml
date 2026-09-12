@@ -1,0 +1,305 @@
+# placeholder.indicators.yaml — RESEARCH PLACEHOLDER ONLY. DO NOT SHIP.
+#
+# A mechanical copy of config/indicators.yaml with every null normalization
+# window filled with the SAME arbitrary value (504 trading days ~ 2 years) so
+# that development, unit tests and exploratory backtests can run end to end.
+#
+# The uniformity is deliberate: it is obviously not a researched choice. Nothing
+# here may be promoted to config/strategy.yaml without going through
+# TASK-041 / TASK-081 / TASK-083 and the OOS gate.
+#
+# Regenerate with: python scripts/make_placeholder_indicators.py
+
+version: 1
+
+# Lookback grid shared by the rolling normalizers, in trading days:
+# 1y / 2y / 3y / 5y.
+
+indicators:
+  # ---------------------------------------------------------------- RSI (TASK-030)
+  rsi_14:
+    family: rsi
+    compute: rsi
+    params: { window: 14 }
+    source: QQQ
+    direction: HIGHER_IS_GREED
+    description: "Wilder RSI(14) on QQQ close"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  rsi_30:
+    family: rsi
+    compute: rsi
+    params: { window: 30 }
+    source: QQQ
+    direction: HIGHER_IS_GREED
+    description: "Wilder RSI(30) on QQQ close"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  # -------------------------------------------------------------- Trend (TASK-031)
+  price_vs_20dma:
+    family: trend
+    compute: price_vs_ma
+    params: { window: 20 }
+    source: QQQ
+    direction: HIGHER_IS_GREED
+    description: "Close / 20DMA - 1"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  price_vs_50dma:
+    family: trend
+    compute: price_vs_ma
+    params: { window: 50 }
+    source: QQQ
+    direction: HIGHER_IS_GREED
+    description: "Close / 50DMA - 1"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  price_vs_200dma:
+    family: trend
+    compute: price_vs_ma
+    params: { window: 200 }
+    source: QQQ
+    direction: HIGHER_IS_GREED
+    description: "Close / 200DMA - 1"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  ma_50_200_ratio:
+    family: trend
+    compute: ma_ratio
+    params: { fast: 50, slow: 200 }
+    source: QQQ
+    direction: HIGHER_IS_GREED
+    description: "50DMA / 200DMA - 1 (golden/death cross distance)"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  ma_200_slope:
+    family: trend
+    compute: ma_slope
+    params: { window: 200, lookback: 21 }
+    source: QQQ
+    direction: HIGHER_IS_GREED
+    description: "21-day relative change of the 200DMA"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  # ----------------------------------------------------------- Momentum (TASK-032)
+  momentum_1m:
+    family: momentum
+    compute: momentum
+    params: { window: 21 }
+    source: QQQ
+    direction: HIGHER_IS_GREED
+    description: "1-month total return of QQQ (21 trading days)"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  momentum_3m:
+    family: momentum
+    compute: momentum
+    params: { window: 63 }
+    source: QQQ
+    direction: HIGHER_IS_GREED
+    description: "3-month total return of QQQ"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  momentum_6m:
+    family: momentum
+    compute: momentum
+    params: { window: 126 }
+    source: QQQ
+    direction: HIGHER_IS_GREED
+    description: "6-month total return of QQQ"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  momentum_12m:
+    family: momentum
+    compute: momentum
+    params: { window: 252 }
+    source: QQQ
+    direction: HIGHER_IS_GREED
+    description: "12-month total return of QQQ"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  # ----------------------------------------------------------- Drawdown (TASK-033)
+  # Reported as a positive depth: 0.25 means 25% below the running peak.
+  drawdown_current:
+    family: drawdown
+    compute: drawdown
+    params: { window: null } # deliberate: null = expanding all-time-to-date peak
+    source: QQQ
+    direction: HIGHER_IS_FEAR
+    description: "Depth below the running all-time-to-date peak"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  drawdown_30d:
+    family: drawdown
+    compute: drawdown
+    params: { window: 30 }
+    source: QQQ
+    direction: HIGHER_IS_FEAR
+    description: "Depth below the 30-trading-day peak"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  drawdown_90d:
+    family: drawdown
+    compute: drawdown
+    params: { window: 90 }
+    source: QQQ
+    direction: HIGHER_IS_FEAR
+    description: "Depth below the 90-trading-day peak"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  drawdown_52w:
+    family: drawdown
+    compute: drawdown
+    params: { window: 252 }
+    source: QQQ
+    direction: HIGHER_IS_FEAR
+    description: "Depth below the 52-week peak"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  # --------------------------------------------------------- Volatility (TASK-034)
+  vix_level:
+    family: volatility
+    compute: level
+    params: {}
+    source: VIX
+    direction: HIGHER_IS_FEAR
+    mandatory: true
+    description: "VIX close"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  vix_change_5d:
+    family: volatility
+    compute: change
+    params: { window: 5 }
+    source: VIX
+    direction: HIGHER_IS_FEAR
+    description: "5-day relative change in VIX"
+    normalization:
+      method: rolling_percentile
+      window: 504 # RESEARCH_PLACEHOLDER
+      min_periods: 252 # RESEARCH_PLACEHOLDER
+      research_candidates: [252, 504, 756, 1260]
+
+  vix_percentile:
+    family: volatility
+    compute: trailing_percentile
+    params: { window: 504 } # RESEARCH_PLACEHOLDER
+    research_params: ["window"]
+    source: VIX
+    direction: HIGHER_IS_FEAR
+    description: "VIX rank inside its own trailing distribution, 0..1"
+    normalization:
+      # A percentile is already bounded, so this rescale is definitional.
+      method: bounded
+      raw_at_score_min: 0.0
+      raw_at_score_max: 1.0
+
+  # ---------------------------------------------------------- Sentiment (TASK-035)
+  cnn_fear_greed:
+    family: sentiment
+    compute: level
+    params: {}
+    source: CNN_FEAR_GREED
+    direction: HIGHER_IS_GREED
+    description: "CNN Fear & Greed Index, already published on a 0..100 greed scale"
+    normalization:
+      # Definitional identity mapping: the published index *is* the 0-100 axis
+      # this project uses (PRD.md §7).
+      method: fixed_mapping
+      raw_at_score_min: 0.0
+      raw_at_score_max: 100.0
+
+  aaii_bull_bear_spread:
+    family: sentiment
+    compute: spread
+    params: { minuend: bullish, subtrahend: bearish }
+    source: AAII_SENTIMENT
+    direction: HIGHER_IS_GREED
+    description: "AAII bullish% - bearish%, weekly, used only after publication"
+    normalization:
+      method: rolling_percentile
+      window: 104 # RESEARCH_PLACEHOLDER (weekly observations)
+      min_periods: 52 # RESEARCH_PLACEHOLDER
+      research_candidates: [52, 104, 156, 260] # weekly observations
+
+  # ------------------------------------------------------------ Breadth (TASK-036)
+  breadth_pct_above_200dma:
+    enabled: false
+    disabled_reason: >-
+      Depends on the disabled BREADTH_NDX source: point-in-time Nasdaq-100
+      constituents are unavailable, and reconstructing breadth from today's
+      members would inject survivorship bias (PRD.md §6.5).
+    family: breadth
+    compute: pct_above_ma
+    params: { window: 200 }
+    source: BREADTH_NDX
+    direction: HIGHER_IS_GREED
+    description: "Share of Nasdaq-100 members above their own 200DMA"
+    normalization:
+      method: bounded
+      raw_at_score_min: 0.0
+      raw_at_score_max: 1.0

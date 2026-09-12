@@ -1,0 +1,123 @@
+# placeholder.strategy.yaml — RESEARCH PLACEHOLDER ONLY. DO NOT SHIP.
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# The real strategy parameters are `null` in config/strategy.yaml and stay that
+# way until Phase 8-10 decide them. But the regime engine, the allocation engine,
+# the backtester and the daily pipeline all need *some* numbers before they can
+# be executed or tested at all.
+#
+# So this file supplies deliberately ARBITRARY values, stamped
+# `parameter_status: RESEARCH_PLACEHOLDER`. `ensure_production_ready()` rejects
+# that status, so these numbers can never drive the operational runner
+# (CLAUDE_CODE_INITIAL_PROMPT.md §10, §11).
+#
+# THE NUMBERS BELOW ARE NOT A STRATEGY.
+# They are uniform, round and unoptimised on purpose, so that nobody can mistake
+# them for a research result:
+#   - every indicator gets the same weight
+#   - regime boundaries are evenly spaced at 20 / 40 / 60 / 80
+#   - allocations only respect the *direction* PRD.md §2.1 states
+#     (more fear -> more leverage, never a full exit), nothing more.
+
+version: 1
+strategy_version: v0.0-placeholder
+parameter_status: RESEARCH_PLACEHOLDER
+data_version: placeholder
+parameter_version: placeholder
+frozen_at: null
+
+score:
+  # Equal weights over the 20 enabled indicators. 20 x 0.05 = 1.00.
+  weights:
+    rsi_14: 0.05
+    rsi_30: 0.05
+    price_vs_20dma: 0.05
+    price_vs_50dma: 0.05
+    price_vs_200dma: 0.05
+    ma_50_200_ratio: 0.05
+    ma_200_slope: 0.05
+    momentum_1m: 0.05
+    momentum_3m: 0.05
+    momentum_6m: 0.05
+    momentum_12m: 0.05
+    drawdown_current: 0.05
+    drawdown_30d: 0.05
+    drawdown_90d: 0.05
+    drawdown_52w: 0.05
+    vix_level: 0.05
+    vix_change_5d: 0.05
+    vix_percentile: 0.05
+    cnn_fear_greed: 0.05
+    aaii_bull_bear_spread: 0.05
+
+regime:
+  count: 5
+  labels: ["Capitulation", "Fear", "Neutral", "Bull", "Overheated"]
+  boundaries: [20.0, 40.0, 60.0, 80.0] # evenly spaced, i.e. unoptimised
+  research_candidates: [3, 5, 7, 9]
+
+transition:
+  confirmation_days: 2
+  hysteresis: 5.0
+  minimum_duration_days: 5
+  research_candidates:
+    confirmation_days: [1, 2, 3, 5, 10]
+    hysteresis: [0, 2, 5, 8, 10]
+    minimum_duration_days: [1, 5, 10, 20]
+
+allocation:
+  # Target leverage runs 2.3 -> 2.0 -> 1.4 -> 1.3 -> 0.9 across the regimes:
+  # monotonically falling as greed rises, and never zero.
+  mappings:
+    Capitulation: { QQQ: 0.00, QLD: 0.70, TQQQ: 0.30, CASH: 0.00 }
+    Fear: { QQQ: 0.00, QLD: 1.00, TQQQ: 0.00, CASH: 0.00 }
+    Neutral: { QQQ: 0.00, QLD: 0.70, TQQQ: 0.00, CASH: 0.30 }
+    Bull: { QQQ: 0.30, QLD: 0.50, TQQQ: 0.00, CASH: 0.20 }
+    Overheated: { QQQ: 0.50, QLD: 0.20, TQQQ: 0.00, CASH: 0.30 }
+  constraints:
+    weights_non_negative: true
+    weights_sum_to_one: true
+    min_market_exposure: 0.50
+    max_target_leverage: 3.0
+
+tqqq_gate:
+  enabled: true
+  required_rules: ["deep_drawdown", "extreme_fear"]
+  min_confirmations: 4
+  candidate_rules:
+    - deep_drawdown
+    - extreme_fear
+    - high_vix
+    - oversold_rsi
+    - volatility_spike
+    - price_stabilization
+    - reversal_evidence
+    - breadth_capitulation
+  rule_params:
+    deep_drawdown: { indicator: drawdown_52w, min_depth: 0.20 }
+    extreme_fear: { indicator: cnn_fear_greed, max_score: 25.0 }
+    high_vix: { indicator: vix_percentile, min_percentile: 0.90 }
+    oversold_rsi: { indicator: rsi_14, max_value: 30.0 }
+    volatility_spike: { indicator: vix_change_5d, min_change: 0.25 }
+    price_stabilization: { indicator: drawdown_30d, max_depth: 0.05, lookback: 5 }
+    reversal_evidence: { indicator: momentum_1m, min_return: 0.0 }
+    breadth_capitulation: { indicator: breadth_pct_above_200dma, max_share: 0.15 }
+
+execution:
+  timing: NEXT_OPEN
+  same_day_execution_allowed: false
+  rebalance_on: regime_change
+
+cost_model:
+  commission_bps: 1.0
+  spread_bps: 2.0
+  slippage_bps: 2.0
+
+dataset_split:
+  research_start: "1999-03-10"
+  research_end: "2014-12-31"
+  validation_start: "2015-01-01"
+  validation_end: "2019-12-31"
+  oos_start: "2020-01-01"
+  oos_end: "2025-12-31"

@@ -1,0 +1,81 @@
+# data_sources.yaml — where every input series comes from (TASK-002 / PRD.md §6.5)
+#
+# Collection library != underlying source. FinanceDataReader is the collection
+# interface; the real provenance is recorded per observation in SQLite.
+
+version: 1
+
+price:
+  provider: finance_datareader
+  start_date: "1999-03-10" # QQQ inception; per-symbol inception is below
+  symbols:
+    QQQ:
+      role: base_index_proxy
+      leverage: 1.0
+      inception: "1999-03-10"
+    QLD:
+      role: leveraged_2x
+      leverage: 2.0
+      inception: "2006-06-21"
+    TQQQ:
+      role: leveraged_3x
+      leverage: 3.0
+      inception: "2010-02-11"
+  mandatory: true
+  max_staleness_days: 5
+  retry:
+    attempts: 3
+    backoff_seconds: 2.0
+  cross_validation: # TASK-028
+    enabled: true
+    reference: proshares
+    symbols: ["QLD", "TQQQ"]
+    reference_dir: "data/reference/proshares"
+    price_tolerance_pct: 1.0
+    on_mismatch: REVIEW # never auto-correct (BACKTEST_SPEC.md §5.5)
+
+series:
+  VIX:
+    provider: finance_datareader
+    underlying_source: "Cboe VIX (cross-checked against FRED VIXCLS)"
+    series_id: "VIX"
+    mandatory: true
+    availability_lag_days: 0
+    max_staleness_days: 5
+    notes: >-
+      Final backtest series must record provenance explicitly. Cboe official
+      history and FRED VIXCLS are the cross-validation references
+      (PRD.md §6.5).
+
+  CNN_FEAR_GREED:
+    provider: cnn
+    underlying_source: "CNN Business Fear & Greed Index"
+    series_id: "fear-and-greed"
+    mandatory: false
+    availability_lag_days: 0
+    max_staleness_days: 5
+    quality_status: OK
+    notes: >-
+      Live values come from the CNN endpoint. History is a reconstructed
+      secondary dataset and is stored with source / quality_status /
+      availability_datetime on every row (PRD.md §6.5).
+
+  AAII_SENTIMENT:
+    provider: aaii
+    underlying_source: "AAII weekly Investor Sentiment Survey"
+    series_id: "sentiment"
+    mandatory: false
+    # Weekly survey published on Thursday for the week ending Wednesday. It may
+    # only enter a backtest after publication (PRD.md §6.5).
+    availability_lag_days: 1
+    max_staleness_days: 14
+
+  BREADTH_NDX:
+    enabled: false
+    disabled_reason: >-
+      Survivorship-free historical Nasdaq-100 constituents are not available, and
+      rebuilding past breadth from today's members is forbidden (PRD.md §6.5).
+      Breadth stays a research candidate until point-in-time constituents exist.
+    provider: none
+    underlying_source: "n/a"
+    mandatory: false

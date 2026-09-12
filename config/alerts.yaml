@@ -1,0 +1,63 @@
+# alerts.yaml — notification policy (TASK-002, TASK-121, PRD.md §16)
+#
+# Secrets never live here: only the NAME of the environment variable that holds
+# them (ARCHITECTURE.md §9).
+
+version: 1
+
+telegram:
+  enabled: true
+  bot_token_env: TELEGRAM_BOT_TOKEN
+  chat_id_env: TELEGRAM_CHAT_ID
+  parse_mode: HTML
+  timeout_seconds: 15.0
+  retry:
+    attempts: 3
+    backoff_seconds: 2.0
+
+# One alert per (event_date, event_type, strategy_version). Re-running the daily
+# worker therefore cannot re-send anything (ARCHITECTURE.md §11, TASK-122).
+dedupe_key: ["event_date", "event_type", "strategy_version"]
+
+rules:
+  REGIME_CHANGED:
+    enabled: true
+    template: regime_changed
+    severity: WARNING
+    cooldown_days: 0
+
+  TARGET_LEVERAGE_CHANGED:
+    enabled: true
+    template: target_leverage_changed
+    severity: INFO
+    cooldown_days: 0
+
+  EXTREME_FEAR:
+    enabled: true
+    template: extreme_fear
+    severity: WARNING
+    # Which regime labels count as extreme fear is decided with the regime
+    # boundaries (TASK-082); null = "every regime", refined at freeze time.
+    regimes: null
+    cooldown_days: 0
+
+  EXTREME_BUBBLE:
+    enabled: true
+    template: extreme_bubble
+    severity: WARNING
+    regimes: null
+    cooldown_days: 0
+
+  TQQQ_CANDIDATE:
+    enabled: true
+    template: tqqq_candidate
+    severity: CRITICAL
+    regimes: null
+    cooldown_days: 0
+
+  DATA_FAILURE:
+    enabled: true
+    template: data_failure
+    severity: CRITICAL
+    # Do not spam the same broken feed every day while it stays broken.
+    cooldown_days: 1

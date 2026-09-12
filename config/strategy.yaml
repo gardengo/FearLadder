@@ -1,0 +1,93 @@
+# strategy.yaml — the OPERATIONAL strategy parameter set.
+#
+# Status: nothing is frozen yet (TASKS.md Phase 10 has not run).
+#
+# Every `null` below is a research parameter that the backtest, the walk-forward
+# validation and the OOS test must decide — in that order. Nobody may fill one in
+# by hand: see CLAUDE_CODE_INITIAL_PROMPT.md §7 and §10.
+#
+# `regime-daily` refuses to run against this file until
+# parameter_status == FROZEN and no `null` remains. Development and backtests use
+# config/research/placeholder.strategy.yaml instead, which is explicitly labelled
+# RESEARCH_PLACEHOLDER and is rejected by the production gate.
+
+version: 1
+strategy_version: v0.1-research
+parameter_status: RESEARCH
+data_version: null
+parameter_version: null
+frozen_at: null
+
+# ------------------------------------------------------------------ TASK-042/081
+score:
+  # indicator name -> weight. weight >= 0, sum == 1 (BACKTEST_SPEC.md §10).
+  weights: null
+
+# ------------------------------------------------------------------ TASK-050/082
+regime:
+  count: null # one of 3 / 5 / 7 / 9
+  labels: null # ordered fear -> greed
+  boundaries: null # count-1 ascending score cut points
+  research_candidates: [3, 5, 7, 9]
+
+# --------------------------------------------------------------------- TASK-085
+transition:
+  confirmation_days: null
+  hysteresis: null
+  minimum_duration_days: null
+  research_candidates:
+    confirmation_days: [1, 2, 3, 5, 10]
+    hysteresis: [0, 2, 5, 8, 10]
+    minimum_duration_days: [1, 5, 10, 20]
+
+# ------------------------------------------------------------------ TASK-062/084
+allocation:
+  # regime label -> { QQQ, QLD, TQQQ, CASH }. Decided by the allocation search.
+  mappings: null
+  constraints:
+    weights_non_negative: true
+    weights_sum_to_one: true
+    # PRD.md §2.1: however overheated the market, exposure never reaches zero.
+    # The exact floor is itself a research parameter.
+    min_market_exposure: null
+    max_target_leverage: null
+
+# --------------------------------------------------------------------- TASK-063
+tqqq_gate:
+  enabled: true
+  # Fear intensity alone never buys TQQQ. Bottom confirmation is a separate,
+  # stricter test (PRD.md §10, BACKTEST_SPEC.md §15).
+  required_rules: null
+  min_confirmations: null
+  candidate_rules:
+    - deep_drawdown
+    - extreme_fear
+    - high_vix
+    - oversold_rsi
+    - volatility_spike
+    - price_stabilization
+    - reversal_evidence
+    - breadth_capitulation
+  rule_params: null
+
+# --------------------------------------------------------------------- TASK-071
+execution:
+  # Signal is computed on the close of t; it may only be executed on t+1.
+  timing: NEXT_OPEN
+  same_day_execution_allowed: false
+  rebalance_on: regime_change
+
+# --------------------------------------------------------------------- TASK-072
+cost_model:
+  commission_bps: null
+  spread_bps: null
+  slippage_bps: null
+
+# --------------------------------------------------------------------- TASK-090
+dataset_split:
+  research_start: null
+  research_end: null
+  validation_start: null
+  validation_end: null
+  oos_start: null
+  oos_end: null
