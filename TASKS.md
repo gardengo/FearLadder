@@ -732,18 +732,37 @@ frozen strategy 명세.
 # Definition of Done
 
 ```text
-[ ] PRD 준수
-[ ] Architecture 준수
-[ ] Backtest Spec 준수
-[ ] 모든 unit test 통과
-[ ] integration test 통과
-[ ] leakage test 통과
-[ ] OOS 검증 완료
-[ ] strategy freeze 완료
-[ ] SQLite 정상 저장
-[ ] GitHub Actions daily 실행
-[ ] Telegram alert 정상
-[ ] Streamlit dashboard 정상
-[ ] Docker 실행 정상
-[ ] 자동주문 기능 없음
+[x] PRD 준수
+[x] Architecture 준수
+[x] Backtest Spec 준수
+[x] 모든 unit test 통과
+[x] integration test 통과
+[x] leakage test 통과            BACKTEST_SPEC §24 의 7개 항목 전부
+[ ] OOS 검증 완료                 ← 도구는 완성. 실행은 TASK-100 과 함께
+[ ] strategy freeze 완료          ← 도구는 완성. 파라미터 결정이 선행되어야 함
+[x] SQLite 정상 저장
+[x] GitHub Actions daily 실행     ← 워크플로 완성. frozen 이후 자동 시작
+[x] Telegram alert 정상
+[x] Streamlit dashboard 정상
+[~] Docker 실행 정상              ← 이 환경에 Docker 데몬이 없어 빌드 미검증
+[x] 자동주문 기능 없음
 ```
+
+## 남은 항목에 대하여
+
+**OOS 검증과 strategy freeze 는 코드가 아니라 판단이 필요한 항목이다.**
+
+Phase 8~10 은 탐색·walk-forward·민감도 분석·freeze·회귀 검증 도구를 모두
+제공하지만, 어떤 가중치·경계·배분을 고를지는 연구 결과를 보고 사람이 결정한다.
+`CLAUDE_CODE_INITIAL_PROMPT.md` §7/§10/§15 가 개발자의 임의 확정을 금지한다.
+
+절차는 `docs/strategy.md` §4 에 있다. 완료되면:
+
+- `config/strategy.yaml` 이 `parameter_status: FROZEN` 이 되고
+- `config/frozen/` 에 manifest 와 회귀 기준이 생기며
+- daily-monitor 워크플로가 자동으로 실행을 시작한다
+
+**Docker 는 정합성만 검증했다.** Dockerfile / compose / entrypoint 가 실재하는
+파일을 참조하는지, 대시보드가 DB 를 :ro 로 마운트하는지, 비밀값이 이미지에
+들어가지 않는지는 테스트로 고정되어 있으나, 이미지 빌드 자체는 Docker 데몬이
+있는 환경에서 확인해야 한다.

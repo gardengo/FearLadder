@@ -102,21 +102,29 @@ nasdaq-leverage-regime-monitor/
 │       ├── regime/
 │       ├── allocation/
 │       ├── backtest/
+│       ├── research/        # 연구 경로 (§20)
+│       ├── pipeline/        # 일일 워커 + 대시보드 조회
 │       ├── alerts/
 │       └── monitoring/
 │
 ├── scripts/
 │   ├── daily_runner.py
-│   └── backtest.py
+│   ├── backtest.py
+│   └── freeze.py
 │
 ├── app/
 │   └── streamlit_app.py
 │
 ├── data/
 │   ├── regime_monitor.db
+│   ├── reference/           # 운영자가 배치하는 외부 자료 (ProShares/CNN/AAII)
 │   ├── raw/
 │   ├── processed/
 │   └── snapshots/
+│
+├── docs/
+│   ├── strategy.md
+│   └── operations.md
 │
 ├── tests/
 │   ├── unit/
@@ -205,6 +213,23 @@ scripts/daily_runner.py
 
 Daily Worker는 주문을 실행하지 않는다.
 
+### 4.1.1 전체 이력 재생
+
+구현상의 결정: Daily Worker 는 어제의 전이 상태를 이어받지 않고, 매 실행마다
+지표·점수·레짐 전이를 처음부터 다시 계산한다.
+
+느리지만 두 가지를 얻는다.
+
+1. 운영 경로와 백테스트가 **같은 코드로 같은 입력**을 돌기 때문에, 백테스트가
+   보여주는 과거 날짜의 레짐이 곧 워커가 그 날 산출했을 레짐이다.
+2. 누적 상태가 없으므로 재실행이 본질적으로 멱등하다 (§11).
+
+### 4.1.2 실패 처리
+
+필수 데이터가 결측·낡음·미래일자·손상이면 `Regime = UNKNOWN` 으로 기록하고,
+점수·배분·레버리지를 만들지 않으며, **해당 날짜에 이미 저장돼 있던 배분을
+삭제한다.** 나쁜 데이터가 이전 조언을 그대로 세워두지 않게 하기 위해서다.
+
 ---
 
 ## 4.2 Streamlit Dashboard
@@ -279,6 +304,20 @@ alert_events
 pipeline_runs
 strategy_versions
 ```
+
+구현 시 추가된 테이블:
+
+```text
+schema_migrations       스키마 버전 기록
+data_quality_findings   교차검증 불일치 (TASK-028)
+```
+
+`data_quality_findings` 가 필요한 이유는 BACKTEST_SPEC §5.5 때문이다.
+불일치를 자동 수정하지 않고 REVIEW 로 '남겨야' 하므로, 관측 자체와 별개로
+사람이 검토할 대상을 담을 곳이 있어야 한다.
+
+모든 일일 기록 테이블은 자연키에 UNIQUE 제약을 갖는다. 재실행이 중복을
+만들 수 없는 것은 애플리케이션 로직이 아니라 DB 제약으로 보장된다.
 
 ---
 
@@ -559,3 +598,41 @@ GitHub Actions의 test workflow와 daily workflow를 분리한다.
 5. Streamlit은 Dashboard 역할 중심.
 6. Daily Worker는 batch job으로 동작.
 7. 모든 전략 파라미터는 versioned configuration으로 관리.
+
+---
+
+# 20. Research / Production Separation
+
+`BACKTEST_SPEC.md` §28 의 요구를 패키지 경계로 구현한다.
+
+```text
+regime_monitor.research/     연구 경로
+  backtest_runner.py         전체 체인 백테스트
+  search.py                  파라미터 탐색 (TASK-080~085)
+  walk_forward.py            TASK-091
+  sensitivity.py             TASK-093
+  splits.py                  데이터셋 분할 + OOS 가드
+  freeze.py                  TASK-101/102
+  reports.py                 아티팩트
+
+regime_monitor.pipeline/     운영 경로
+  daily.py                   일일 워커
+  queries.py                 대시보드 조회 (read-only)
+```
+
+**`pipeline` 은 `research` 를 import 하지 않는다.** 이는 규약이 아니라 테스트로
+강제된다 (`tests/backtest/test_leakage.py`). 운영 워커가 optimizer 를 호출해
+전략을 바꾸는 경로가 물리적으로 존재하지 않는다.
+
+마찬가지로 대시보드(`app/streamlit_app.py`)는 엔진 모듈을 import 하지 않으며,
+DB 를 read-only 로 연다.
+
+---
+
+# 21. OOS Protection
+
+`SplitGuard` 가 보호 구간에 대한 최적화 접근을 예외로 막는다 (`BACKTEST_SPEC.md`
+§20). 긴 프로젝트에서 규율은 먼저 무너지므로, 구조로 막는다.
+
+해제는 가능하지만 명시적이어야 하고 사유를 요구하며, 해제 순간 그 구간이 더는
+깨끗한 OOS 가 아니라는 경고를 로그에 남긴다.
