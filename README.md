@@ -116,14 +116,6 @@ python scripts/backtest.py --profile placeholder --start 2015-01-01 --end 2024-1
 streamlit run app/streamlit_app.py     # http://localhost:8501
 ```
 
-### Docker
-
-```bash
-docker compose up dashboard                                   # 대시보드
-docker compose run --rm daily --profile placeholder --dry-run # 워커
-docker compose run --rm backtest                              # 백테스트
-```
-
 ---
 
 ## 설정
@@ -134,6 +126,7 @@ docker compose run --rm backtest                              # 백테스트
 | `config/strategy.yaml` | **운영 전략.** 현재 전부 `null` |
 | `config/alerts.yaml` | 알림 규칙. secret 이 아니라 환경변수 '이름'만 보관 |
 | `config/data_sources.yaml` | 데이터 소스와 provenance |
+| `config/research/candidate.strategy.yaml` | 운영자가 결정한 항목 + 연구가 채울 항목 |
 | `config/research/placeholder.*.yaml` | RESEARCH_PLACEHOLDER 프로파일. 운영 경로에서 거부된다 |
 
 ### 환경변수
@@ -147,15 +140,38 @@ docker compose run --rm backtest                              # 백테스트
 
 `.env.example` 참고. secret 은 코드·config·DB 어디에도 저장하지 않는다.
 
-### 운영자가 직접 배치해야 하는 파일
+### 외부 데이터
 
-일부 소스는 공개 API 가 없어 파일로 받는다. `data/reference/README.md` 참고.
+CNN Fear & Greed 과거 데이터와 AAII 주간 설문은 공개 API 가 없어 파일로 받는다.
+자동 수집 스크립트가 있다.
 
-- `data/reference/proshares/{qld,tqqq}.csv` — 교차검증 기준 (TASK-028)
-- `data/reference/cnn/fear_greed_history.csv` — CNN 재구성 과거 데이터
-- `data/reference/aaii/sentiment.csv` — AAII 주간 설문
+```bash
+python scripts/fetch_reference.py
+```
+
+| 파일 | 범위 | 비고 |
+| --- | --- | --- |
+| `data/reference/cnn/fear_greed_history.csv` | 2011~ | 재구성 데이터. 닷컴·금융위기를 덮지 못한다 |
+| `data/reference/aaii/sentiment.csv` | 1987~ | AAII 공식. 닷컴·금융위기 모두 포함 |
+| `data/reference/proshares/{qld,tqqq}.csv` | 수동 | 교차검증 기준 (TASK-028) |
 
 없어도 파이프라인은 동작한다. 해당 지표가 선택적으로 제외될 뿐이다.
+
+### 레버리지 ETF 과거 재구성
+
+QLD(2006~)와 TQQQ(2010~)는 닷컴버블과 금융위기에 존재하지 않았다. 두 구간은
+전략의 가장 중요한 보정 지점이므로, QQQ 에서 합성해 1996 년까지 소급한다.
+
+```text
+r_L = L·r_QQQ − (L−1)·실효연방기금금리 − drag
+```
+
+실제 펀드 대비 검증: QLD 20.2년 R²=0.990(누적오차 −1.5%),
+TQQQ 16.6년 R²=0.997(누적오차 −8.3%, 보수적 방향).
+
+재구성된 행은 전부 `quality_status = REVIEW` 로 저장되고 provenance 에 재구성
+사실이 기록된다. **모든 지표는 QQQ 에서 계산되므로 재구성은 NAV 경로에만
+영향을 주고 레짐 신호는 건드리지 않는다.**
 
 ---
 
@@ -226,6 +242,9 @@ src/regime_monitor/
 - **실패는 추측을 만들지 않는다.** 필수 데이터가 없으면 레짐 UNKNOWN,
   점수·배분·레버리지 모두 없음, DATA_FAILURE 알림.
 - **재실행이 중복을 만들지 않는다.** 상태·이벤트·알림 모두 자연키 UNIQUE.
+- **하락 중에는 레버리지가 잠긴다.** 200일선 아래에서는 목표 레버리지가
+  상한에 걸린다. 공포 점수만으로는 "떨어지는 중"과 "바닥"을 구분할 수 없기
+  때문이다.
 - **자동매매 코드가 없다.** 증권사 API 의존성도, 주문 경로도 존재하지 않는다.
 
 ---

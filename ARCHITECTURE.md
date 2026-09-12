@@ -78,7 +78,6 @@ nasdaq-leverage-regime-monitor/
 ├── CLAUDE_CODE_INITIAL_PROMPT.md
 │
 ├── pyproject.toml
-├── Dockerfile
 ├── .env.example
 ├── .gitignore
 │
@@ -100,7 +99,7 @@ nasdaq-leverage-regime-monitor/
 │       ├── indicators/
 │       ├── scoring/
 │       ├── regime/
-│       ├── allocation/
+│       ├── allocation/        # 배분 + TQQQ 게이트 + 추세 필터
 │       ├── backtest/
 │       ├── research/        # 연구 경로 (§20)
 │       ├── pipeline/        # 일일 워커 + 대시보드 조회
@@ -110,6 +109,7 @@ nasdaq-leverage-regime-monitor/
 ├── scripts/
 │   ├── daily_runner.py
 │   ├── backtest.py
+│   ├── fetch_reference.py
 │   └── freeze.py
 │
 ├── app/

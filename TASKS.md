@@ -642,11 +642,12 @@ benchmark 비교.
 
 ---
 
-# Phase 15 — Docker / Deployment
+# Phase 15 — Deployment
 
-## TASK-150 Dockerfile
+## TASK-150 Dockerfile — 제외됨 (2026-09-12)
 
-Application container build.
+운영 경로(GitHub Actions + Streamlit Cloud + Telegram)에 컨테이너가 쓰이지
+않아 운영자 결정으로 제거했다.
 
 ---
 
@@ -744,7 +745,7 @@ frozen strategy 명세.
 [x] GitHub Actions daily 실행     ← 워크플로 완성. frozen 이후 자동 시작
 [x] Telegram alert 정상
 [x] Streamlit dashboard 정상
-[~] Docker 실행 정상              ← 이 환경에 Docker 데몬이 없어 빌드 미검증
+[-] Docker 실행 정상              ← 운영자 결정으로 범위에서 제외
 [x] 자동주문 기능 없음
 ```
 
@@ -762,7 +763,7 @@ Phase 8~10 은 탐색·walk-forward·민감도 분석·freeze·회귀 검증 도
 - `config/frozen/` 에 manifest 와 회귀 기준이 생기며
 - daily-monitor 워크플로가 자동으로 실행을 시작한다
 
-**Docker 는 정합성만 검증했다.** Dockerfile / compose / entrypoint 가 실재하는
-파일을 참조하는지, 대시보드가 DB 를 :ro 로 마운트하는지, 비밀값이 이미지에
-들어가지 않는지는 테스트로 고정되어 있으나, 이미지 빌드 자체는 Docker 데몬이
-있는 환경에서 확인해야 한다.
+**Docker 는 범위에서 제외했다.** 운영 경로는 GitHub Actions + Streamlit Cloud +
+Telegram 이고 그 어디에도 컨테이너가 쓰이지 않는다. 유지할 이유가 없어
+2026-09-12 에 Dockerfile / docker-compose.yml / docker-entrypoint.sh /
+.dockerignore 를 제거했다. 나중에 다른 호스트로 옮기게 되면 그때 다시 만든다.

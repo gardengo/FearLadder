@@ -419,6 +419,48 @@ class TqqqGateSpec(_Base):
         return self.min_confirmations is not None and self.required_rules is not None
 
 
+class TrendFilterSpec(_Base):
+    """Leverage into fear, but not into a falling market.
+
+    Measured over 1999-2015, a fear-only ladder is ruinous: the score reaches
+    capitulation months into a long decline while the market keeps falling. This
+    adds the second condition — the leveraged end of the ladder is available
+    only while the long-term trend holds.
+
+    Structural, not a preference: it says *when* leverage is permitted. Which
+    indicator, which level and what cap are research parameters.
+    """
+
+    enabled: bool = False
+    #: Raw indicator read as the trend signal, e.g. ``price_vs_200dma``.
+    indicator: str | None = None
+    #: Value at or above which the trend counts as intact.
+    threshold: float | None = None
+    #: Ceiling on target leverage while the trend is broken.
+    max_leverage_below: Annotated[float, Field(ge=0.0, le=3.0)] | None = None
+    research_candidates: dict[str, tuple[float, ...]] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _a_cap_must_actually_cap(self) -> Self:
+        caps_nothing = (
+            self.enabled
+            and self.max_leverage_below is not None
+            and self.max_leverage_below >= 3.0
+        )
+        if caps_nothing:
+            raise ConfigError(
+                "max_leverage_below=3.0 caps nothing; disable the filter "
+                "instead of configuring it to do nothing"
+            )
+        return self
+
+    @property
+    def is_resolved(self) -> bool:
+        if not self.enabled:
+            return True
+        return None not in (self.indicator, self.threshold, self.max_leverage_below)
+
+
 class ExecutionSpec(_Base):
     """BACKTEST_SPEC.md 5 - signal at t close, execution at t+1."""
 
@@ -504,6 +546,7 @@ class StrategyConfig(_Base):
     transition: TransitionSpec = TransitionSpec()
     allocation: AllocationSpec = AllocationSpec()
     tqqq_gate: TqqqGateSpec = TqqqGateSpec()
+    trend_filter: TrendFilterSpec = TrendFilterSpec()
     execution: ExecutionSpec = ExecutionSpec()
     cost_model: CostModelSpec = CostModelSpec()
     dataset_split: DatasetSplitSpec = DatasetSplitSpec()
@@ -536,6 +579,8 @@ class StrategyConfig(_Base):
             unresolved.append("allocation.mappings")
         if not self.tqqq_gate.is_resolved:
             unresolved.append("tqqq_gate")
+        if not self.trend_filter.is_resolved:
+            unresolved.append("trend_filter")
         if not self.cost_model.is_resolved:
             unresolved.append("cost_model")
         if not self.dataset_split.is_resolved:
@@ -635,6 +680,18 @@ class AppConfig(_Base):
                 raise ConfigError(
                     f"indicators.{name} depends on disabled source {spec.source!r}"
                 )
+        trend = self.strategy.trend_filter
+        names_unknown_indicator = (
+            trend.enabled
+            and trend.indicator is not None
+            and trend.indicator not in self.indicators.enabled_indicators
+        )
+        if names_unknown_indicator:
+            raise ConfigError(
+                f"trend_filter.indicator={trend.indicator!r} is not an enabled "
+                f"indicator (known: {sorted(self.indicators.enabled_indicators)})"
+            )
+
         weights = self.strategy.score.weights
         if weights is not None:
             unknown = set(weights) - set(self.indicators.enabled_indicators)

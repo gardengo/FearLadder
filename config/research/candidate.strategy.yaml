@@ -131,6 +131,27 @@ tqqq_gate:
     # breadth_pct_above_200dma is disabled, so this rule can never confirm.
     breadth_capitulation: { indicator: breadth_pct_above_200dma, max_value: 0.15 }
 
+# ---------------------------------------------------------------------------
+# DECIDED (structure) — the trend filter
+#
+# A fear-only ladder is ruinous over a long decline: measured on 1999-2015 the
+# candidate reached capitulation six months into the dot-com crash and levered
+# up while the market halved twice, finishing at -96.9% against QQQ's -77.2%.
+# Fear is not the bottom, and a fear score cannot tell the difference.
+#
+# So leverage above the cap is available only while the long-term trend holds.
+# The operator decided the rule; the indicator, the level and the cap are
+# starting points for TASK-083.
+# ---------------------------------------------------------------------------
+trend_filter:
+  enabled: true
+  indicator: price_vs_200dma
+  threshold: 0.0 # price at or above its 200-day average
+  max_leverage_below: 1.0
+  research_candidates:
+    threshold: [-0.05, -0.02, 0.0, 0.02]
+    max_leverage_below: [0.5, 1.0, 1.5]
+
 execution:
   timing: NEXT_OPEN
   same_day_execution_allowed: false

@@ -144,7 +144,7 @@ Regime Change 감지
 - Historical Backtest
 - OOS / Walk-Forward validation
 - Strategy Freeze
-- Docker 지원
+- ~~Docker 지원~~ (2026-09-12 제외: 운영 경로에 컨테이너가 쓰이지 않음)
 
 ## 5.2 제외
 

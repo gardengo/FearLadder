@@ -15,13 +15,15 @@ The regime→weights table itself is a research parameter and stays ``null`` in
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Self
 
+from regime_monitor.allocation.sleeves import leverage_of
 from regime_monitor.allocation.tqqq_gate import GateContext, GateDecision, TqqqGate
+from regime_monitor.allocation.trend_filter import TrendFilter, TrendVerdict
 from regime_monitor.config.schema import AllocationConstraints, AllocationSpec, AppConfig
-from regime_monitor.constants import ASSET_LEVERAGE, UNKNOWN_REGIME, Asset
+from regime_monitor.constants import UNKNOWN_REGIME, Asset
 from regime_monitor.data.models import TargetAllocation
 
 logger = logging.getLogger(__name__)
@@ -46,6 +48,7 @@ class AllocationDecision:
     regime: str
     reason_codes: tuple[str, ...] = ()
     gate: GateDecision | None = None
+    trend: TrendVerdict | None = None
 
     @property
     def target_leverage(self) -> float | None:
@@ -60,6 +63,11 @@ class AllocationEngine:
     constraints: AllocationConstraints
     gate: TqqqGate
     strategy_version: str
+    trend_filter: TrendFilter = field(
+        default_factory=lambda: TrendFilter(
+            indicator="", threshold=0.0, max_leverage_below=0.0, enabled=False
+        )
+    )
     gate_fallback_asset: Asset = DEFAULT_GATE_FALLBACK
 
     @classmethod
@@ -78,6 +86,7 @@ class AllocationEngine:
             constraints=spec.constraints,
             gate=TqqqGate.from_spec(config.strategy.tqqq_gate),
             strategy_version=config.strategy.strategy_version,
+            trend_filter=TrendFilter.from_spec(config.strategy.trend_filter),
         )
         engine.validate_mappings()
         return engine
@@ -88,7 +97,9 @@ class AllocationEngine:
         for label, weights in self.mappings.items():
             self._check_portfolio(label, weights)
 
-    def _check_portfolio(self, label: str, weights: dict[Asset, float]) -> None:
+    def _check_portfolio(
+        self, label: str, weights: dict[Asset, float], *, trend_capped: bool = False
+    ) -> None:
         if label == UNKNOWN_REGIME:
             raise AllocationError(f"{UNKNOWN_REGIME} must not carry an allocation")
         if self.constraints.weights_non_negative and any(w < 0 for w in weights.values()):
@@ -99,14 +110,18 @@ class AllocationEngine:
 
         exposure = 1.0 - weights.get(Asset.CASH, 0.0)
         floor = self.constraints.min_market_exposure
+        # PRD.md 2.1 forbids a full exit *because the market is overheated*. A
+        # defensive cap in a broken downtrend is a different decision, so the
+        # floor is not applied to it — but a total exit is still refused.
+        if trend_capped:
+            floor = 0.0 if floor is None else min(floor, 0.0)
         if floor is not None and exposure < floor - WEIGHT_TOLERANCE:
-            # PRD.md 2.1: never a full exit, however overheated.
             raise AllocationError(
                 f"allocation for {label!r} leaves only {exposure:.2%} market exposure, "
                 f"below the {floor:.2%} floor"
             )
 
-        leverage = _leverage(weights)
+        leverage = leverage_of(weights)
         ceiling = self.constraints.max_target_leverage
         if ceiling is not None and leverage > ceiling + WEIGHT_TOLERANCE:
             raise AllocationError(
@@ -142,6 +157,15 @@ class AllocationEngine:
 
         reasons: list[str] = [f"REGIME_MAPPING:{regime}"]
         gate_decision: GateDecision | None = None
+        trend_verdict: TrendVerdict | None = None
+
+        # The trend filter runs first. Capping leverage can remove the TQQQ
+        # sleeve outright, and there is no point asking the bottom-confirmation
+        # gate about a sleeve the book no longer holds.
+        if self.trend_filter.enabled:
+            observed = context.value(self.trend_filter.indicator) if context else None
+            weights, trend_verdict = self.trend_filter.apply(weights, observed)
+            reasons.extend(trend_verdict.reason_codes())
 
         if weights.get(Asset.TQQQ, 0.0) > 0:
             gate_context = context or GateContext(
@@ -153,7 +177,9 @@ class AllocationEngine:
                 weights = self._veto_tqqq(weights)
                 reasons.append(f"TQQQ_REALLOCATED_TO:{self.gate_fallback_asset.value}")
 
-        self._check_portfolio(regime, weights)
+        self._check_portfolio(
+            regime, weights, trend_capped=bool(trend_verdict and trend_verdict.capped)
+        )
         allocation = TargetAllocation(
             observation_date=observation_date,
             weights=weights,
@@ -166,6 +192,7 @@ class AllocationEngine:
             regime=regime,
             reason_codes=tuple(reasons),
             gate=gate_decision,
+            trend=trend_verdict,
         )
 
     def _veto_tqqq(self, weights: dict[Asset, float]) -> dict[Asset, float]:
@@ -180,15 +207,10 @@ class AllocationEngine:
     def target_leverage(self, regime: str) -> float:
         """Leverage the un-gated mapping implies for a regime."""
         try:
-            return _leverage(self.mappings[regime])
+            return leverage_of(self.mappings[regime])
         except KeyError as exc:
             raise AllocationError(f"unknown regime {regime!r}") from exc
 
     def leverage_ladder(self, labels: tuple[str, ...]) -> dict[str, float]:
         """Target leverage per regime, in the scale's fear→greed order."""
         return {label: self.target_leverage(label) for label in labels}
-
-
-def _leverage(weights: dict[Asset, float]) -> float:
-    """``L = 1·w_QQQ + 2·w_QLD + 3·w_TQQQ`` (``BACKTEST_SPEC.md`` 14)."""
-    return sum(ASSET_LEVERAGE[asset] * weight for asset, weight in weights.items())

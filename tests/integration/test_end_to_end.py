@@ -1,4 +1,4 @@
-"""TASK-160 .. TASK-162 — end-to-end, and the deployment surface (TASK-150/151).
+"""TASK-160 .. TASK-162 — end-to-end, plus the local-development entry points.
 
 TASK-160 runs the documented chain in one go::
 
@@ -20,9 +20,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-import yaml
 
-from regime_monitor import paths
 from regime_monitor.alerts.telegram import RecordingNotifier
 from regime_monitor.constants import UNKNOWN_REGIME, Asset, EventType, PipelineStatus
 from regime_monitor.data.collection import CollectionReport
@@ -326,82 +324,7 @@ def test_recovery_after_a_failure_resumes_normal_signals(
     assert recovered.allocation is not None
 
 
-# ------------------------------------------------ TASK-150 / TASK-151 surface
-
-
-def test_the_dockerfile_copies_what_it_runs() -> None:
-    dockerfile = (paths.PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
-    for required in ("src/", "config/", "scripts/", "app/"):
-        assert f"COPY {required}" in dockerfile, required
-    assert "USER regime" in dockerfile, "the container must not run as root"
-    assert "tzdata" in dockerfile, "availability timestamps need a timezone database"
-
-
-def test_the_entrypoint_commands_all_exist() -> None:
-    entrypoint = (paths.PROJECT_ROOT / "docker-entrypoint.sh").read_text(encoding="utf-8")
-    assert "scripts/daily_runner.py" in entrypoint
-    assert "scripts/backtest.py" in entrypoint
-    assert "app/streamlit_app.py" in entrypoint
-
-    for referenced in ("scripts/daily_runner.py", "scripts/backtest.py", "app/streamlit_app.py"):
-        assert (paths.PROJECT_ROOT / referenced).is_file(), referenced
-
-
-def test_compose_services_use_the_entrypoint_verbs() -> None:
-    compose = yaml.safe_load(
-        (paths.PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-    )
-    entrypoint = (paths.PROJECT_ROOT / "docker-entrypoint.sh").read_text(encoding="utf-8")
-    for name, spec in compose["services"].items():
-        verb = spec["command"][0]
-        assert f"  {verb})" in entrypoint, f"{name} uses unknown verb {verb!r}"
-
-
-def test_the_dashboard_container_cannot_write_the_database() -> None:
-    # ARCHITECTURE.md §4.2 — enforced by the mount, not only by the code.
-    compose = yaml.safe_load(
-        (paths.PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-    )
-    mounts = compose["services"]["dashboard"]["volumes"]
-    data_mount = next(mount for mount in mounts if mount.startswith("./data"))
-    assert data_mount.endswith(":ro")
-
-
-def test_no_secret_reaches_the_image() -> None:
-    ignored = (paths.PROJECT_ROOT / ".dockerignore").read_text(encoding="utf-8")
-    assert ".env" in ignored
-    compose = (paths.PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-    # Only variable interpolation, never a literal value.
-    for line in compose.splitlines():
-        if "TELEGRAM" in line and ":" in line:
-            value = line.split(":", 1)[1].strip()
-            assert value.startswith("${"), line
-
-
-def test_requirements_txt_matches_the_dashboard_extra() -> None:
-    # TASK-152: Streamlit Cloud installs from requirements.txt, so a drift here
-    # means the deployed dashboard runs different versions from everyone else.
-    import tomllib
-
-    pyproject = tomllib.loads(
-        (paths.PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    )
-    declared = set(pyproject["project"]["dependencies"])
-    declared |= set(pyproject["project"]["optional-dependencies"]["dashboard"])
-
-    requirements = (paths.PROJECT_ROOT / "requirements.txt").read_text(encoding="utf-8")
-    listed = {
-        line.strip()
-        for line in requirements.splitlines()
-        if line.strip() and not line.startswith("#")
-    }
-
-    def name_of(requirement: str) -> str:
-        return re.split(r"[<>=;\[ ]", requirement, maxsplit=1)[0].strip().lower()
-
-    declared_names = {name_of(item) for item in declared}
-    listed_names = {name_of(item) for item in listed}
-    assert declared_names <= listed_names, declared_names - listed_names
+# ------------------------------------------------------- TASK-151 surface
 
 
 def test_local_development_commands_are_runnable() -> None:

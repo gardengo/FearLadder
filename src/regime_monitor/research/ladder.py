@@ -11,19 +11,10 @@ quantity the strategy actually reasons about. Interpolating portfolio weights
 instead would let a blend invent positions nobody chose (TQQQ appearing in a
 mildly fearful regime, say).
 
-Turning a leverage number back into a portfolio uses the *adjacent sleeve* rule:
-
-===============  =========================
-Target leverage  Portfolio
-===============  =========================
-0 ≤ L ≤ 1        QQQ L, Cash 1−L
-1 ≤ L ≤ 2        QLD L−1, QQQ 2−L
-2 ≤ L ≤ 3        TQQQ L−2, QLD 3−L
-===============  =========================
-
-One sleeve up, one sleeve down, never more. That makes the ladder monotone,
-unique, and explainable in a sentence — which matters when an alert has to
-justify itself.
+Turning a leverage number back into a portfolio is the *adjacent sleeve* rule in
+:mod:`regime_monitor.allocation.sleeves`. That rule is a domain fact rather than
+a research choice, so it lives on the production side and the trend filter uses
+the same one.
 """
 
 from __future__ import annotations
@@ -31,41 +22,29 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from regime_monitor.constants import ASSET_LEVERAGE, Asset
+from regime_monitor.allocation.sleeves import (
+    MAX_LEVERAGE,
+    SleeveError,
+    leverage_of,
+    market_exposure,
+    portfolio_for,
+)
+from regime_monitor.constants import Asset
 
-WEIGHT_TOLERANCE = 1e-9
-MAX_LEVERAGE = 3.0
+__all__ = [
+    "LadderError",
+    "LadderSpec",
+    "build_ladder",
+    "default_labels",
+    "describe",
+    "leverage_of",
+    "market_exposure",
+    "portfolio_for",
+]
 
 
-class LadderError(ValueError):
+class LadderError(SleeveError):
     """Raised when a ladder cannot be built as specified."""
-
-
-def portfolio_for(leverage: float) -> dict[Asset, float]:
-    """The unique adjacent-sleeve portfolio with this target leverage."""
-    if not 0.0 <= leverage <= MAX_LEVERAGE:
-        raise LadderError(f"target leverage {leverage} is outside [0, {MAX_LEVERAGE}]")
-
-    if leverage <= 1.0:
-        weights = {Asset.QQQ: leverage, Asset.CASH: 1.0 - leverage}
-    elif leverage <= 2.0:
-        weights = {Asset.QLD: leverage - 1.0, Asset.QQQ: 2.0 - leverage}
-    else:
-        weights = {Asset.TQQQ: leverage - 2.0, Asset.QLD: 3.0 - leverage}
-
-    return {
-        asset: round(weight, 10)
-        for asset, weight in weights.items()
-        if weight > WEIGHT_TOLERANCE
-    }
-
-
-def leverage_of(weights: dict[Asset, float]) -> float:
-    return sum(ASSET_LEVERAGE[asset] * weight for asset, weight in weights.items())
-
-
-def market_exposure(weights: dict[Asset, float]) -> float:
-    return 1.0 - weights.get(Asset.CASH, 0.0)
 
 
 @dataclass(frozen=True, slots=True)
