@@ -49,7 +49,25 @@ price:
     price_tolerance_pct: 1.0
     on_mismatch: REVIEW # never auto-correct (BACKTEST_SPEC.md §5.5)
 
+# The cash sleeve is not dead money. This strategy sits in cash roughly a fifth
+# of the time, so paying it nothing understates every defensive rule.
+cash_rate_series: CASH_RATE
+
 series:
+  CASH_RATE:
+    provider: finance_datareader
+    underlying_source: "FRED DTB3 - 3-month Treasury bill, secondary market rate"
+    series_id: "FRED:DTB3"
+    mandatory: false
+    availability_lag_days: 1
+    max_staleness_days: 7
+    notes: >-
+      Stands in for an ultra-short Treasury holding (SGOV and its peers). SGOV
+      itself only lists from 2020-05, far short of the 1999 research window, so
+      the bill rate it tracks is used instead. Cross-checked over the overlap:
+      SGOV's realised 12-month total return against DTB3's 12-month average
+      differs by a mean of +0.02%p (median +0.10%p, sd 0.27%p).
+
   VIX:
     provider: finance_datareader
     underlying_source: "Cboe VIX (cross-checked against FRED VIXCLS)"

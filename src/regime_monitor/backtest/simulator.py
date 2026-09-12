@@ -118,6 +118,9 @@ class PortfolioSimulator:
     cost_model: CostModel = field(default_factory=CostModel.zero)
     execution_timing: ExecutionTiming = ExecutionTiming.NEXT_OPEN
     initial_nav: float = 1.0
+    #: Annualised percent (5.0 = 5%) earned by the cash sleeve, by date. None
+    #: leaves cash at zero.
+    cash_rates: Series | None = None
 
     def __post_init__(self) -> None:
         if self.closes.empty:
@@ -132,6 +135,8 @@ class PortfolioSimulator:
             )
         if self.opens is not None and not self.opens.index.equals(self.closes.index):
             raise SimulationError("opens and closes must share an index")
+        if self.cash_rates is not None and not self.cash_rates.index.is_monotonic_increasing:
+            raise SimulationError("cash rates must be sorted by date")
 
     # -- public API --------------------------------------------------------
     def run(
@@ -302,8 +307,28 @@ class PortfolioSimulator:
                 result[asset] = 0.0
             else:
                 result[asset] = float(end) / float(begin) - 1.0
-        result[Asset.CASH] = 0.0
+        result[Asset.CASH] = self._cash_return(from_day, to_day)
         return result
+
+    def _cash_return(self, from_day: date, to_day: date) -> float:
+        """What the cash sleeve earned between two trading days.
+
+        The rate is the one quoted on ``from_day`` - the last one knowable when
+        the period began - so no return is ever earned at a rate published
+        after the fact. Accrual is ACT/365 over calendar days, which pays the
+        weekend a bill actually earns and returns exactly the quoted rate over
+        a full year.
+        """
+        if self.cash_rates is None:
+            return 0.0
+        quoted = self.cash_rates.get(from_day)
+        if quoted is None or pd.isna(quoted):
+            # An unknown rate earns nothing rather than carrying a stale one.
+            return 0.0
+        days = (to_day - from_day).days
+        if days <= 0:
+            return 0.0
+        return float(quoted) / 100.0 * days / 365.0
 
     def _reject_unknown_assets(self, targets: Mapping[date, Weights]) -> None:
         priced = {Asset(str(column)) for column in self.closes.columns} | {Asset.CASH}

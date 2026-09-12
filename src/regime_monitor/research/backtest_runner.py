@@ -56,6 +56,8 @@ class MarketData:
     series: DataFrame
     closes: DataFrame
     opens: DataFrame | None = None
+    #: Annualised percent earned by the cash sleeve, by date.
+    cash_rates: Series | None = None
 
     def __post_init__(self) -> None:
         if self.series.empty:
@@ -79,10 +81,20 @@ class MarketData:
                 mask &= Series(frame.index <= end, index=frame.index)
             return frame.loc[mask]
 
+        rates = self.cash_rates
+        if rates is not None:
+            keep = Series(True, index=rates.index)
+            if start is not None:
+                keep &= Series(rates.index >= start, index=rates.index)
+            if end is not None:
+                keep &= Series(rates.index <= end, index=rates.index)
+            rates = rates.loc[keep]
+
         return MarketData(
             series=cut(self.series),  # type: ignore[arg-type]
             closes=cut(self.closes),  # type: ignore[arg-type]
             opens=cut(self.opens),
+            cash_rates=rates,
         )
 
 
@@ -176,6 +188,7 @@ class StrategyBacktest:
             opens=windowed.opens,
             cost_model=self.cost_model or CostModel.from_spec(strategy.cost_model),
             execution_timing=strategy.execution.timing,
+            cash_rates=windowed.cash_rates,
         )
         result = simulator.run(targets, name=name)
         windowed_decisions = [

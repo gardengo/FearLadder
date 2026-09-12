@@ -176,12 +176,25 @@ class DataSourcesConfig(_Base):
     version: int
     price: PriceSourceSpec
     series: dict[str, SeriesSourceSpec]
+    #: Key in ``series`` whose value is the annualised rate the cash sleeve
+    #: earns. ``None`` leaves cash at zero, which understates any rule that
+    #: holds cash - and this strategy holds roughly a fifth of the book in it.
+    cash_rate_series: str | None = None
 
     @property
     def mandatory_series(self) -> tuple[str, ...]:
         return tuple(
             name for name, spec in self.series.items() if spec.enabled and spec.mandatory
         )
+
+    @model_validator(mode="after")
+    def _cash_rate_names_a_real_series(self) -> Self:
+        named = self.cash_rate_series
+        if named is not None and named not in self.series:
+            raise ConfigError(
+                f"cash_rate_series={named!r} is not in series: {sorted(self.series)}"
+            )
+        return self
 
 
 # --------------------------------------------------------------------------

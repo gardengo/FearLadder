@@ -318,8 +318,21 @@ def test_breadth_fails_loudly_instead_of_returning_a_biased_series() -> None:
 def test_registry_builds_every_enabled_series(placeholder_config, tmp_path: Path) -> None:
     registry = build_registry(placeholder_config.data_sources, reference_dir=tmp_path)
     assert isinstance(registry, ProviderRegistry)
-    assert set(registry.series) == {"VIX", "CNN_FEAR_GREED", "AAII_SENTIMENT"}
+    assert set(registry.series) == {
+        "VIX",
+        "CNN_FEAR_GREED",
+        "AAII_SENTIMENT",
+        "CASH_RATE",
+    }
     assert "BREADTH_NDX" in registry.disabled
+
+
+def test_the_cash_rate_series_is_named_and_collectable(placeholder_config) -> None:
+    """The cash sleeve is priced, so the series that prices it must exist."""
+    sources = placeholder_config.data_sources
+    named = sources.cash_rate_series
+    assert named is not None
+    assert sources.series[named].enabled
 
 
 def test_registry_refuses_a_disabled_series_with_its_reason(

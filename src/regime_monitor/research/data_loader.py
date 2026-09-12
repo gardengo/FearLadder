@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from datetime import date, datetime
 
-from pandas import DataFrame
+from pandas import DataFrame, Series
 
 from regime_monitor.config.schema import AppConfig
 from regime_monitor.constants import Asset
@@ -21,8 +21,15 @@ logger = logging.getLogger(__name__)
 
 
 def required_symbols(config: AppConfig) -> list[str]:
-    """Every source an enabled indicator reads, plus the tradable sleeves."""
+    """Every source an enabled indicator reads, plus the tradable sleeves.
+
+    The cash rate is included even though no indicator reads it: it prices the
+    cash sleeve rather than feeding the signal.
+    """
     sources = {spec.source for spec in config.indicators.enabled_indicators.values()}
+    cash = config.data_sources.cash_rate_series
+    if cash is not None:
+        sources.add(cash)
     return sorted(sources | set(config.data_sources.price.symbols))
 
 
@@ -64,7 +71,36 @@ def load_market_data(
     opens = opens.reindex(closes.index)
     series = series.reindex(series.index)
 
-    return MarketData(series=series, closes=closes, opens=opens)
+    return MarketData(
+        series=series,
+        closes=closes,
+        opens=opens,
+        cash_rates=_cash_rates(series, config),
+    )
+
+
+def _cash_rates(series: DataFrame, config: AppConfig) -> Series | None:
+    """The configured short rate, aligned to the series index.
+
+    A missing column is not an error: the collector may not have run for it
+    yet, and a backtest with cash at zero is merely conservative. It is logged
+    so the omission is visible rather than silent.
+    """
+    name = config.data_sources.cash_rate_series
+    if name is None:
+        return None
+    if name not in series.columns:
+        logger.warning("cash rate series %s not collected; cash will earn nothing", name)
+        return None
+    rates = series[name].dropna()
+    if rates.empty:
+        logger.warning("cash rate series %s is empty; cash will earn nothing", name)
+        return None
+    logger.info(
+        "cash rate %s: %d observations, %s..%s, mean %.2f%%",
+        name, len(rates), rates.index.min(), rates.index.max(), rates.mean(),
+    )
+    return rates
 
 
 def _price_field(

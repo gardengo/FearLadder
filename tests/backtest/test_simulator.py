@@ -7,7 +7,7 @@ from datetime import date, timedelta
 import numpy as np
 import pandas as pd
 import pytest
-from pandas import DataFrame
+from pandas import DataFrame, Series
 
 from regime_monitor.backtest.benchmarks import (
     BenchmarkSpec,
@@ -395,3 +395,92 @@ def test_metrics_read_straight_off_a_result() -> None:
     assert metrics.trade_count == 1
     assert metrics.turnover == pytest.approx(1.0)
     assert metrics.regime_change_count == 3
+
+
+# ------------------------------------------------------------- cash accrual
+#
+# The strategy sits in cash roughly a fifth of the time, so paying it nothing
+# is not neutral - it systematically understates every defensive rule.
+#
+# Note the T+1 offset throughout: a target decided on day 0 is executed on
+# day 1, so accrual only starts from day 1.
+
+
+def _cash_only_prices(days: list[date]) -> DataFrame:
+    return DataFrame({Asset.QQQ.value: [100.0] * len(days)}, index=days)
+
+
+def _run_cash(days: list[date], rates: Series | None, weights=None):
+    sim = PortfolioSimulator(
+        closes=_cash_only_prices(days),
+        execution_timing=ExecutionTiming.NEXT_CLOSE,
+        cash_rates=rates,
+    )
+    return sim.run({days[0]: weights or {Asset.CASH: 1.0}})
+
+
+def _accrued(days: list[date], annual_pct: float, cash_weight: float = 1.0) -> float:
+    """ACT/365 compounding, reimplemented independently of the simulator."""
+    held, value = days[1:], 1.0
+    for start, finish in zip(held, held[1:], strict=False):
+        value *= 1 + cash_weight * annual_pct / 100 * (finish - start).days / 365
+    return value
+
+
+def test_cash_earns_nothing_without_a_rate() -> None:
+    days = [date(2024, 1, 1) + timedelta(n) for n in range(11)]
+    assert _run_cash(days, None).nav.iloc[-1] == pytest.approx(1.0)
+
+
+def test_cash_accrues_the_quoted_rate() -> None:
+    days = [date(2023, 1, 1) + timedelta(n) for n in range(400)]
+    result = _run_cash(days, Series(5.0, index=days))
+    assert result.nav.iloc[-1] == pytest.approx(_accrued(days, 5.0), rel=1e-12)
+
+
+def test_a_full_year_of_cash_returns_about_the_quoted_rate() -> None:
+    """The economic claim, not just the arithmetic: 5% cash pays ~5% a year."""
+    days = [date(2023, 1, 1) + timedelta(n) for n in range(367)]
+    result = _run_cash(days, Series(5.0, index=days))
+    assert result.nav.iloc[-1] == pytest.approx(1.05, abs=0.002)
+
+
+def test_a_weekend_is_paid() -> None:
+    """Bills accrue every calendar day, not only the ones the market opens."""
+    thursday, friday, monday = date(2024, 1, 4), date(2024, 1, 5), date(2024, 1, 8)
+    days = [thursday, friday, monday]
+    result = _run_cash(days, Series(5.0, index=days))
+    assert result.nav.iloc[-1] == pytest.approx(1 + 0.05 * 3 / 365, rel=1e-12)
+
+
+def test_the_rate_used_is_the_one_known_when_the_period_began() -> None:
+    """No return may be earned at a rate published after the fact."""
+    days = [date(2024, 1, 1) + timedelta(n) for n in range(3)]
+    # The spike lands on the final day; it must not pay the period before it.
+    result = _run_cash(days, Series([2.0, 2.0, 99.0], index=days))
+    assert result.nav.iloc[-1] == pytest.approx(1 + 0.02 / 365, rel=1e-12)
+
+
+def test_a_missing_rate_earns_nothing_rather_than_carrying_a_stale_one() -> None:
+    days = [date(2024, 1, 1) + timedelta(n) for n in range(4)]
+    #                     held from here ^^^ , and day 1's rate is unknown
+    result = _run_cash(days, Series([5.0, float("nan"), 5.0, 5.0], index=days))
+    assert result.nav.iloc[-1] == pytest.approx(1 + 0.05 / 365, rel=1e-12)
+
+
+def test_cash_rates_must_be_sorted() -> None:
+    days = [date(2024, 1, 1) + timedelta(n) for n in range(3)]
+    with pytest.raises(SimulationError, match="sorted"):
+        PortfolioSimulator(
+            closes=_cash_only_prices(days),
+            execution_timing=ExecutionTiming.NEXT_CLOSE,
+            cash_rates=Series([5.0] * 3, index=list(reversed(days))),
+        )
+
+
+def test_only_the_cash_weight_earns_the_rate() -> None:
+    days = [date(2024, 1, 1) + timedelta(n) for n in range(3)]
+    result = _run_cash(
+        days, Series(10.0, index=days), weights={Asset.QQQ: 0.5, Asset.CASH: 0.5}
+    )
+    assert result.nav.iloc[-1] == pytest.approx(_accrued(days, 10.0, 0.5), rel=1e-12)
