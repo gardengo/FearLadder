@@ -81,19 +81,27 @@ class Objective:
     """A multi-metric score, per ``BACKTEST_SPEC.md`` 11.
 
     ``weights`` map a metric name to its contribution. Metrics where *less is
-    better* (MDD, turnover, recovery) carry negative weights. This is a ranking
-    aid for a human reading the table, not an automatic decision rule: nothing
-    in the pipeline acts on it.
+    better* (MDD, turnover) carry negative weights. This is a ranking aid for a
+    human reading the table, not an automatic decision rule: nothing in the
+    pipeline acts on it.
+
+    The terms have to be on comparable scales or one of them silently becomes
+    the whole objective. Raw ``turnover`` is the trap: over a 16-year window it
+    reaches ~340 while CAGR is ~0.06, so any visible weight on it makes the
+    search optimise turnover alone. ``turnover_per_year`` is used instead, and
+    weighted only enough to break ties between otherwise similar candidates —
+    trading costs are already charged inside the NAV, so this is about
+    robustness, not economics.
     """
 
     weights: dict[str, float] = field(
         default_factory=lambda: {
             "cagr": 1.0,
-            "sharpe": 1.0,
-            "sortino": 0.5,
-            "calmar": 1.0,
-            "max_drawdown": -1.0,
-            "turnover": -0.05,
+            "calmar": 0.5,
+            "sharpe": 0.3,
+            "sortino": 0.2,
+            "max_drawdown": -0.5,
+            "turnover_per_year": -0.003,
         }
     )
 

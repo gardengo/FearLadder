@@ -50,8 +50,19 @@ class PerformanceMetrics:
     trade_count: int
     regime_change_count: int = 0
 
+    @property
+    def turnover_per_year(self) -> float:
+        """Turnover at an annual rate.
+
+        Raw turnover scales with the length of the run, so comparing it across
+        windows — or putting it in an objective alongside CAGR — needs the
+        annualised figure. 340x over 16.6 years is 20x a year.
+        """
+        return self.turnover / self.years if self.years > 0 else 0.0
+
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
+        payload["turnover_per_year"] = self.turnover_per_year
         payload["start"] = self.start.isoformat()
         payload["end"] = self.end.isoformat()
         return payload
