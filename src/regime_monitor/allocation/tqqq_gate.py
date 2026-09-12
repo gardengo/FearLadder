@@ -45,6 +45,11 @@ class GateContext:
     indicator_values: Mapping[str, float | None] = field(default_factory=dict)
     composite_score: float | None = None
     regime: str | None = None
+    #: Trend-filter state for this day, already resolved with hysteresis by
+    #: :meth:`~regime_monitor.allocation.trend_filter.TrendFilter.engaged_series`.
+    #: ``None`` leaves the filter to compare today's reading to its threshold,
+    #: which has no memory of yesterday.
+    trend_broken: bool | None = None
 
     def value(self, indicator: str) -> float | None:
         return self.indicator_values.get(indicator)

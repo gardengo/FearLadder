@@ -86,14 +86,21 @@ def trend_candidates(config: AppConfig) -> list[Candidate]:
     grid = config.strategy.trend_filter.research_candidates
     thresholds = grid.get("threshold", (0.0,))
     caps = grid.get("max_leverage_below", (1.0,))
+    # The band is swept as a width above the exit, not as an absolute level, so
+    # every combination stays valid however the threshold moves.
+    bands = grid.get("reentry_band", (0.0,))
 
     candidates = []
-    for threshold, cap in itertools.product(thresholds, caps):
+    for threshold, cap, band in itertools.product(thresholds, caps, bands):
         variant = dict(spec)
-        variant.update(threshold=float(threshold), max_leverage_below=float(cap))
+        variant.update(
+            threshold=float(threshold),
+            max_leverage_below=float(cap),
+            reentry_threshold=float(threshold) + float(band),
+        )
         candidates.append(
             Candidate(
-                label=f"trend(t={threshold:+.2f},cap={cap:.1f})",
+                label=f"trend(t={threshold:+.2f},cap={cap:.1f},band={band:.2f})",
                 overrides={"trend_filter": variant},
                 dimension="trend_filter",
             )

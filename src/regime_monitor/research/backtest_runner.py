@@ -244,6 +244,13 @@ class StrategyBacktest:
             for day, row in values.to_dict(orient="index").items()
         }
 
+        # Hysteresis makes the trend filter stateful, so its state is resolved
+        # over the whole history in one causal pass rather than per day.
+        trend_state: dict[date, bool] = {}
+        filt = engine.trend_filter
+        if filt.enabled and filt.indicator in values.columns:
+            trend_state = filt.engaged_series(values[filt.indicator]).to_dict()
+
         allocations: dict[date, AllocationDecision] = {}
         for decision in decisions:
             if decision.regime == UNKNOWN_REGIME:
@@ -253,6 +260,7 @@ class StrategyBacktest:
                 indicator_values=by_day.get(decision.observation_date, {}),
                 composite_score=decision.score,
                 regime=decision.regime,
+                trend_broken=trend_state.get(decision.observation_date),
             )
             allocations[decision.observation_date] = engine.allocate(
                 decision.regime, decision.observation_date, context=context

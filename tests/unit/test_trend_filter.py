@@ -9,7 +9,9 @@ from __future__ import annotations
 
 from datetime import date
 
+import pandas as pd
 import pytest
+from pandas import Series
 
 from regime_monitor.allocation.engine import AllocationEngine, AllocationError
 from regime_monitor.allocation.sleeves import (
@@ -290,3 +292,106 @@ def test_an_unknown_regime_is_untouched_by_the_filter() -> None:
     decision = _engine().allocate(UNKNOWN_REGIME, DAY, context=_context())
     assert decision.allocation is None
     assert decision.trend is None
+
+
+# ------------------------------------------------------------- hysteresis
+
+
+def _values(*readings: float | None) -> Series:
+    index = pd.date_range("2001-09-03", periods=len(readings), freq="B")
+    return Series(readings, index=index, dtype="float64")
+
+
+def test_without_a_reentry_level_the_filter_has_no_memory() -> None:
+    filt = TrendFilter(indicator="t", threshold=-0.02, max_leverage_below=1.0)
+    engaged = filt.engaged_series(_values(0.01, -0.03, -0.01, -0.03, 0.01))
+    assert list(engaged) == [False, True, False, True, False]
+
+
+def test_a_reentry_level_holds_the_cap_through_the_band() -> None:
+    """The whole point: brushing the line must not flip the book.
+
+    Measured over 1999-2015 the bare threshold engaged 82 times, a median of
+    those lasting a single day, with QQQ rising in 20 of the 41 readable spells
+    and falling in 21 — a coin flip paid for with two sides of trading cost.
+    """
+    filt = TrendFilter(
+        indicator="t", threshold=-0.02, max_leverage_below=1.0, reentry_threshold=0.02
+    )
+    engaged = filt.engaged_series(_values(0.01, -0.03, -0.01, 0.01, 0.03, 0.01))
+    #                                       in ^^^^^  held ^^^^^^^^^  out ^^^^
+    assert list(engaged) == [False, True, True, True, False, False]
+
+
+def test_the_state_only_ever_depends_on_the_past() -> None:
+    """Truncation invariance: what is known today cannot change tomorrow."""
+    filt = TrendFilter(
+        indicator="t", threshold=-0.02, max_leverage_below=1.0, reentry_threshold=0.02
+    )
+    readings = _values(0.05, -0.03, 0.0, 0.01, 0.04, -0.01, -0.05, 0.03)
+    full = filt.engaged_series(readings)
+    for cut in range(1, len(readings) + 1):
+        truncated = filt.engaged_series(readings.iloc[:cut])
+        assert list(truncated) == list(full.iloc[:cut])
+
+
+def test_an_unreadable_day_engages_the_cap_and_needs_a_recovery_to_release() -> None:
+    filt = TrendFilter(
+        indicator="t", threshold=-0.02, max_leverage_below=1.0, reentry_threshold=0.02
+    )
+    engaged = filt.engaged_series(_values(0.05, None, 0.01, 0.03))
+    assert list(engaged) == [False, True, True, False]
+
+
+def test_a_disabled_filter_engages_nothing() -> None:
+    filt = TrendFilter(indicator="", threshold=0.0, max_leverage_below=0.0, enabled=False)
+    assert not filt.engaged_series(_values(-0.5, -0.9)).any()
+
+
+def test_a_reentry_level_below_the_exit_is_refused() -> None:
+    with pytest.raises(TrendFilterError, match="inverts the band"):
+        TrendFilter(
+            indicator="t",
+            threshold=-0.02,
+            max_leverage_below=1.0,
+            reentry_threshold=-0.05,
+        )
+
+
+def test_the_spec_refuses_an_inverted_band() -> None:
+    with pytest.raises(ConfigError, match="inverts the band"):
+        TrendFilterSpec(
+            enabled=True,
+            indicator="price_vs_200dma",
+            threshold=-0.02,
+            reentry_threshold=-0.05,
+            max_leverage_below=1.0,
+        )
+
+
+def test_a_resolved_state_overrides_todays_reading() -> None:
+    """How hysteresis reaches the per-day call: the state, not the level, decides."""
+    filt = TrendFilter(
+        indicator="t", threshold=-0.02, max_leverage_below=1.0, reentry_threshold=0.02
+    )
+    book = {Asset.TQQQ: 1.0}
+    # Today reads above the exit level, but the spell has not been released yet.
+    capped, verdict = filt.apply(book, 0.01, engaged=True)
+    assert verdict.engaged and leverage_of(capped) == pytest.approx(1.0)
+    # ... and the mirror: below the exit, but the spell is over.
+    kept, verdict = filt.apply(book, -0.03, engaged=False)
+    assert not verdict.engaged and kept == book
+
+
+def test_the_engine_holds_the_cap_while_the_band_is_uncrossed() -> None:
+    engine = _engine()
+    context = GateContext(
+        observation_date=DAY,
+        indicator_values={"price_vs_200dma": 0.01},
+        regime="Capitulation",
+        trend_broken=True,
+    )
+    decision = engine.allocate("Capitulation", DAY, context=context)
+    assert decision.allocation is not None
+    assert decision.allocation.target_leverage == pytest.approx(1.0)
+    assert any(code.startswith("TREND_BROKEN") for code in decision.reason_codes)

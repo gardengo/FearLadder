@@ -434,11 +434,27 @@ class TrendFilterSpec(_Base):
     enabled: bool = False
     #: Raw indicator read as the trend signal, e.g. ``price_vs_200dma``.
     indicator: str | None = None
-    #: Value at or above which the trend counts as intact.
+    #: Value the trend must fall *below* for the filter to engage.
     threshold: float | None = None
+    #: Value the trend must climb back *above* for it to disengage. Leaving this
+    #: null means no hysteresis, which measured badly: the filter flipped 82
+    #: times over 22 years, a median of those lasting a single day, with the
+    #: market going up as often as down. A separate re-entry level turns a
+    #: threshold that is brushed into a band that must be crossed.
+    reentry_threshold: float | None = None
     #: Ceiling on target leverage while the trend is broken.
     max_leverage_below: Annotated[float, Field(ge=0.0, le=3.0)] | None = None
     research_candidates: dict[str, tuple[float, ...]] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _reentry_is_above_exit(self) -> Self:
+        both = self.threshold is not None and self.reentry_threshold is not None
+        if both and self.reentry_threshold < self.threshold:
+            raise ConfigError(
+                f"reentry_threshold ({self.reentry_threshold}) is below threshold "
+                f"({self.threshold}); that inverts the band"
+            )
+        return self
 
     @model_validator(mode="after")
     def _a_cap_must_actually_cap(self) -> Self:

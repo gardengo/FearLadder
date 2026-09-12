@@ -164,7 +164,9 @@ class AllocationEngine:
         # gate about a sleeve the book no longer holds.
         if self.trend_filter.enabled:
             observed = context.value(self.trend_filter.indicator) if context else None
-            weights, trend_verdict = self.trend_filter.apply(weights, observed)
+            weights, trend_verdict = self.trend_filter.apply(
+                weights, observed, engaged=context.trend_broken if context else None
+            )
             reasons.extend(trend_verdict.reason_codes())
 
         if weights.get(Asset.TQQQ, 0.0) > 0:

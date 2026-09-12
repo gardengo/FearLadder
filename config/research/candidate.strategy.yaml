@@ -169,6 +169,13 @@ trend_filter:
   enabled: true
   indicator: price_vs_200dma
   threshold: -0.02
+  # Re-entry sits a band above the exit, so the line has to be crossed rather
+  # than brushed. Chosen structurally, not by peak: price_vs_200dma has a
+  # 20-day standard deviation of 2.14% over the research window, so +2% (a 4%p
+  # band) is roughly twice its own short-run noise. Without a band the filter
+  # engaged 51 times over 16.6 years, a median spell lasting 3 days and 86% of
+  # them under a month; with it, 20 spells, median 33 days, half under a month.
+  reentry_threshold: 0.02
   max_leverage_below: 0.0
   research_candidates:
     threshold:
@@ -183,6 +190,11 @@ trend_filter:
     - 0.5
     - 1.0
     - 1.5
+    reentry_band:
+    - 0.0
+    - 0.02
+    - 0.04
+    - 0.06
 execution:
   timing: NEXT_OPEN
   same_day_execution_allowed: false

@@ -36,6 +36,9 @@ import logging
 from dataclasses import dataclass
 from typing import Self
 
+import pandas as pd
+from pandas import Series
+
 from regime_monitor.allocation.sleeves import leverage_of, portfolio_for
 from regime_monitor.config.schema import TrendFilterSpec
 from regime_monitor.constants import Asset
@@ -97,6 +100,9 @@ class TrendFilter:
     indicator: str
     threshold: float
     max_leverage_below: float
+    #: Level the trend must climb back above to release the cap. Equal to
+    #: ``threshold`` means no hysteresis.
+    reentry_threshold: float | None = None
     enabled: bool = True
 
     def __post_init__(self) -> None:
@@ -106,6 +112,44 @@ class TrendFilter:
             raise TrendFilterError("the trend filter needs an indicator")
         if self.max_leverage_below < 0:
             raise TrendFilterError("max_leverage_below cannot be negative")
+        below = self.reentry_threshold is not None and self.reentry_threshold < self.threshold
+        if below:
+            raise TrendFilterError(
+                f"reentry_threshold {self.reentry_threshold} is below threshold "
+                f"{self.threshold}; that inverts the band"
+            )
+
+    @property
+    def release_at(self) -> float:
+        return self.threshold if self.reentry_threshold is None else self.reentry_threshold
+
+    def engaged_series(self, values: Series) -> Series:
+        """Whether the cap is on, day by day, with hysteresis.
+
+        A state machine rather than a comparison: engage when the trend falls
+        below ``threshold``, release only once it climbs back above
+        ``release_at``. Between the two the previous state persists, so a level
+        that is merely brushed does not flip the book.
+
+        Strictly causal — each day's state depends only on that day's reading
+        and the state carried from the day before.
+        """
+        if not self.enabled:
+            return Series(False, index=values.index, dtype=bool)
+
+        state = False
+        states: list[bool] = []
+        for value in values:
+            if pd.isna(value):
+                # An unreadable trend is a broken trend: failing open would
+                # remove exactly the protection this exists for.
+                state = True
+            elif state:
+                state = value < self.release_at
+            else:
+                state = value < self.threshold
+            states.append(state)
+        return Series(states, index=values.index, dtype=bool, name="trend_broken")
 
     @classmethod
     def from_spec(cls, spec: TrendFilterSpec) -> Self:
@@ -123,12 +167,22 @@ class TrendFilter:
             indicator=spec.indicator,
             threshold=spec.threshold,
             max_leverage_below=spec.max_leverage_below,
+            reentry_threshold=spec.reentry_threshold,
         )
 
     def apply(
-        self, weights: dict[Asset, float], observed: float | None
+        self,
+        weights: dict[Asset, float],
+        observed: float | None,
+        *,
+        engaged: bool | None = None,
     ) -> tuple[dict[Asset, float], TrendVerdict]:
-        """Cap ``weights`` if the trend is broken. Returns the book and why."""
+        """Cap ``weights`` if the trend is broken. Returns the book and why.
+
+        ``engaged`` carries a state already resolved by :meth:`engaged_series`,
+        which is how hysteresis reaches this per-day call. Without it the
+        threshold is compared directly and the filter has no memory.
+        """
         before = leverage_of(weights)
         if not self.enabled:
             return weights, TrendVerdict(
@@ -143,7 +197,8 @@ class TrendFilter:
         # A missing trend reading is treated as a broken trend. The filter exists
         # to stop the strategy levering into a decline it cannot see; failing
         # open would remove exactly the protection it was added for.
-        broken = observed is None or observed < self.threshold
+        unknown = observed is None
+        broken = engaged if engaged is not None else (unknown or observed < self.threshold)
         if not broken:
             return weights, TrendVerdict(
                 engaged=False,

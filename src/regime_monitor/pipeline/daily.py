@@ -342,8 +342,29 @@ class DailyPipeline:
             },
             composite_score=decision.score,
             regime=decision.regime,
+            trend_broken=self._trend_broken(indicator_results, day),
         )
         return self.allocations.allocate(decision.regime, day, context=context)
+
+    def _trend_broken(
+        self, indicator_results: dict[str, IndicatorResult], day: date
+    ) -> bool | None:
+        """Today's trend-filter state, replayed from the start of history.
+
+        The filter has hysteresis, so today's state depends on yesterday's. It
+        is recomputed from history rather than stored, which keeps a restarted
+        run identical to one that never stopped.
+        """
+        filt = self.allocations.trend_filter
+        if not filt.enabled:
+            return None
+        result = indicator_results.get(filt.indicator)
+        if result is None:
+            return None
+        history = result.values[result.values.index <= day]
+        if history.empty:
+            return None
+        return bool(filt.engaged_series(history).iloc[-1])
 
     def _build_state(
         self,
