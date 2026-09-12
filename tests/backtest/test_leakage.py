@@ -383,19 +383,31 @@ def test_the_validator_never_writes_back_a_corrected_price(provenance) -> None:
 
 
 def test_the_production_pipeline_does_not_import_the_research_package() -> None:
-    """``BACKTEST_SPEC.md`` 28 — separated in code, not by convention."""
+    """``BACKTEST_SPEC.md`` 28 — separated in code, not by convention.
+
+    Parsed rather than grepped: a docstring that *mentions* the rule must not
+    be mistaken for a violation of it.
+    """
+    import ast
     import pkgutil
 
     import regime_monitor.pipeline as pipeline_package
 
-    offenders = []
+    offenders: list[str] = []
     for module in pkgutil.walk_packages(
         pipeline_package.__path__, prefix="regime_monitor.pipeline."
     ):
         imported = __import__(module.name, fromlist=["_"])
-        source = inspect.getsource(imported)
-        if "regime_monitor.research" in source:
-            offenders.append(module.name)
+        tree = ast.parse(inspect.getsource(imported))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or ""]
+            else:
+                continue
+            if any(name.startswith("regime_monitor.research") for name in names):
+                offenders.append(f"{module.name}: {names}")
     assert not offenders, f"production modules importing research code: {offenders}"
 
 

@@ -38,6 +38,7 @@ from regime_monitor.data.models import (
     utcnow,
 )
 from regime_monitor.data.repositories.connection import (
+    checkpoint,
     connect,
     from_db_date,
     from_db_datetime,
@@ -927,6 +928,13 @@ class SQLiteUnitOfWork:
         assert self._connection is not None
         try:
             self._transaction.__exit__(exc_type, exc, tb)
+            if exc_type is None:
+                # Fold the WAL back into the .db file now that the transaction
+                # is closed. The daily workflow commits this file to git, so it
+                # has to be complete on its own (ARCHITECTURE.md 8). A
+                # checkpoint inside the transaction would fail with
+                # "database table is locked".
+                checkpoint(self._connection)
         finally:
             self._connection.close()
             self._connection = None

@@ -197,8 +197,9 @@ def test_the_written_strategy_file_reloads_identically(
 
 def test_the_same_inputs_give_the_same_fingerprint(placeholder_config) -> None:
     data = _market()
-    first = Fingerprint.of_run(StrategyBacktest(placeholder_config).run(data, include_benchmarks=False))
-    second = Fingerprint.of_run(StrategyBacktest(placeholder_config).run(data, include_benchmarks=False))
+    backtest = StrategyBacktest(placeholder_config)
+    first = Fingerprint.of_run(backtest.run(data, include_benchmarks=False))
+    second = Fingerprint.of_run(backtest.run(data, include_benchmarks=False))
 
     assert first.matches(second)
     assert first.rows == second.rows
