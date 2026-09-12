@@ -94,15 +94,18 @@ tqqq_gate:
     - price_stabilization
     - reversal_evidence
     - breadth_capitulation
+  # Each rule names one indicator and exactly one min_value / max_value bound.
+  # Every number here is RESEARCH_PLACEHOLDER (BACKTEST_SPEC.md §15).
   rule_params:
-    deep_drawdown: { indicator: drawdown_52w, min_depth: 0.20 }
-    extreme_fear: { indicator: cnn_fear_greed, max_score: 25.0 }
-    high_vix: { indicator: vix_percentile, min_percentile: 0.90 }
+    deep_drawdown: { indicator: drawdown_52w, min_value: 0.20 }
+    extreme_fear: { indicator: cnn_fear_greed, max_value: 25.0 }
+    high_vix: { indicator: vix_percentile, min_value: 0.90 }
     oversold_rsi: { indicator: rsi_14, max_value: 30.0 }
-    volatility_spike: { indicator: vix_change_5d, min_change: 0.25 }
-    price_stabilization: { indicator: drawdown_30d, max_depth: 0.05, lookback: 5 }
-    reversal_evidence: { indicator: momentum_1m, min_return: 0.0 }
-    breadth_capitulation: { indicator: breadth_pct_above_200dma, max_share: 0.15 }
+    volatility_spike: { indicator: vix_change_5d, min_value: 0.25 }
+    price_stabilization: { indicator: drawdown_30d, max_value: 0.05 }
+    reversal_evidence: { indicator: momentum_1m, min_value: 0.0 }
+    # breadth_pct_above_200dma is disabled, so this rule can never confirm.
+    breadth_capitulation: { indicator: breadth_pct_above_200dma, max_value: 0.15 }
 
 execution:
   timing: NEXT_OPEN
