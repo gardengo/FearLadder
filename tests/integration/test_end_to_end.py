@@ -389,9 +389,10 @@ def test_requirements_txt_matches_the_dashboard_extra() -> None:
     declared = set(pyproject["project"]["dependencies"])
     declared |= set(pyproject["project"]["optional-dependencies"]["dashboard"])
 
+    requirements = (paths.PROJECT_ROOT / "requirements.txt").read_text(encoding="utf-8")
     listed = {
         line.strip()
-        for line in (paths.PROJECT_ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
+        for line in requirements.splitlines()
         if line.strip() and not line.startswith("#")
     }
 
