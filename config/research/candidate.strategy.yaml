@@ -11,8 +11,12 @@
 #   trend_filter        STRONG   monotone, and the single largest effect found:
 #                                without it the research window returns -2.74%
 #                                CAGR at 98.4% drawdown; with it, +9.5% at 58.2%.
-#   regime.count = 5    STRONG   marginal objective by count: 3 -0.017,
-#                                5 +0.094, 7 +0.075, 9 -0.125.
+#   regime.count = 7    OPERATOR chosen by the operator, and re-measured against
+#                                the final configuration: 3 +6.30%, 5 +7.74%,
+#                                7 +9.81%, 9 +7.61% CAGR.
+#   max_leverage_below  OPERATOR 0.5x. Measured, then decided on principle: the
+#                       = 0.5x     strategy de-levers in a downtrend but is never
+#                                out of the market. See docs/strategy.md 2.5.
 #   score.weights       MEDIUM   trend-heavy won; fear-heavy came last, which is
 #                                consistent with the trend-filter finding.
 #   transition.hyst=5   WEAK     a clean interior optimum on the marginal, best
@@ -23,10 +27,13 @@
 #                                (neighbour gap +90%). Chosen structurally:
 #                                turnover falls monotonically with duration, so
 #                                the longer end is preferred for robustness.
-#   regime.boundaries   NONE     noise. Across stretch factors the objective is a
-#                                sawtooth (-0.10, +0.31, +0.08, +0.20, +0.30,
-#                                +0.13). Round values near even were chosen
-#                                rather than either fitted peak.
+#   regime.boundaries   STRUCT   not fitted. The highest-scoring 7-stage cut set
+#                                (+11.27%) was rejected because it scored by
+#                                never entering Capitulation at all. Cuts were
+#                                moved one step at a time to find a plateau
+#                                instead of a peak: every lower cut from 9 to 14
+#                                gives an identical backtest, and stage 7 empties
+#                                at 88. The middle of that plateau was taken.
 #
 # Over one 16.6-year window, candidate objectives span -0.10..+0.31 while
 # neighbourhood means span only +0.04..+0.09. Peak height is roughly ten times
@@ -62,18 +69,31 @@ score:
     cnn_fear_greed: 0.05555555555555555
     aaii_bull_bear_spread: 0.05555555555555555
 regime:
-  count: 5
+  count: 7
   labels:
   - Capitulation
+  - Panic
   - Fear
   - Neutral
-  - Bull
-  - Overheated
+  - Optimism
+  - Greed
+  - Euphoria
+  # The two end stages carry the extreme books (3.00x and 0.50x), so they are
+  # reserved for extreme states. Interior cuts are symmetric about 50
+  # (+-8, +-23). The outer cuts are not, deliberately: the composite score is
+  # skewed (1st percentile 3.4, 99th 89.2), so symmetric cuts would make
+  # Euphoria far rarer than Capitulation. 12 and 85 equalise what actually
+  # matters - both ends appear on 3.7% / 3.6% of days, two episodes each over
+  # 16.6 years. Robust rather than fitted: every lower cut from 9 to 14 gives
+  # an identical backtest, and the upper cut has room before 88, where stage 7
+  # empties entirely.
   boundaries:
-  - 25.0
-  - 40.0
-  - 60.0
-  - 75.0
+  - 12.0
+  - 27.0
+  - 42.0
+  - 58.0
+  - 73.0
+  - 85.0
   research_candidates:
   - 3
   - 5
@@ -106,18 +126,24 @@ transition:
     - 60
 allocation:
   mappings:
-    Capitulation:
+    Capitulation:  # 3.0000x
       TQQQ: 1.0
-    Fear:
-      TQQQ: 0.375
-      QLD: 0.625
-    Neutral:
+    Panic:  # 2.5833x
+      TQQQ: 0.5833333333
+      QLD: 0.4166666667
+    Fear:  # 2.1667x
+      TQQQ: 0.1666666667
+      QLD: 0.8333333333
+    Neutral:  # 1.7500x
       QLD: 0.75
       QQQ: 0.25
-    Bull:
-      QLD: 0.125
-      QQQ: 0.875
-    Overheated:
+    Optimism:  # 1.3333x
+      QLD: 0.3333333333
+      QQQ: 0.6666666667
+    Greed:  # 0.9167x
+      QQQ: 0.9166666667
+      CASH: 0.0833333333
+    Euphoria:  # 0.5000x
       QQQ: 0.5
       CASH: 0.5
   constraints:
@@ -176,7 +202,14 @@ trend_filter:
   # engaged 51 times over 16.6 years, a median spell lasting 3 days and 86% of
   # them under a month; with it, 20 spells, median 33 days, half under a month.
   reentry_threshold: 0.02
-  max_leverage_below: 0.0
+  # 0.5x is QQQ 50% + cash 50%: the leverage is switched off, but the strategy
+  # is never out of the market. A full exit (0.0x) earned more over this window
+  # (+9.16% vs +8.00%) at a shallower drawdown (52.1% vs 67.4%), but that window
+  # holds both of the index's worst declines, which is exactly when going to
+  # cash pays; and it would have demanded sitting in cash on 30% of all days.
+  # 1.0x was measured too and is not a real option: +5.45% at 84.9% drawdown is
+  # QQQ buy-and-hold (+5.30% / 83.0%), so the strategy would earn nothing.
+  max_leverage_below: 0.5
   research_candidates:
     threshold:
     - -0.08
