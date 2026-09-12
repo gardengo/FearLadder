@@ -27,7 +27,12 @@ from typing import Any
 from pandas import DataFrame
 
 from regime_monitor.backtest.metrics import PerformanceMetrics
-from regime_monitor.config.schema import AppConfig, ConfigError, StrategyConfig
+from regime_monitor.config.schema import (
+    AppConfig,
+    ConfigError,
+    IndicatorsConfig,
+    StrategyConfig,
+)
 from regime_monitor.constants import Asset
 from regime_monitor.research.backtest_runner import BacktestRun, MarketData, StrategyBacktest
 from regime_monitor.research.splits import Split, SplitGuard
@@ -49,6 +54,10 @@ class Candidate:
     label: str
     overrides: dict[str, Any]
     dimension: str = "mixed"
+    #: Per-indicator overrides, keyed by indicator name, each a partial
+    #: ``IndicatorSpec`` payload merged one level deep (so ``normalization``
+    #: can be replaced without restating ``params``).
+    indicator_overrides: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def apply(self, config: AppConfig) -> AppConfig:
         """Return a config with these overrides, fully re-validated.
@@ -66,11 +75,34 @@ class Candidate:
         except ConfigError as exc:
             raise SearchError(f"candidate {self.label!r} is not a valid strategy: {exc}") from exc
         return AppConfig(
-            indicators=config.indicators,
+            indicators=self._indicators(config),
             strategy=strategy,
             alerts=config.alerts,
             data_sources=config.data_sources,
         )
+
+    def _indicators(self, config: AppConfig) -> IndicatorsConfig:
+        if not self.indicator_overrides:
+            return config.indicators
+        payload = config.indicators.model_dump()
+        specs = dict(payload["indicators"])
+        for name, override in self.indicator_overrides.items():
+            if name not in specs:
+                raise SearchError(f"candidate {self.label!r} overrides unknown indicator {name!r}")
+            merged = dict(specs[name])
+            for key, value in override.items():
+                if isinstance(value, dict) and isinstance(merged.get(key), dict):
+                    merged[key] = {**merged[key], **value}
+                else:
+                    merged[key] = value
+            specs[name] = merged
+        payload["indicators"] = specs
+        try:
+            return IndicatorsConfig(**payload)
+        except ConfigError as exc:
+            raise SearchError(
+                f"candidate {self.label!r} is not a valid indicator set: {exc}"
+            ) from exc
 
 
 # --------------------------------------------------------------- objective

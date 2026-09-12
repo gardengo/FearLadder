@@ -262,10 +262,27 @@ class IndicatorSpec(_Base):
     source: str
     direction: IndicatorDirection
     normalization: NormalizationSpec
+    #: The range this indicator can take *by construction* - RSI is 0-100, a
+    #: drawdown is 0-1 - not the range it happened to take in some sample.
+    #: Declaring it lets the search offer an absolute scale without inventing a
+    #: threshold, which ``CLAUDE_CODE_INITIAL_PROMPT.md`` 10 forbids. Leave it
+    #: out for open-ended series (momentum, VIX level, distance from a moving
+    #: average): those have no definitional bounds to map onto.
+    definitional_range: tuple[float, float] | None = None
     enabled: bool = True
     mandatory: bool = False
     description: str | None = None
     disabled_reason: str | None = None
+
+    @model_validator(mode="after")
+    def _definitional_range_is_ordered(self) -> Self:
+        if self.definitional_range is not None:
+            low, high = self.definitional_range
+            if low >= high:
+                raise ConfigError(
+                    f"definitional_range {self.definitional_range} is not ascending"
+                )
+        return self
 
     @model_validator(mode="after")
     def _disabled_indicators_explain_themselves(self) -> Self:

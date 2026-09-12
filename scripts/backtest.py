@@ -29,12 +29,18 @@ from regime_monitor.research.reports import ReportWriter
 logger = logging.getLogger("backtest")
 
 
-def _load_profile(profile: str) -> AppConfig:
+def _load_profile(profile: str, indicators: Path | None = None) -> AppConfig:
+    """Resolve a strategy profile, optionally against its own indicator set.
+
+    A searched candidate has a searched indicator set beside it, so the two have
+    to be loadable as a pair. Without ``--indicators`` a path profile falls back
+    to ``config/indicators.yaml``, whose research parameters are still null.
+    """
     if profile == "placeholder":
         return load_research_placeholder_config()
     if profile == "operational":
-        return load_config()
-    return load_config(strategy_path=Path(profile))
+        return load_config(indicators_path=indicators)
+    return load_config(strategy_path=Path(profile), indicators_path=indicators)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -45,6 +51,16 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "'placeholder' (RESEARCH_PLACEHOLDER profile), 'operational' "
             "(config/strategy.yaml), or a path to a strategy yaml"
+        ),
+    )
+    parser.add_argument(
+        "--indicators",
+        type=Path,
+        default=None,
+        help=(
+            "indicator profile to pair with --profile, e.g. "
+            "config/research/candidate.indicators.yaml. Defaults to "
+            "config/indicators.yaml, whose research parameters are still null."
         ),
     )
     parser.add_argument("--db", type=Path, default=None, help="SQLite path override")
@@ -69,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     configure_logging(logging.DEBUG if args.verbose else logging.INFO)
 
-    config = _load_profile(args.profile)
+    config = _load_profile(args.profile, args.indicators)
     logger.info(
         "strategy %s (%s)",
         config.strategy.strategy_version,

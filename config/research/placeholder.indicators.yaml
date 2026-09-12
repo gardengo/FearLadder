@@ -23,6 +23,7 @@ indicators:
     params: { window: 14 }
     source: QQQ
     direction: HIGHER_IS_GREED
+    definitional_range: [0.0, 100.0] # RSI is 0-100 by construction
     description: "Wilder RSI(14) on QQQ close"
     normalization:
       method: rolling_percentile
@@ -36,6 +37,7 @@ indicators:
     params: { window: 30 }
     source: QQQ
     direction: HIGHER_IS_GREED
+    definitional_range: [0.0, 100.0] # RSI is 0-100 by construction
     description: "Wilder RSI(30) on QQQ close"
     normalization:
       method: rolling_percentile
@@ -170,6 +172,7 @@ indicators:
     params: { window: null } # deliberate: null = expanding all-time-to-date peak
     source: QQQ
     direction: HIGHER_IS_FEAR
+    definitional_range: [0.0, 1.0] # a drawdown cannot leave 0-100%
     description: "Depth below the running all-time-to-date peak"
     normalization:
       method: rolling_percentile
@@ -183,6 +186,7 @@ indicators:
     params: { window: 30 }
     source: QQQ
     direction: HIGHER_IS_FEAR
+    definitional_range: [0.0, 1.0] # a drawdown cannot leave 0-100%
     description: "Depth below the 30-trading-day peak"
     normalization:
       method: rolling_percentile
@@ -196,6 +200,7 @@ indicators:
     params: { window: 90 }
     source: QQQ
     direction: HIGHER_IS_FEAR
+    definitional_range: [0.0, 1.0] # a drawdown cannot leave 0-100%
     description: "Depth below the 90-trading-day peak"
     normalization:
       method: rolling_percentile
@@ -209,6 +214,7 @@ indicators:
     params: { window: 252 }
     source: QQQ
     direction: HIGHER_IS_FEAR
+    definitional_range: [0.0, 1.0] # a drawdown cannot leave 0-100%
     description: "Depth below the 52-week peak"
     normalization:
       method: rolling_percentile

@@ -109,6 +109,45 @@ def test_an_invalid_candidate_is_rejected_rather_than_silently_run(
         candidate.apply(placeholder_config)
 
 
+def test_a_candidate_can_move_an_indicator_parameter(placeholder_config) -> None:
+    """Indicator parameters are searchable, not just strategy ones.
+
+    They were not, until the dot-com top showed what a 504-day percentile does
+    to a bubble that outlasts its own window.
+    """
+    candidate = Candidate(
+        label="norm",
+        overrides={},
+        indicator_overrides={"rsi_14": {"normalization": {"window": 252, "min_periods": 126}}},
+    )
+    variant = candidate.apply(placeholder_config)
+    assert variant.indicators.indicators["rsi_14"].normalization.window == 252
+    # Merged one level deep: the rest of the spec survives.
+    assert variant.indicators.indicators["rsi_14"].params == {"window": 14}
+    assert variant.indicators.indicators["rsi_14"].normalization.method == "rolling_percentile"
+    # Neither the neighbour nor the original moves.
+    assert variant.indicators.indicators["rsi_30"].normalization.window == 504
+    assert placeholder_config.indicators.indicators["rsi_14"].normalization.window == 504
+
+
+def test_an_indicator_override_for_an_unknown_name_is_refused(placeholder_config) -> None:
+    candidate = Candidate(
+        label="typo", overrides={}, indicator_overrides={"rsi_15": {"enabled": False}}
+    )
+    with pytest.raises(SearchError, match="unknown indicator"):
+        candidate.apply(placeholder_config)
+
+
+def test_an_invalid_indicator_override_is_rejected(placeholder_config) -> None:
+    candidate = Candidate(
+        label="nonsense",
+        overrides={},
+        indicator_overrides={"rsi_14": {"normalization": {"window": -5}}},
+    )
+    with pytest.raises(SearchError, match="not a valid indicator set"):
+        candidate.apply(placeholder_config)
+
+
 # ------------------------------------------------------------------ objective
 
 
@@ -485,3 +524,141 @@ def test_a_neighbourhood_needs_enough_points(search, placeholder_config) -> None
     )
     with pytest.raises(ValueError, match="at least three points"):
         analyse(search, candidates, [1.0, 2.0], parameter="confirmation_days")
+
+
+# ------------------------------------------------- the placeholder is a fixture
+
+
+def test_the_search_refuses_to_overwrite_the_placeholder_profile(tmp_path) -> None:
+    """The placeholder indicator set is a fixed reference the tests read.
+
+    A search that rewrote it in place would move the ground every other test
+    stands on, and would do it silently.
+    """
+    import scripts.optimize as optimize_cli
+
+    placeholder = tmp_path / "placeholder.indicators.yaml"
+    placeholder.write_text("version: 1\n", encoding="utf-8")
+    with pytest.raises(SystemExit, match="refusing to overwrite"):
+        optimize_cli._write_indicators(placeholder, placeholder, None)
+
+
+def test_the_search_writes_indicators_to_their_own_file(placeholder_config, tmp_path) -> None:
+    import yaml as yaml_module
+
+    import scripts.optimize as optimize_cli
+
+    source = tmp_path / "placeholder.indicators.yaml"
+    source.write_text("version: 1\n", encoding="utf-8")
+    destination = tmp_path / "candidate.indicators.yaml"
+    optimize_cli._write_indicators(source, destination, placeholder_config)
+
+    written = yaml_module.safe_load(destination.read_text(encoding="utf-8"))
+    assert written["indicators"]["rsi_14"]["normalization"]["window"] == 504
+    assert source.read_text(encoding="utf-8") == "version: 1\n"
+
+
+def test_the_indicator_stage_sweeps_each_family_on_its_own_grid(placeholder_config) -> None:
+    """AAII is weekly; forcing it onto the daily grid would mean a decade.
+
+    So the across-the-board sweep moves every family to the same *position* in
+    its own candidate list, not to the same number.
+    """
+    import scripts.optimize as optimize_cli
+
+    candidates = optimize_cli.indicator_candidates(placeholder_config)
+    across = [c for c in candidates if c.label.startswith("norm(all")]
+    assert across, "the across-the-board sweep is the interpretable comparison"
+
+    shortest = across[0].apply(placeholder_config).indicators.indicators
+    assert shortest["rsi_14"].normalization.window == 252
+    assert shortest["aaii_bull_bear_spread"].normalization.window == 52
+
+    families = {c.label.split("(")[1].split("=")[0] for c in candidates}
+    assert "trend" in families and "sentiment" in families
+
+
+# --------------------------------------------- absolute scales, when earned
+
+
+def test_an_absolute_scale_is_offered_only_where_the_range_is_definitional(
+    placeholder_config,
+) -> None:
+    """A rolling percentile has no answer for a bubble that outlasts its window.
+
+    An absolute scale does, but only for indicators whose range is a fact about
+    the construction (RSI is 0-100) rather than a fact about a sample. Anything
+    else would be inventing a threshold.
+    """
+    import scripts.optimize as optimize_cli
+
+    labels = {c.label for c in optimize_cli.indicator_candidates(placeholder_config)}
+    assert "norm(rsi=absolute)" in labels
+    assert "norm(drawdown=absolute)" in labels
+    # Open-ended series have no definitional bounds, so no absolute candidate.
+    for family in ("momentum", "trend", "volatility", "sentiment"):
+        assert f"norm({family}=absolute)" not in labels
+
+
+def test_the_absolute_candidate_uses_the_declared_range(placeholder_config) -> None:
+    import scripts.optimize as optimize_cli
+
+    candidate = next(
+        c
+        for c in optimize_cli.indicator_candidates(placeholder_config)
+        if c.label == "norm(rsi=absolute)"
+    )
+    applied = candidate.apply(placeholder_config).indicators.indicators["rsi_14"]
+    assert applied.normalization.method == "bounded"
+    assert applied.normalization.raw_at_score_min == 0.0
+    assert applied.normalization.raw_at_score_max == 100.0
+    # The window is gone, not merely ignored.
+    assert applied.normalization.window is None
+
+
+def test_a_definitional_range_must_be_ascending() -> None:
+    from regime_monitor.config.schema import ConfigError, IndicatorSpec
+
+    with pytest.raises(ConfigError, match="not ascending"):
+        IndicatorSpec(
+            family="rsi",
+            compute="rsi",
+            source="QQQ",
+            direction="HIGHER_IS_GREED",
+            definitional_range=(100.0, 0.0),
+            normalization={"method": "bounded", "raw_at_score_min": 0.0,
+                           "raw_at_score_max": 100.0},
+        )
+
+
+def test_rsi_and_drawdown_declare_their_construction(placeholder_config) -> None:
+    indicators = placeholder_config.indicators.indicators
+    assert indicators["rsi_14"].definitional_range == (0.0, 100.0)
+    assert indicators["drawdown_52w"].definitional_range == (0.0, 1.0)
+    # An open-ended series must not claim one.
+    assert indicators["momentum_1m"].definitional_range is None
+    assert indicators["vix_level"].definitional_range is None
+
+
+def test_a_named_selection_overrides_the_objective_winner() -> None:
+    """The objective scores aggregates; it cannot see everything that matters.
+
+    Measured: the highest-scoring normalization moved every window to its
+    shortest, which caught the dot-com top and then failed to recognise the
+    2008 bottom at all. Overriding that is legitimate — but it has to be an
+    explicit act, not a quiet edit to a config file.
+    """
+    import scripts.optimize as optimize_cli
+
+    parsed = optimize_cli.build_parser().parse_args(
+        ["--stages", "indicators", "--select", "indicators=norm(rsi=absolute)"]
+    )
+    assert parsed.select == ["indicators=norm(rsi=absolute)"]
+
+
+def test_an_unparseable_selection_is_refused(tmp_path) -> None:
+    import scripts.optimize as optimize_cli
+
+    with pytest.raises(SystemExit, match="STAGE=LABEL"):
+        optimize_cli.main(["--stages", "indicators", "--select", "nonsense", "--db",
+                           str(tmp_path / "x.db")])

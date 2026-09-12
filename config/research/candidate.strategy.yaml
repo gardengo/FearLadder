@@ -3,6 +3,13 @@
 # Searched on the RESEARCH window only (1999-01-01 .. 2015-08-14), by coordinate
 # descent: trend filter -> transition -> regime -> weights. See scripts/optimize.py.
 #
+# PAIRS WITH candidate.indicators.yaml. The indicator normalization was searched
+# separately (docs/strategy.md 2.6) and the two are only meaningful together:
+#
+#   python scripts/backtest.py
+#     --profile    config/research/candidate.strategy.yaml
+#     --indicators config/research/candidate.indicators.yaml
+#
 # NOT FROZEN. The out-of-sample window has not been spent, so this has not had
 # its final test. scripts/freeze.py is a separate, deliberate act.
 #
@@ -27,6 +34,11 @@
 #                                (neighbour gap +90%). Chosen structurally:
 #                                turnover falls monotonically with duration, so
 #                                the longer end is preferred for robustness.
+#   indicator norm      STRUCT   RSI on its definitional 0-100 scale, everything
+#                                else left on the 504-day rolling percentile. The
+#                                objective ranked this 9th; it was taken over the
+#                                winner because the winner stopped recognising
+#                                the 2008 bottom. See docs/strategy.md 2.6.
 #   regime.boundaries   STRUCT   not fitted. The highest-scoring 7-stage cut set
 #                                (+11.27%) was rejected because it scored by
 #                                never entering Capitulation at all. Cuts were

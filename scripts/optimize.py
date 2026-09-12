@@ -23,7 +23,7 @@ import argparse
 import itertools
 import logging
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +52,7 @@ logger = logging.getLogger("optimize")
 
 CANDIDATE = paths.CONFIG_DIR / "research" / "candidate.strategy.yaml"
 INDICATORS = paths.CONFIG_DIR / "research" / "placeholder.indicators.yaml"
+CANDIDATE_INDICATORS = paths.CONFIG_DIR / "research" / "candidate.indicators.yaml"
 
 REPORT_COLUMNS = [
     "objective",
@@ -70,6 +71,13 @@ class StageResult:
     name: str
     report: SearchReport
     overrides: dict[str, Any]
+    indicator_overrides: dict[str, dict[str, Any]] = field(default_factory=dict)
+    selected: str = ""
+    objective_winner: str = ""
+
+    @property
+    def overridden(self) -> bool:
+        return bool(self.selected) and self.selected != self.objective_winner
 
     def table(self, limit: int = 8) -> DataFrame:
         frame = self.report.to_frame()
@@ -113,6 +121,131 @@ def trend_candidates(config: AppConfig) -> list[Candidate]:
             dimension="trend_filter",
         )
     )
+    return candidates
+
+
+ROLLING = ("rolling_percentile", "rolling_zscore")
+
+
+def _rolling_families(config: AppConfig) -> dict[str, list[str]]:
+    """Indicator names grouped by family, rolling-normalised ones only."""
+    families: dict[str, list[str]] = {}
+    for name, spec in config.indicators.enabled_indicators.items():
+        if spec.normalization.method in ROLLING:
+            families.setdefault(spec.family, []).append(name)
+    return families
+
+
+def _window_override(window: int) -> dict[str, Any]:
+    """A normalization payload with the window moved and min_periods kept sane.
+
+    ``min_periods`` cannot exceed the window, and a warm-up that is most of the
+    window leaves almost no history to rank against. Half the window is the
+    same ratio the placeholder profile used at 504/252.
+    """
+    return {"normalization": {"window": window, "min_periods": window // 2}}
+
+
+def indicator_candidates(config: AppConfig) -> list[Candidate]:
+    """How much history each indicator is judged against.
+
+    Never searched before this: 17 of 21 indicators sat at a 504-day window
+    inherited from the placeholder profile. It is not a cosmetic setting. A
+    rolling percentile asks "extreme compared to the recent past", so a bubble
+    lasting longer than the window normalises itself away - which is what
+    happened at the dot-com top, where the strategy read Neutral and carried
+    1.78x into a 63% decline.
+
+    Swept by family, not per indicator: 4 windows across 17 indicators is 17
+    billion combinations, and the family grouping already organises the weights.
+
+    Each family keeps its own candidate grid rather than sharing one. AAII is a
+    weekly series whose candidates are in weeks; forcing 504 on it would mean a
+    ten-year lookback. The across-the-board sweep therefore moves every family
+    to the same *position* in its own grid - all shortest, all longest - rather
+    than to the same number.
+    """
+    families = _rolling_families(config)
+    if not families:
+        return []
+
+    grids: dict[str, list[int]] = {}
+    for family, names in families.items():
+        options: set[int] = set()
+        for name in names:
+            options.update(config.indicators.indicators[name].normalization.research_candidates)
+        if options:
+            grids[family] = sorted(options)
+    if not grids:
+        return []
+
+    def candidate(label: str, moves: dict[str, int]) -> Candidate:
+        return Candidate(
+            label=label,
+            overrides={},
+            dimension="indicators",
+            indicator_overrides={
+                name: _window_override(window)
+                for family, window in moves.items()
+                for name in families[family]
+            },
+        )
+
+    candidates: list[Candidate] = []
+    depth = min(len(grid) for grid in grids.values())
+    for rank in range(depth):
+        moves = {family: grid[rank] for family, grid in grids.items()}
+        shown = "/".join(str(moves[f]) for f in sorted(moves))
+        candidates.append(candidate(f"norm(all:rank{rank}={shown})", moves))
+
+    for family, grid in sorted(grids.items()):
+        for window in grid:
+            candidates.append(candidate(f"norm({family}={window})", {family: window}))
+
+    candidates.extend(_absolute_candidates(config, families))
+    return candidates
+
+
+def _absolute_candidates(
+    config: AppConfig, families: dict[str, list[str]]
+) -> list[Candidate]:
+    """Put a family on its definitional scale instead of a rolling rank.
+
+    A rolling percentile asks "extreme compared to the recent past", which is
+    why no single window works: a bubble that outlasts the window normalises
+    itself away, and so does a bear market. Measured, a 252-day window catches
+    the dot-com top and loses the 2008 bottom; 504 does the reverse.
+
+    An absolute scale has no such memory. It is only offered where the config
+    declares a ``definitional_range`` - RSI is 0-100 because RSI is 0-100, not
+    because a sample said so. Without that declaration this would be inventing
+    a threshold, which ``CLAUDE_CODE_INITIAL_PROMPT.md`` 10 forbids.
+    """
+    candidates: list[Candidate] = []
+    for family, names in sorted(families.items()):
+        ranges = [config.indicators.indicators[name].definitional_range for name in names]
+        if any(bounds is None for bounds in ranges):
+            continue
+        candidates.append(
+            Candidate(
+                label=f"norm({family}=absolute)",
+                overrides={},
+                dimension="indicators",
+                indicator_overrides={
+                    name: {
+                        "normalization": {
+                            "method": "bounded",
+                            "window": None,
+                            "min_periods": None,
+                            "raw_at_score_min": bounds[0],
+                            "raw_at_score_max": bounds[1],
+                        }
+                    }
+                    for name, bounds in zip(names, ranges, strict=True)
+                    if bounds is not None
+                },
+            )
+        )
     return candidates
 
 
@@ -227,6 +360,7 @@ def weight_candidates_for(config: AppConfig) -> list[Candidate]:
 
 
 STAGES = {
+    "indicators": ("indicator normalization windows", indicator_candidates),
     "trend": ("trend filter (TASK-083)", trend_candidates),
     "transition": ("transition (TASK-085)", transition_candidates_for),
     "regime": ("regime count & boundaries (TASK-082/083)", regime_candidates),
@@ -243,6 +377,7 @@ def run_stage(
     data: MarketData,
     guard: SplitGuard,
     objective: Objective,
+    select: str | None = None,
 ) -> StageResult:
     title, builder = STAGES[name]
     candidates = builder(config)
@@ -253,7 +388,33 @@ def run_stage(
     best = report.best
     if best is None:
         raise SystemExit(f"stage {name} produced no usable candidate")
-    return StageResult(name=name, report=report, overrides=best.candidate.overrides)
+
+    chosen = best
+    if select is not None:
+        matches = [o for o in report.outcomes if o.candidate.label == select]
+        if not matches:
+            raise SystemExit(
+                f"stage {name}: no candidate labelled {select!r}. "
+                f"Available: {sorted(o.candidate.label for o in report.outcomes)}"
+            )
+        chosen = matches[0]
+        # Loud on purpose. The objective cannot see everything that matters -
+        # it scores aggregates, not "did this recognise the 2008 bottom" - so
+        # overriding it is legitimate, but it must never happen quietly.
+        logger.warning(
+            "stage %s: taking %s (objective %.4f) over the objective winner %s (%.4f) "
+            "— a deliberate override, record the reason",
+            name, chosen.candidate.label, chosen.objective,
+            best.candidate.label, best.objective,
+        )
+    return StageResult(
+        name=name,
+        report=report,
+        overrides=chosen.candidate.overrides,
+        indicator_overrides=chosen.candidate.indicator_overrides,
+        selected=chosen.candidate.label,
+        objective_winner=best.candidate.label,
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -268,7 +429,28 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--top", type=int, default=8, help="rows to print per stage")
     parser.add_argument(
+        "--select",
+        action="append",
+        default=[],
+        metavar="STAGE=LABEL",
+        help=(
+            "take a named candidate instead of the objective winner, e.g. "
+            "indicators=norm(rsi=absolute). The objective scores aggregates and "
+            "cannot see everything that matters, so an override is legitimate — "
+            "but it is logged loudly and the reason belongs in docs/strategy.md."
+        ),
+    )
+    parser.add_argument(
         "--write", action="store_true", help="update the candidate yaml with the winners"
+    )
+    parser.add_argument(
+        "--write-indicators",
+        type=Path,
+        default=CANDIDATE_INDICATORS,
+        help=(
+            "where searched indicator parameters are written. Never the "
+            "placeholder profile: that one is a fixed reference the tests read."
+        ),
     )
     return parser
 
@@ -276,6 +458,14 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     configure_logging(logging.INFO)
+
+    # Argument errors fail before anything opens a database or reads a window.
+    selections: dict[str, str] = {}
+    for item in args.select:
+        stage, _, label = item.partition("=")
+        if not label:
+            raise SystemExit(f"--select expects STAGE=LABEL, got {item!r}")
+        selections[stage.strip()] = label.strip()
 
     config = load_config(strategy_path=args.candidate, indicators_path=args.indicators)
     guard = SplitGuard(DatasetSplit.from_spec(config.strategy.dataset_split))
@@ -288,23 +478,36 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("%d trading days loaded", len(data.closes))
 
     applied: dict[str, Any] = {}
+    applied_indicators: dict[str, dict[str, Any]] = {}
     for name in [stage.strip() for stage in args.stages.split(",") if stage.strip()]:
         if name not in STAGES:
             raise SystemExit(f"unknown stage {name!r}; known: {sorted(STAGES)}")
-        result = run_stage(name, config, data, guard, objective)
+        result = run_stage(name, config, data, guard, objective, select=selections.get(name))
 
         print(f"\n=== {STAGES[name][0]} ===")
         print(result.table(args.top).to_string())
-        print(f"--> {result.report.best.candidate.label}")
+        if result.overridden:
+            print(f"--> {result.selected}  (objective winner was {result.objective_winner})")
+        else:
+            print(f"--> {result.selected}")
 
         applied.update(result.overrides)
-        config = Candidate(label=f"after-{name}", overrides=result.overrides).apply(config)
+        for indicator, override in result.indicator_overrides.items():
+            applied_indicators.setdefault(indicator, {}).update(override)
+        config = Candidate(
+            label=f"after-{name}",
+            overrides=result.overrides,
+            indicator_overrides=result.indicator_overrides,
+        ).apply(config)
         # Keep the version stable across stages; Candidate.apply appends to it.
         config = _rename(config, args.candidate)
 
     if args.write:
         _write_candidate(args.candidate, applied)
         logger.info("updated %s", args.candidate)
+        if applied_indicators:
+            _write_indicators(args.indicators, args.write_indicators, config)
+            logger.info("wrote %s", args.write_indicators)
     else:
         logger.warning("dry run — re-run with --write to update the candidate file")
     return 0
@@ -324,12 +527,57 @@ def _rename(config: AppConfig, candidate_path: Path) -> AppConfig:
     )
 
 
-def _write_candidate(path: Path, overrides: dict[str, Any]) -> None:
-    """Merge the winners into the candidate file, keeping its comments' intent.
+def _write_indicators(source: Path, destination: Path, config: AppConfig) -> None:
+    """Write the searched indicator set out, never over the placeholder profile.
 
-    The file is rewritten from parsed YAML, so the prose comments are lost; the
-    header is re-added with a pointer to this script.
+    ``placeholder.indicators.yaml`` is a fixed reference the tests read; a
+    search must not move it. The searched set lands beside it under its own
+    name and the candidate strategy is run against that.
     """
+    if destination.resolve() == source.resolve():
+        raise SystemExit(
+            f"refusing to overwrite {source}: the placeholder profile is a fixed "
+            "reference. Pass --write-indicators with a different path."
+        )
+    payload = config.indicators.model_dump(mode="json", exclude_none=True)
+    header = """\
+# candidate.indicators.yaml — regenerated by scripts/optimize.py.
+#
+# Searched on the research window only. The normalization windows here were
+# placeholder values until this stage existed; see docs/strategy.md §2.6.
+#
+# Pair it with candidate.strategy.yaml — both, or neither:
+#   python scripts/backtest.py
+#     --profile    config/research/candidate.strategy.yaml
+#     --indicators config/research/candidate.indicators.yaml
+
+"""
+    destination.write_text(
+        header + yaml.safe_dump(payload, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
+    )
+
+
+def _write_candidate(path: Path, overrides: dict[str, Any]) -> None:
+    """Merge the winners into the candidate file.
+
+    The file is rewritten from parsed YAML, so **every prose comment in it is
+    lost** and only a generic header is re-added. In a project whose whole
+    discipline is recording *why* a number was chosen, that is expensive: the
+    per-parameter rationale has to be written back by hand afterwards.
+
+    So a stage that changed nothing here does not rewrite the file at all.
+    Running the indicator stage used to blow away the strategy file's reasoning
+    for no reason whatsoever.
+    """
+    if not overrides:
+        logger.info("no strategy overrides to write; leaving %s untouched", path)
+        return
+    logger.warning(
+        "rewriting %s from parsed YAML — its prose comments will be lost, "
+        "re-record the rationale for anything you changed",
+        path,
+    )
     payload = yaml.safe_load(path.read_text(encoding="utf-8"))
     payload.update(overrides)
     header = (
