@@ -16,6 +16,7 @@ from fear_ladder.alerts.engine import (
 )
 from fear_ladder.alerts.telegram import (
     MAX_MESSAGE_CHARS,
+    RecordingNotifier,
     TelegramNotConfiguredError,
     TelegramNotifier,
 )
@@ -54,7 +55,9 @@ def _allocation(**weights: float) -> TargetAllocation:
 
 
 def _engine(alerts_config, notifier: NotificationProvider | None = None) -> AlertEngine:
-    return AlertEngine(alerts_config, notifier or NullNotifier())
+    # RecordingNotifier, not NullNotifier: these tests are about what a
+    # working channel does. NullNotifier means *no* channel, and now says so.
+    return AlertEngine(alerts_config, notifier or RecordingNotifier())
 
 
 @pytest.fixture
@@ -138,7 +141,7 @@ def test_a_regime_change_produces_one_alert(alerts_config, uow) -> None:
 
 def test_re_running_the_same_day_sends_nothing(alerts_config, uow) -> None:
     """The guarantee ``ARCHITECTURE.md`` §11 asks for."""
-    notifier = NullNotifier()
+    notifier = RecordingNotifier()
     engine = _engine(alerts_config, notifier)
     context = AlertContext(
         state=_state(), allocation=_allocation(), regime_changed=True,
@@ -147,12 +150,12 @@ def test_re_running_the_same_day_sends_nothing(alerts_config, uow) -> None:
 
     first = engine.dispatch(context, uow.events)
     assert first.sent
-    sent_once = len(notifier.sent)
+    sent_once = len(notifier.messages)
 
     second = engine.dispatch(context, uow.events)
     assert not second.created
     assert not second.sent
-    assert len(notifier.sent) == sent_once
+    assert len(notifier.messages) == sent_once
     assert all("already recorded" in reason for _, reason in second.suppressed)
 
 
@@ -500,3 +503,82 @@ def test_unknown_regime_never_triggers_an_extreme_alert(alerts_config) -> None:
         AlertContext(state=state, most_fearful_regime=UNKNOWN_REGIME)
     )
     assert {d.event_type for d in decisions} == {EventType.DATA_FAILURE}
+
+
+# ------------------------------- a channel that does not deliver (TASK-121)
+
+
+def test_a_notifier_that_cannot_deliver_leaves_the_alert_pending(
+    alerts_config, uow
+) -> None:
+    """The bug this replaces: a deployment with no Telegram token recorded its
+    alerts as SENT by a provider named "null". Nobody received them, the
+    database said otherwise, and they could never be retried."""
+    engine = _engine(alerts_config, NullNotifier())
+    context = AlertContext(
+        state=_state(), allocation=_allocation(), regime_changed=True,
+        most_fearful_regime="Capitulation",
+    )
+    report = engine.dispatch(context, uow.events)
+
+    assert report.created
+    assert not report.sent
+    stored = uow.events.get_alerts()
+    assert stored and all(event.delivery_status == "PENDING" for event in stored)
+    assert uow.events.get_pending_alerts()
+
+
+def test_pending_alerts_are_delivered_once_a_channel_appears(
+    alerts_config, uow
+) -> None:
+    _engine(alerts_config, NullNotifier()).dispatch(
+        AlertContext(
+            state=_state(), allocation=_allocation(), regime_changed=True,
+            most_fearful_regime="Capitulation",
+        ),
+        uow.events,
+    )
+    assert uow.events.get_pending_alerts()
+
+    notifier = RecordingNotifier()
+    report = _engine(alerts_config, notifier).send_pending(uow.events)
+
+    assert report.sent
+    assert notifier.messages
+    assert not uow.events.get_pending_alerts()
+
+
+def test_resending_without_a_channel_changes_nothing(alerts_config, uow) -> None:
+    engine = _engine(alerts_config, NullNotifier())
+    engine.dispatch(
+        AlertContext(
+            state=_state(), allocation=_allocation(), regime_changed=True,
+            most_fearful_regime="Capitulation",
+        ),
+        uow.events,
+    )
+    before = len(uow.events.get_pending_alerts())
+    report = engine.send_pending(uow.events)
+
+    assert not report.sent and not report.failed
+    assert len(uow.events.get_pending_alerts()) == before
+
+
+def test_a_stale_pending_alert_is_stood_down_rather_than_sent(
+    alerts_config, uow
+) -> None:
+    """An alert that waited months describes a market that has moved on."""
+    _engine(alerts_config, NullNotifier()).dispatch(
+        AlertContext(
+            state=_state(), allocation=_allocation(), regime_changed=True,
+            most_fearful_regime="Capitulation",
+        ),
+        uow.events,
+    )
+    notifier = RecordingNotifier()
+    report = _engine(alerts_config, notifier).send_pending(uow.events, within_days=3)
+
+    assert not report.sent
+    assert report.suppressed
+    assert not notifier.messages
+    assert not uow.events.get_pending_alerts()

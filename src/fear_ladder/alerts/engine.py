@@ -26,8 +26,8 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
-from dataclasses import dataclass, field
-from datetime import timedelta
+from dataclasses import dataclass, field, replace
+from datetime import date, timedelta
 from typing import Protocol, runtime_checkable
 
 from fear_ladder.alerts.templates import RenderedAlert, render
@@ -48,6 +48,9 @@ class NotificationProvider(Protocol):
     """``ARCHITECTURE.md`` §10 — the port every channel implements."""
 
     name: str
+    #: Whether ``send`` actually reaches a person. A provider that only records
+    #: must say so, or the alert is marked delivered when nothing was delivered.
+    delivers: bool
 
     def send(self, alert: AlertEvent) -> None:
         """Deliver the alert, or raise :class:`NotificationError`."""
@@ -56,14 +59,22 @@ class NotificationProvider(Protocol):
 
 @dataclass(slots=True)
 class NullNotifier:
-    """Records instead of sending. Used by tests and by dry runs."""
+    """Accepts alerts and delivers none of them.
+
+    Used where there is no channel: a dry run, a test, or — the case that
+    matters — a deployment whose Telegram credentials are not set yet. It
+    reports ``delivers = False`` so those alerts stay PENDING instead of being
+    recorded as sent by a provider named "null", which is what the database
+    used to claim.
+    """
 
     name: str = "null"
+    delivers: bool = False
     sent: list[AlertEvent] = field(default_factory=list)
 
     def send(self, alert: AlertEvent) -> None:
         self.sent.append(alert)
-        logger.info("[dry run] would send %s: %s", alert.event_type.value, alert.title)
+        logger.info("[not delivered] %s: %s", alert.event_type.value, alert.title)
 
 
 @dataclass(frozen=True, slots=True)
@@ -259,6 +270,11 @@ class AlertEngine:
                 repository.mark_alert_delivered(event.failed(self.notifier.name, str(exc)))
                 failed.append((event, str(exc)))
                 continue
+            if not self.notifier.delivers:
+                # Left PENDING on purpose. Marking it delivered here would make
+                # the record claim a message nobody received, and the alert
+                # would never be retried once a real channel is configured.
+                continue
             repository.mark_alert_delivered(event.delivered(self.notifier.name))
             sent.append(event)
 
@@ -271,11 +287,37 @@ class AlertEngine:
         logger.info("%s", report.summary())
         return report
 
-    def send_pending(self, repository: EventRepository) -> DispatchReport:
-        """Retry alerts that were recorded but never delivered."""
+    def send_pending(
+        self, repository: EventRepository, *, within_days: int | None = None
+    ) -> DispatchReport:
+        """Retry alerts that were recorded but never delivered.
+
+        ``within_days`` bounds how far back to reach. An alert that has been
+        waiting for months describes a market that has moved on, so delivering
+        it is noise rather than news; those are stood down instead.
+        """
         sent: list[AlertEvent] = []
         failed: list[tuple[AlertEvent, str]] = []
+        suppressed: list[tuple[EventType, str]] = []
+        if not self.notifier.delivers:
+            logger.warning(
+                "no delivering channel configured; %d alert(s) stay pending",
+                len(repository.get_pending_alerts()),
+            )
+            return DispatchReport()
+
+        cutoff = None if within_days is None else date.today() - timedelta(days=within_days)
         for event in repository.get_pending_alerts():
+            if cutoff is not None and event.event_date < cutoff:
+                repository.mark_alert_delivered(
+                    replace(
+                        event,
+                        delivery_status="SUPPRESSED",
+                        error=f"older than {within_days} days when a channel appeared",
+                    )
+                )
+                suppressed.append((event.event_type, "too old to be news"))
+                continue
             try:
                 self.notifier.send(event)
             except NotificationError as exc:
@@ -284,7 +326,9 @@ class AlertEngine:
                 continue
             repository.mark_alert_delivered(event.delivered(self.notifier.name))
             sent.append(event)
-        return DispatchReport(sent=tuple(sent), failed=tuple(failed))
+        return DispatchReport(
+            sent=tuple(sent), failed=tuple(failed), suppressed=tuple(suppressed)
+        )
 
     # -- internals ---------------------------------------------------------
     def _cooldown_reason(

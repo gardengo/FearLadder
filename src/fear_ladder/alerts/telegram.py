@@ -55,6 +55,7 @@ class TelegramNotifier:
     backoff_seconds: float = 2.0
     api_base: str = API_BASE
     name: str = "telegram"
+    delivers: bool = True
     #: Injected so tests never touch the network and never sleep.
     transport: Callable[[str, bytes, float], dict[str, Any]] | None = None
     sleep: Callable[[float], None] = time.sleep
@@ -200,6 +201,8 @@ class RecordingNotifier:
     """A provider that captures messages. For dry runs and tests."""
 
     name: str = "recording"
+    #: Stands in for a real channel in tests, so it does claim delivery.
+    delivers: bool = True
     messages: list[AlertEvent] = field(default_factory=list)
 
     def send(self, alert: AlertEvent) -> None:

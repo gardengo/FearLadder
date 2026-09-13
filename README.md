@@ -193,6 +193,11 @@ python scripts/backtest.py --profile config/strategy.yaml --start 2021-02-27
 
 # 성과 리포트 재생성 (대시보드가 읽는 파일)
 python scripts/make_performance_report.py
+
+# 알림 설정 확인 / 미리보기 / 테스트 전송
+python scripts/notify.py --status
+python scripts/notify.py --preview
+python scripts/notify.py --test
 ```
 
 ### 환경변수
@@ -270,7 +275,8 @@ tests/          624개
 
 ### 남은 것
 
-- Telegram 알림 설정 (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` 환경변수)
+- Telegram 알림 설정 — 토큰 두 개를 secret 으로 넣고 `python scripts/notify.py --test`
+  로 확인. 설정 전까지 알림은 `PENDING` 으로 쌓였다가 토큰이 생기면 배달된다
 - GitHub Actions 일일 스케줄 활성화
 - 최종 구간까지 다 썼으므로, **다음 전략 변경에는 깨끗한 검증 구간이 없습니다.**
   새 데이터가 쌓이기를 기다려야 합니다.

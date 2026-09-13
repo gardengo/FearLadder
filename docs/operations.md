@@ -105,6 +105,49 @@ python scripts/prune_observations.py --keep-years 1
 
 ### 최초 설정
 
+```bash
+# 1) 토큰과 chat id 를 환경에 둔다 (파일에 쓰지 않는다)
+#    로컬: .env,  운영: GitHub Actions repository secret
+gh secret set TELEGRAM_BOT_TOKEN
+gh secret set TELEGRAM_CHAT_ID
+
+# 2) 연결이 되는지 확인한다 — 실제로 한 통 보낸다
+python scripts/notify.py --test
+
+# 3) 지금 상태 확인
+python scripts/notify.py --status
+```
+
+`--test` 가 없으면 설정이 맞는지는 **단계가 바뀌는 날**에야 알게 된다. chat id
+오타를 확인하기에 가장 나쁜 날이다.
+
+메시지가 어떻게 생겼는지는 네트워크 없이 볼 수 있다:
+
+```bash
+python scripts/notify.py --preview   # 6개 템플릿 전부, 저장된 최신 상태로 렌더
+```
+
+#### 채널이 없을 때 알림은 어떻게 되는가
+
+**전송되지 않고 `PENDING` 으로 남는다.** 일일 워커는 알림을 보내기 *전에* 먼저
+저장하므로, 채널이 없거나 죽어 있어도 사라지지 않는다. 나중에 토큰을 설정하면
+다음 실행이 자동으로 밀린 것을 배달한다 (7일 이내 것만 — 그보다 오래된 알림은
+이미 지나간 시장을 설명하므로 `SUPPRESSED` 로 내린다).
+
+수동으로 밀어 넣으려면:
+
+```bash
+python scripts/notify.py --resend                # 최근 7일
+python scripts/notify.py --resend --within-days 0  # 제한 없이 전부
+```
+
+> 2026-09-13 이전에는 이게 반대로 동작했다. 토큰이 없으면 `NullNotifier` 가
+> 조용히 성공해서 알림이 **`SENT` 로 기록**됐다 — 아무도 받지 못했는데
+> 기록은 보냈다고 말했고, 나중에 재전송할 방법도 없었다. 이제 배달하지 않는
+> 채널은 그렇다고 선언하고, 알림은 `PENDING` 으로 남는다.
+
+### Telegram 봇 만들기
+
 1. Telegram 에서 [@BotFather](https://t.me/botfather) → `/newbot` → 토큰 확보
 2. 만든 봇과 대화를 시작한다 (봇은 먼저 말을 걸 수 없다)
 3. chat id 확인:
