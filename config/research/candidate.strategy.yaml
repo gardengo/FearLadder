@@ -13,9 +13,11 @@
 # NOT FROZEN. The out-of-sample window has not been spent, so this has not had
 # its final test. scripts/freeze.py is a separate, deliberate act.
 #
-# The VALIDATION window was spent on 2026-09-13 (docs/strategy.md 2.5). Nothing
-# here was changed afterwards, and nothing here may be: a parameter tuned to a
-# window is no longer tested by it.
+# The VALIDATION window was read twice on 2026-09-13 (docs/strategy.md 2.5 and
+# 2.7). No value here was fitted to it -- min_depth_to_engage was searched and
+# chosen on the research window alone -- but the idea of testing a depth floor
+# came from the validation loss reported in 2.5, so the second reading is not
+# an independent check. Treat validation as spent.
 #
 # HOW WELL EACH PARAMETER IS ACTUALLY SUPPORTED
 #
