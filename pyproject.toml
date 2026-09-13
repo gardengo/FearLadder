@@ -18,6 +18,10 @@ dependencies = [
     "pydantic>=2.6",
     "requests>=2.31",
     "finance-datareader>=0.9.90",
+    # AAII publishes its weekly survey as a legacy .xls, which pandas can only
+    # open through xlrd. Without it scripts/fetch_reference.py fails and the
+    # sentiment indicator quietly drops out of the composite score.
+    "xlrd>=2.0.1",
     # zoneinfo needs an IANA database; Windows has none of its own.
     "tzdata>=2024.1; sys_platform == 'win32'",
 ]
