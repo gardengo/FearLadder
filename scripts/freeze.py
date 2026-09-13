@@ -37,11 +37,13 @@ from regime_monitor.research.backtest_runner import StrategyBacktest
 from regime_monitor.research.data_loader import load_market_data
 from regime_monitor.research.freeze import (
     FROZEN_HEADER,
+    FROZEN_INDICATORS_HEADER,
     Fingerprint,
     FreezeError,
     FreezeEvidence,
     RegressionRecord,
     freeze,
+    write_indicators_yaml,
     write_strategy_yaml,
 )
 from regime_monitor.research.reports import code_commit
@@ -58,6 +60,17 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         required=True,
         help="strategy yaml holding the researched parameters",
+    )
+    parser.add_argument(
+        "--indicators",
+        type=Path,
+        default=None,
+        help=(
+            "the indicators yaml this candidate was searched against. The two "
+            "halves are only meaningful together; without this the default "
+            "config/indicators.yaml is read and its research parameters are "
+            "still unresolved, so the freeze refuses."
+        ),
     )
     parser.add_argument("--version", required=True, help="e.g. v1.0-frozen")
     parser.add_argument("--parameter-version", required=True)
@@ -82,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     configure_logging()
 
-    config = load_config(strategy_path=args.candidate)
+    config = load_config(strategy_path=args.candidate, indicators_path=args.indicators)
     logger.info(
         "candidate %s (%s)",
         config.strategy.strategy_version,
@@ -90,9 +103,13 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     with SQLiteUnitOfWork(args.db) as uow:
-        data = load_market_data(uow.observations, config, start=args.start, end=args.end)
+        # As in scripts/backtest.py: --start windows the simulation, not the
+        # data, so the indicators keep their warm-up.
+        data = load_market_data(uow.observations, config, end=args.end)
 
-    run = StrategyBacktest(config).run(data, include_benchmarks=True)
+    run = StrategyBacktest(config).run(
+        data, start=args.start, end=args.end, include_benchmarks=True
+    )
     fingerprint = Fingerprint.of_run(run)
     logger.info("fingerprint %s over %d rows", fingerprint.digest[:16], fingerprint.rows)
     print(run.comparison().to_string())
@@ -121,11 +138,17 @@ def main(argv: list[str] | None = None) -> int:
 
     manifest_path = FROZEN_DIR / f"{args.version}.manifest.json"
     regression_path = FROZEN_DIR / f"{args.version}.regression.json"
+    # The indicator half goes NEXT TO the manifest, not over config/indicators.yaml.
+    # That file is hand-maintained and scripts/make_placeholder_indicators.py
+    # transforms its *text*, so a machine dump over it breaks the placeholder
+    # profile and loses the prose the indicator set is documented in.
+    indicators_path = FROZEN_DIR / f"{args.version}.indicators.yaml"
 
     if not args.apply:
         logger.warning("dry run — nothing written. Re-run with --apply to commit the freeze.")
         logger.info("would write %s", manifest_path)
         logger.info("would write %s", regression_path)
+        logger.info("would write %s", indicators_path)
         logger.info("would overwrite %s", paths.CONFIG_DIR / "strategy.yaml")
         return 0
 
@@ -135,10 +158,18 @@ def main(argv: list[str] | None = None) -> int:
         fingerprint=fingerprint.digest,
         rows=fingerprint.rows,
     ).write(regression_path)
-    write_strategy_yaml(frozen, paths.CONFIG_DIR / "strategy.yaml", header=FROZEN_HEADER)
+    write_indicators_yaml(
+        config.indicators, indicators_path, header=FROZEN_INDICATORS_HEADER
+    )
+    write_strategy_yaml(
+        frozen,
+        paths.CONFIG_DIR / "strategy.yaml",
+        header=FROZEN_HEADER.format(indicators=indicators_path.name),
+    )
 
     logger.info("wrote %s", manifest_path)
     logger.info("wrote %s", regression_path)
+    logger.info("wrote %s", indicators_path)
     logger.info("froze %s into config/strategy.yaml", args.version)
     logger.warning(
         "commit config/strategy.yaml and config/frozen/ together: the manifest is "

@@ -38,12 +38,39 @@ def test_the_shipped_configuration_loads_and_cross_validates() -> None:
     assert config.data_sources.price.symbols.keys() >= {"QQQ", "QLD", "TQQQ"}
 
 
-def test_the_shipped_strategy_is_not_frozen_and_reports_its_open_parameters() -> None:
+def test_the_shipped_strategy_is_frozen_and_fully_resolved() -> None:
+    """v1.0-frozen, 2026-09-13. Before that this asserted the opposite.
+
+    The shipped file is the frozen output now, so the invariant worth pinning
+    flipped: nothing may be left open, and production must accept it without
+    the research-parameter escape hatch.
+    """
     config = load_config()
-    assert config.strategy.parameter_status is ParameterStatus.RESEARCH
-    unresolved = config.strategy.unresolved_parameters()
-    assert {"score.weights", "regime", "allocation.mappings"} <= set(unresolved)
-    assert not config.is_production_ready
+    assert config.strategy.parameter_status is ParameterStatus.FROZEN
+    assert config.strategy.frozen_at is not None
+    assert config.strategy.unresolved_parameters() == ()
+    assert config.unresolved_parameters() == ()
+    assert config.is_production_ready
+
+
+def test_the_frozen_strategy_has_a_manifest_recording_both_halves() -> None:
+    """A frozen strategy without its evidence is just numbers in a file."""
+    import json
+
+    version = load_config().strategy.strategy_version
+    manifest = json.loads(
+        (paths.CONFIG_DIR / "frozen" / f"{version}.manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert manifest["strategy_version"] == version
+    assert manifest["fingerprint"]
+    assert manifest["evidence"]["research"]
+    assert manifest["evidence"]["validation"]
+    # The normalization is half the strategy (docs/strategy.md 2.6); a manifest
+    # that recorded only the ladder could not reproduce the frozen result.
+    assert manifest["indicators"]["indicators"]["rsi_14"]["normalization"]["method"]
+    assert (paths.CONFIG_DIR / "frozen" / f"{version}.indicators.yaml").exists()
 
 
 def test_every_enabled_indicator_points_at_a_declared_source() -> None:
@@ -135,8 +162,14 @@ def test_placeholder_target_leverage_falls_as_greed_rises() -> None:
 
 def test_gate_passes_only_for_a_frozen_and_resolved_strategy(monkeypatch) -> None:
     monkeypatch.delenv("REGIME_MONITOR_ALLOW_RESEARCH_PARAMS", raising=False)
+
+    # The shipped config is frozen since v1.0-frozen, so it is what the gate
+    # must now ACCEPT. Both directions are the point of the gate.
+    ensure_production_ready(load_config())
+
+    unresolved = load_research_placeholder_config()
     with pytest.raises(ResearchParameterError):
-        ensure_production_ready(load_config())
+        ensure_production_ready(unresolved)
 
 
 def test_gate_can_be_opened_explicitly_for_research(monkeypatch) -> None:

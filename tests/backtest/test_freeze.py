@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 from pandas import DataFrame
 
-from regime_monitor.config.loader import load_config, load_strategy
+from regime_monitor.config.loader import load_strategy
 from regime_monitor.config.schema import StrategyConfig
 from regime_monitor.constants import ParameterStatus
 from regime_monitor.research.backtest_runner import MarketData, StrategyBacktest
@@ -141,11 +141,19 @@ def test_the_placeholder_profile_can_never_be_frozen(placeholder_config) -> None
         )
 
 
-def test_freezing_requires_every_parameter_to_be_settled() -> None:
-    # BACKTEST_SPEC.md 27 — the operational config still has nulls.
+def test_freezing_requires_every_parameter_to_be_settled(placeholder_config) -> None:
+    """BACKTEST_SPEC.md 27.
+
+    The unresolved config is built here rather than loaded from ``config/``:
+    that file is frozen since v1.0-frozen, so it no longer supplies nulls.
+    """
+    from regime_monitor.config.schema import RegimeSpec
+
+    researched = _researched(placeholder_config)
+    strategy = researched.strategy.model_copy(update={"regime": RegimeSpec()})
     with pytest.raises(FreezeError, match="unresolved parameters"):
         freeze(
-            load_config(),
+            researched.model_copy(update={"strategy": strategy}),
             strategy_version="v1.0-frozen",
             parameter_version="p1",
             data_version="d1",

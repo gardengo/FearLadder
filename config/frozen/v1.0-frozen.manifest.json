@@ -1,0 +1,865 @@
+{
+  "code_commit": "f1f36325f3072d0bc1cbf5bab3f2156ec924a1e5",
+  "data_version": "fdr+reconstructed-1996",
+  "evidence": {
+    "notes": "OOS 2021-02-27..2026-09-11 deliberately NOT spent at freeze time. Frozen first so the numbers are committed before the final test is seen.",
+    "objective": null,
+    "out_of_sample": null,
+    "research": "research 1999-01-01..2015-08-14: CAGR +12.78%, MDD 62.4%, Sharpe 0.56, Calmar 0.205, turnover 3.3/yr",
+    "sensitivity": [],
+    "validation": "validation 2015-08-15..2021-02-26: CAGR +28.29%, MDD 27.9%, Sharpe 1.01; beats QQQ and QLD 70/30 on return, drawdown and Sharpe. NOT independent: the depth-floor hypothesis was prompted by the earlier validation reading (docs/strategy.md 2.7).",
+    "walk_forward": "5 folds, train 6y/test 2y: stitched CAGR 13.52%, MDD 55.4%, Sharpe 0.60. Four folds improved, the GFC fold (2006-12..2008-12) worsened -16.4% -> -21.7%, which is the documented cost of the depth floor."
+  },
+  "fingerprint": "b425a9b104b62daaa9be2b4fd2878dd9d86b5982a9339cf2b5972c3407061b95",
+  "frozen_at": "2026-09-13T06:43:40.116851+00:00",
+  "indicators": {
+    "indicators": {
+      "aaii_bull_bear_spread": {
+        "compute": "level",
+        "definitional_range": null,
+        "description": "AAII bullish% - bearish% spread, weekly, used only after publication",
+        "direction": "HIGHER_IS_GREED",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "sentiment",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 52,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            52,
+            104,
+            156,
+            260
+          ],
+          "window": 104
+        },
+        "params": {},
+        "research_params": [],
+        "source": "AAII_SENTIMENT"
+      },
+      "breadth_pct_above_200dma": {
+        "compute": "pct_above_ma",
+        "definitional_range": null,
+        "description": "Share of Nasdaq-100 members above their own 200DMA",
+        "direction": "HIGHER_IS_GREED",
+        "disabled_reason": "Depends on the disabled BREADTH_NDX source: point-in-time Nasdaq-100 constituents are unavailable, and reconstructing breadth from today's members would inject survivorship bias (PRD.md \u00a76.5).",
+        "enabled": false,
+        "family": "breadth",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "bounded",
+          "min_periods": null,
+          "raw_at_score_max": 1.0,
+          "raw_at_score_min": 0.0,
+          "research_candidates": [],
+          "window": null
+        },
+        "params": {
+          "window": 200
+        },
+        "research_params": [],
+        "source": "BREADTH_NDX"
+      },
+      "cnn_fear_greed": {
+        "compute": "level",
+        "definitional_range": null,
+        "description": "CNN Fear & Greed Index, already published on a 0..100 greed scale",
+        "direction": "HIGHER_IS_GREED",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "sentiment",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "fixed_mapping",
+          "min_periods": null,
+          "raw_at_score_max": 100.0,
+          "raw_at_score_min": 0.0,
+          "research_candidates": [],
+          "window": null
+        },
+        "params": {},
+        "research_params": [],
+        "source": "CNN_FEAR_GREED"
+      },
+      "drawdown_30d": {
+        "compute": "drawdown",
+        "definitional_range": [
+          0.0,
+          1.0
+        ],
+        "description": "Depth below the 30-trading-day peak",
+        "direction": "HIGHER_IS_FEAR",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "drawdown",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {
+          "window": 30
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "drawdown_52w": {
+        "compute": "drawdown",
+        "definitional_range": [
+          0.0,
+          1.0
+        ],
+        "description": "Depth below the 52-week peak",
+        "direction": "HIGHER_IS_FEAR",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "drawdown",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {
+          "window": 252
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "drawdown_90d": {
+        "compute": "drawdown",
+        "definitional_range": [
+          0.0,
+          1.0
+        ],
+        "description": "Depth below the 90-trading-day peak",
+        "direction": "HIGHER_IS_FEAR",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "drawdown",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {
+          "window": 90
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "drawdown_current": {
+        "compute": "drawdown",
+        "definitional_range": [
+          0.0,
+          1.0
+        ],
+        "description": "Depth below the running all-time-to-date peak",
+        "direction": "HIGHER_IS_FEAR",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "drawdown",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {
+          "window": null
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "ma_200_slope": {
+        "compute": "ma_slope",
+        "definitional_range": null,
+        "description": "21-day relative change of the 200DMA",
+        "direction": "HIGHER_IS_GREED",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "trend",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {
+          "lookback": 21,
+          "window": 200
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "ma_50_200_ratio": {
+        "compute": "ma_ratio",
+        "definitional_range": null,
+        "description": "50DMA / 200DMA - 1 (golden/death cross distance)",
+        "direction": "HIGHER_IS_GREED",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "trend",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {
+          "fast": 50,
+          "slow": 200
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "momentum_12m": {
+        "compute": "momentum",
+        "definitional_range": null,
+        "description": "12-month total return of QQQ",
+        "direction": "HIGHER_IS_GREED",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "momentum",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {
+          "window": 252
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "momentum_1m": {
+        "compute": "momentum",
+        "definitional_range": null,
+        "description": "1-month total return of QQQ (21 trading days)",
+        "direction": "HIGHER_IS_GREED",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "momentum",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {
+          "window": 21
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "momentum_3m": {
+        "compute": "momentum",
+        "definitional_range": null,
+        "description": "3-month total return of QQQ",
+        "direction": "HIGHER_IS_GREED",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "momentum",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {
+          "window": 63
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "momentum_6m": {
+        "compute": "momentum",
+        "definitional_range": null,
+        "description": "6-month total return of QQQ",
+        "direction": "HIGHER_IS_GREED",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "momentum",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {
+          "window": 126
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "price_vs_200dma": {
+        "compute": "price_vs_ma",
+        "definitional_range": null,
+        "description": "Close / 200DMA - 1",
+        "direction": "HIGHER_IS_GREED",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "trend",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {
+          "window": 200
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "price_vs_20dma": {
+        "compute": "price_vs_ma",
+        "definitional_range": null,
+        "description": "Close / 20DMA - 1",
+        "direction": "HIGHER_IS_GREED",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "trend",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {
+          "window": 20
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "price_vs_50dma": {
+        "compute": "price_vs_ma",
+        "definitional_range": null,
+        "description": "Close / 50DMA - 1",
+        "direction": "HIGHER_IS_GREED",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "trend",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {
+          "window": 50
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "rsi_14": {
+        "compute": "rsi",
+        "definitional_range": [
+          0.0,
+          100.0
+        ],
+        "description": "Wilder RSI(14) on QQQ close",
+        "direction": "HIGHER_IS_GREED",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "rsi",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "bounded",
+          "min_periods": null,
+          "raw_at_score_max": 100.0,
+          "raw_at_score_min": 0.0,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": null
+        },
+        "params": {
+          "window": 14
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "rsi_30": {
+        "compute": "rsi",
+        "definitional_range": [
+          0.0,
+          100.0
+        ],
+        "description": "Wilder RSI(30) on QQQ close",
+        "direction": "HIGHER_IS_GREED",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "rsi",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "bounded",
+          "min_periods": null,
+          "raw_at_score_max": 100.0,
+          "raw_at_score_min": 0.0,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": null
+        },
+        "params": {
+          "window": 30
+        },
+        "research_params": [],
+        "source": "QQQ"
+      },
+      "vix_change_5d": {
+        "compute": "change",
+        "definitional_range": null,
+        "description": "5-day relative change in VIX",
+        "direction": "HIGHER_IS_FEAR",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "volatility",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {
+          "window": 5
+        },
+        "research_params": [],
+        "source": "VIX"
+      },
+      "vix_level": {
+        "compute": "level",
+        "definitional_range": null,
+        "description": "VIX close",
+        "direction": "HIGHER_IS_FEAR",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "volatility",
+        "mandatory": true,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "rolling_percentile",
+          "min_periods": 252,
+          "raw_at_score_max": null,
+          "raw_at_score_min": null,
+          "research_candidates": [
+            252,
+            504,
+            756,
+            1260
+          ],
+          "window": 504
+        },
+        "params": {},
+        "research_params": [],
+        "source": "VIX"
+      },
+      "vix_percentile": {
+        "compute": "trailing_percentile",
+        "definitional_range": null,
+        "description": "VIX rank inside its own trailing distribution, 0..1",
+        "direction": "HIGHER_IS_FEAR",
+        "disabled_reason": null,
+        "enabled": true,
+        "family": "volatility",
+        "mandatory": false,
+        "normalization": {
+          "clip_sigma": null,
+          "method": "bounded",
+          "min_periods": null,
+          "raw_at_score_max": 1.0,
+          "raw_at_score_min": 0.0,
+          "research_candidates": [],
+          "window": null
+        },
+        "params": {
+          "window": 504
+        },
+        "research_params": [
+          "window"
+        ],
+        "source": "VIX"
+      }
+    },
+    "version": 1
+  },
+  "parameter_version": "p1-coordinate-descent-2026-09-13",
+  "parameters": {
+    "allocation": {
+      "constraints": {
+        "max_target_leverage": 3.0,
+        "min_market_exposure": 0.5,
+        "weights_non_negative": true,
+        "weights_sum_to_one": true
+      },
+      "mappings": {
+        "Capitulation": {
+          "TQQQ": 1.0
+        },
+        "Euphoria": {
+          "CASH": 0.5,
+          "QQQ": 0.5
+        },
+        "Fear": {
+          "QLD": 0.8333333333,
+          "TQQQ": 0.1666666667
+        },
+        "Greed": {
+          "CASH": 0.0833333333,
+          "QQQ": 0.9166666667
+        },
+        "Neutral": {
+          "QLD": 0.75,
+          "QQQ": 0.25
+        },
+        "Optimism": {
+          "QLD": 0.3333333333,
+          "QQQ": 0.6666666667
+        },
+        "Panic": {
+          "QLD": 0.4166666667,
+          "TQQQ": 0.5833333333
+        }
+      }
+    },
+    "cost_model": {
+      "commission_bps": 10.0,
+      "slippage_bps": 0.0,
+      "spread_bps": 0.0
+    },
+    "data_version": "fdr+reconstructed-1996",
+    "dataset_split": {
+      "oos_end": "2026-09-11",
+      "oos_start": "2021-02-27",
+      "research_end": "2015-08-14",
+      "research_start": "1999-01-01",
+      "validation_end": "2021-02-26",
+      "validation_start": "2015-08-15"
+    },
+    "execution": {
+      "rebalance_on": "regime_change",
+      "same_day_execution_allowed": false,
+      "timing": "NEXT_OPEN"
+    },
+    "frozen_at": "2026-09-13T06:43:40.116851Z",
+    "parameter_status": "FROZEN",
+    "parameter_version": "p1-coordinate-descent-2026-09-13",
+    "regime": {
+      "boundaries": [
+        12.0,
+        27.0,
+        42.0,
+        58.0,
+        73.0,
+        85.0
+      ],
+      "count": 7,
+      "labels": [
+        "Capitulation",
+        "Panic",
+        "Fear",
+        "Neutral",
+        "Optimism",
+        "Greed",
+        "Euphoria"
+      ],
+      "research_candidates": [
+        3,
+        5,
+        7,
+        9
+      ]
+    },
+    "score": {
+      "weights": {
+        "aaii_bull_bear_spread": 0.05555555555555555,
+        "cnn_fear_greed": 0.05555555555555555,
+        "drawdown_30d": 0.027777777777777776,
+        "drawdown_52w": 0.027777777777777776,
+        "drawdown_90d": 0.027777777777777776,
+        "drawdown_current": 0.027777777777777776,
+        "ma_200_slope": 0.06666666666666667,
+        "ma_50_200_ratio": 0.06666666666666667,
+        "momentum_12m": 0.05555555555555555,
+        "momentum_1m": 0.05555555555555555,
+        "momentum_3m": 0.05555555555555555,
+        "momentum_6m": 0.05555555555555555,
+        "price_vs_200dma": 0.06666666666666667,
+        "price_vs_20dma": 0.06666666666666667,
+        "price_vs_50dma": 0.06666666666666667,
+        "rsi_14": 0.05555555555555555,
+        "rsi_30": 0.05555555555555555,
+        "vix_change_5d": 0.037037037037037035,
+        "vix_level": 0.037037037037037035,
+        "vix_percentile": 0.037037037037037035
+      }
+    },
+    "strategy_version": "v1.0-frozen",
+    "tqqq_gate": {
+      "candidate_rules": [
+        "deep_drawdown",
+        "extreme_fear",
+        "high_vix",
+        "oversold_rsi",
+        "volatility_spike",
+        "price_stabilization",
+        "reversal_evidence",
+        "breadth_capitulation"
+      ],
+      "enabled": true,
+      "min_confirmations": 4,
+      "required_rules": [
+        "deep_drawdown",
+        "extreme_fear"
+      ],
+      "rule_params": {
+        "breadth_capitulation": {
+          "indicator": "breadth_pct_above_200dma",
+          "max_value": 0.15
+        },
+        "deep_drawdown": {
+          "indicator": "drawdown_52w",
+          "min_value": 0.35
+        },
+        "extreme_fear": {
+          "indicator": "vix_percentile",
+          "min_value": 0.85
+        },
+        "high_vix": {
+          "indicator": "vix_level",
+          "min_value": 30.0
+        },
+        "oversold_rsi": {
+          "indicator": "rsi_14",
+          "max_value": 32.0
+        },
+        "price_stabilization": {
+          "indicator": "drawdown_30d",
+          "max_value": 0.08
+        },
+        "reversal_evidence": {
+          "indicator": "momentum_1m",
+          "min_value": 0.0
+        },
+        "volatility_spike": {
+          "indicator": "vix_change_5d",
+          "min_value": 0.2
+        }
+      }
+    },
+    "transition": {
+      "confirmation_days": 1,
+      "hysteresis": 5.0,
+      "minimum_duration_days": 75,
+      "research_candidates": {
+        "confirmation_days": [
+          1.0,
+          2.0,
+          3.0,
+          5.0,
+          10.0
+        ],
+        "hysteresis": [
+          0.0,
+          2.0,
+          5.0,
+          8.0,
+          10.0
+        ],
+        "minimum_duration_days": [
+          1.0,
+          5.0,
+          10.0,
+          20.0,
+          30.0,
+          45.0,
+          60.0
+        ]
+      }
+    },
+    "trend_filter": {
+      "depth_indicator": "drawdown_52w",
+      "enabled": true,
+      "indicator": "price_vs_200dma",
+      "max_leverage_below": 0.5,
+      "min_depth_to_engage": 0.2,
+      "reentry_threshold": 0.02,
+      "research_candidates": {
+        "max_leverage_below": [
+          0.0,
+          0.25,
+          0.5,
+          1.0,
+          1.5
+        ],
+        "min_depth_to_engage": [
+          0.0,
+          0.15,
+          0.2,
+          0.25,
+          0.3
+        ],
+        "reentry_band": [
+          0.0,
+          0.02,
+          0.04,
+          0.06
+        ],
+        "threshold": [
+          -0.08,
+          -0.05,
+          -0.02,
+          0.0,
+          0.02
+        ]
+      },
+      "threshold": -0.02
+    },
+    "version": 1
+  },
+  "strategy_version": "v1.0-frozen"
+}

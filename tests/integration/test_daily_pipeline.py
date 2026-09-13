@@ -347,12 +347,20 @@ def test_regime_changes_are_recorded_as_events(
     assert len(dates) == len(set(dates)), "one event per date at most"
 
 
-def test_the_pipeline_refuses_to_start_on_unresolved_parameters() -> None:
-    from regime_monitor.config.loader import load_config
+def test_the_pipeline_refuses_to_start_on_unresolved_parameters(
+    placeholder_config,
+) -> None:
+    """Built here rather than loaded from config/: the shipped file is frozen
+    now, so it is no longer a source of unresolved parameters."""
+    from regime_monitor.config.schema import RegimeSpec
     from regime_monitor.regime.classifier import RegimeError
 
+    strategy = placeholder_config.strategy.model_copy(
+        update={"regime": RegimeSpec()}
+    )
+    config = placeholder_config.model_copy(update={"strategy": strategy})
     with pytest.raises(RegimeError, match="unresolved research"):
-        DailyPipeline(load_config())
+        DailyPipeline(config)
 
 
 def test_the_allocation_never_holds_tqqq_without_the_gate(

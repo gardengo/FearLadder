@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -19,10 +20,13 @@ from regime_monitor.config.schema import (
     ResearchParameterError,
     StrategyConfig,
 )
+from regime_monitor.constants import ParameterStatus
 
 #: Set to "1" to let the pipeline run on unresolved research parameters. Never
 #: set in production / GitHub Actions.
 ALLOW_RESEARCH_ENV = "REGIME_MONITOR_ALLOW_RESEARCH_PARAMS"
+
+logger = logging.getLogger(__name__)
 
 CONFIG_FILENAMES = {
     "indicators": "indicators.yaml",
@@ -88,12 +92,19 @@ def load_config(
 
     ``strategy_path`` / ``indicators_path`` swap in a research profile without
     touching the operational files under ``config/``.
+
+    A FROZEN strategy is paired with the indicator half frozen alongside it (see
+    :func:`_frozen_indicators`), because the two were searched together and
+    neither reproduces the frozen result alone.
     """
     directory = config_dir or paths.CONFIG_DIR
     try:
+        strategy = load_strategy(strategy_path or directory)
+        if indicators_path is None:
+            indicators_path = _frozen_indicators(directory, strategy) or directory
         return AppConfig(
-            indicators=load_indicators(indicators_path or directory),
-            strategy=load_strategy(strategy_path or directory),
+            indicators=load_indicators(indicators_path),
+            strategy=strategy,
             alerts=load_alerts(directory),
             data_sources=load_data_sources(directory),
         )
@@ -101,6 +112,31 @@ def load_config(
         raise ConfigError(f"configuration in {directory} is inconsistent: {exc}") from exc
 
 
+def _frozen_indicators(directory: Path, strategy: StrategyConfig) -> Path | None:
+    """The indicator half belonging to a frozen strategy, if one was written.
+
+    ``config/indicators.yaml`` stays hand-maintained: it holds the research
+    grids and the prose, and its normalization windows are still null, so a
+    frozen strategy read against it is not production-ready. ``scripts/freeze.py``
+    writes the resolved half to ``config/frozen/<version>.indicators.yaml`` and
+    this is what pairs them back up.
+    """
+    if strategy.parameter_status is not ParameterStatus.FROZEN:
+        return None
+    candidate = directory / FROZEN_DIR_NAME / f"{strategy.strategy_version}.indicators.yaml"
+    if not candidate.exists():
+        logger.warning(
+            "strategy %s is FROZEN but %s is missing; falling back to %s, whose "
+            "research parameters are unresolved",
+            strategy.strategy_version,
+            candidate,
+            directory / CONFIG_FILENAMES["indicators"],
+        )
+        return None
+    return candidate
+
+
+FROZEN_DIR_NAME = "frozen"
 RESEARCH_DIR_NAME = "research"
 PLACEHOLDER_STRATEGY = "placeholder.strategy.yaml"
 PLACEHOLDER_INDICATORS = "placeholder.indicators.yaml"

@@ -258,10 +258,18 @@ def test_the_leverage_ceiling_is_enforced() -> None:
 
 
 def test_unresolved_mappings_block_the_engine(placeholder_config) -> None:
-    from regime_monitor.config.loader import load_config
-
+    """Built here rather than loaded from config/: the shipped file is frozen
+    now, so it is no longer a source of unresolved parameters."""
+    strategy = placeholder_config.strategy.model_copy(
+        update={
+            "allocation": placeholder_config.strategy.allocation.model_copy(
+                update={"mappings": None}
+            )
+        }
+    )
+    config = placeholder_config.model_copy(update={"strategy": strategy})
     with pytest.raises(AllocationError, match="unresolved research parameter"):
-        AllocationEngine.from_config(load_config())
+        AllocationEngine.from_config(config)
 
 
 def test_engine_builds_from_the_placeholder_profile(placeholder_config) -> None:
