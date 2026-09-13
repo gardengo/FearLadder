@@ -211,6 +211,22 @@ def test_latest_observation_date(uow: SQLiteUnitOfWork, provenance: Provenance) 
     assert uow.observations.latest_observation_date("QQQ") == NEXT
 
 
+def test_latest_observation_date_can_be_capped(
+    uow: SQLiteUnitOfWork, provenance: Provenance
+) -> None:
+    """Replaying a past day may only see what that day could see."""
+    uow.observations.save_observations(
+        [
+            make_price_observation("QQQ", DAY, 400.0, provenance),
+            make_price_observation("QQQ", NEXT, 405.0, provenance),
+        ]
+    )
+    assert uow.observations.latest_observation_date("QQQ", on_or_before=DAY) == DAY
+    assert uow.observations.latest_observation_date("QQQ", on_or_before=NEXT) == NEXT
+    before = DAY - timedelta(days=1)
+    assert uow.observations.latest_observation_date("QQQ", on_or_before=before) is None
+
+
 def test_quality_findings_are_recorded_not_corrected(uow: SQLiteUnitOfWork) -> None:
     # BACKTEST_SPEC.md 5.5.
     finding = DataQualityFinding(

@@ -236,16 +236,40 @@ def test_missing_mandatory_data_is_caught(db_path: Path, placeholder_config) -> 
 def test_data_dated_in_the_future_is_treated_as_corrupt(
     db_path: Path, provenance: Provenance, placeholder_config
 ) -> None:
+    """A source handing back a date past today is a clock or source error.
+
+    The history runs 30 days beyond the day the pipeline believes it is, so
+    there is no honest reading of it: acting would be acting on a date mismatch.
+    """
+    with SQLiteUnitOfWork(db_path) as uow:
+        _seed(uow, provenance, through=TODAY + timedelta(days=30))
+
+    with SQLiteUnitOfWork(db_path) as uow:
+        result = _pipeline(placeholder_config).run(uow, as_of=TODAY)
+
+    assert result.is_data_failure
+    assert result.freshness is not None
+    statuses = {source.status for source in result.freshness.failures}
+    assert DataQualityStatus.CORRUPT in statuses
+
+
+def test_replaying_an_earlier_day_is_not_corruption(
+    db_path: Path, provenance: Provenance, placeholder_config
+) -> None:
+    """``daily_runner.py --date`` promises a past day can be re-run.
+
+    It could not: the freshness check saw the days collected since and called
+    every source corrupt, so a replay produced a DATA_FAILURE instead of the
+    signal that day actually carried.
+    """
     with SQLiteUnitOfWork(db_path) as uow:
         _seed(uow, provenance, through=TODAY)
 
     with SQLiteUnitOfWork(db_path) as uow:
         result = _pipeline(placeholder_config).run(uow, as_of=TODAY - timedelta(days=30))
 
-    assert result.is_data_failure
-    assert result.freshness is not None
-    statuses = {source.status for source in result.freshness.failures}
-    assert DataQualityStatus.CORRUPT in statuses
+    assert not result.is_data_failure
+    assert result.allocation is not None
 
 
 def test_a_degraded_re_run_clears_the_previous_allocation(

@@ -155,8 +155,14 @@ class DailyPipeline:
         collect: bool = True,
         send_alerts: bool = True,
     ) -> DailyResult:
-        """Execute one day. ``uow`` is an active :class:`UnitOfWork`."""
+        """Execute one day. ``uow`` is an active :class:`UnitOfWork`.
+
+        Passing ``as_of`` in the past is a replay. The stored history then runs
+        past the day being computed, which is normal for a replay and a clock
+        error for today's run, so the freshness check is told which this is.
+        """
         today = as_of or self.clock().date()
+        replaying = as_of is not None and as_of < self.clock().date()
         run = PipelineRun(
             run_id=f"{today.isoformat()}-{uuid.uuid4().hex[:8]}",
             run_date=today,
@@ -169,7 +175,14 @@ class DailyPipeline:
         uow.strategies.save_run(run)  # type: ignore[attr-defined]
 
         try:
-            return self._execute(uow, run, today, collect=collect, send_alerts=send_alerts)
+            return self._execute(
+                uow,
+                run,
+                today,
+                collect=collect,
+                send_alerts=send_alerts,
+                replaying=replaying,
+            )
         except Exception as exc:
             # TASK-133: record the failure, never a plausible-looking state.
             logger.exception("daily pipeline failed on %s", today)
@@ -187,6 +200,7 @@ class DailyPipeline:
         *,
         collect: bool,
         send_alerts: bool,
+        replaying: bool = False,
     ) -> DailyResult:
         observations = uow.observations  # type: ignore[attr-defined]
 
@@ -203,7 +217,9 @@ class DailyPipeline:
             )
 
         run = self._stage(uow, run, "validate")
-        freshness = self.freshness.validate(observations, as_of=today)
+        freshness = self.freshness.validate(
+            observations, as_of=today, replaying=replaying
+        )
         if not freshness.usable:
             return self._data_failure(
                 uow, run, today, freshness, collection, reasons=freshness.reason_codes()

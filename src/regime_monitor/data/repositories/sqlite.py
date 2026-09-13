@@ -187,11 +187,15 @@ class SQLiteMarketObservationRepository(_Base):
         wide.columns.name = None
         return wide.reindex(columns=symbols)
 
-    def latest_observation_date(self, symbol: str) -> date | None:
-        row = self._connection.execute(
-            "SELECT MAX(observation_date) AS d FROM market_observations WHERE symbol = ?",
-            (symbol,),
-        ).fetchone()
+    def latest_observation_date(
+        self, symbol: str, *, on_or_before: date | None = None
+    ) -> date | None:
+        sql = "SELECT MAX(observation_date) AS d FROM market_observations WHERE symbol = ?"
+        params: list[object] = [symbol]
+        if on_or_before is not None:
+            sql += " AND observation_date <= ?"
+            params.append(on_or_before.isoformat())
+        row = self._connection.execute(sql, params).fetchone()
         return opt_date(row["d"]) if row else None
 
     def save_finding(self, finding: DataQualityFinding) -> None:

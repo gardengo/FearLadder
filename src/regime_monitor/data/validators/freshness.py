@@ -98,8 +98,19 @@ class FreshnessValidator:
     expected_sources: tuple[str, ...] = field(default_factory=tuple)
 
     def validate(
-        self, repository: MarketObservationRepository, *, as_of: date
+        self,
+        repository: MarketObservationRepository,
+        *,
+        as_of: date,
+        replaying: bool = False,
     ) -> FreshnessReport:
+        """Freshness of every configured source as of ``as_of``.
+
+        ``replaying`` says this is a deliberate re-run of a past day rather than
+        today's run. Rows dated after ``as_of`` are then expected — they are
+        simply later days already collected — instead of evidence that a clock
+        or a source is wrong.
+        """
         results: list[SourceFreshness] = []
 
         for symbol in self.config.price.symbols:
@@ -108,6 +119,7 @@ class FreshnessValidator:
                     repository,
                     symbol,
                     as_of=as_of,
+                    replaying=replaying,
                     mandatory=self.config.price.mandatory,
                     limit=self.config.price.max_staleness_days,
                 )
@@ -121,6 +133,7 @@ class FreshnessValidator:
                     repository,
                     name,
                     as_of=as_of,
+                    replaying=replaying,
                     mandatory=spec.mandatory,
                     limit=spec.max_staleness_days,
                 )
@@ -139,9 +152,14 @@ class FreshnessValidator:
         as_of: date,
         mandatory: bool,
         limit: int,
+        replaying: bool = False,
     ) -> SourceFreshness:
-        latest = repository.latest_observation_date(name)
-        if latest is None:
+        # Cap the query at as_of. A run may only know what was already observed
+        # on the day it is standing on; the uncapped newest row is looked at
+        # separately, and only to detect a clock or source error.
+        latest = repository.latest_observation_date(name, on_or_before=as_of)
+        newest = repository.latest_observation_date(name)
+        if latest is None and newest is None:
             return SourceFreshness(
                 name=name,
                 mandatory=mandatory,
@@ -151,17 +169,28 @@ class FreshnessValidator:
                 status=DataQualityStatus.MISSING,
             )
 
-        if latest > as_of:
+        if newest is not None and newest > as_of and not replaying:
             # A value dated in the future means the clock, the source or the
             # requested date is wrong. Acting on it would be acting on a
-            # date mismatch (CLAUDE_CODE_INITIAL_PROMPT.md 14).
+            # date mismatch (CLAUDE_CODE_INITIAL_PROMPT.md 14). Replaying a past
+            # day is the one case where later rows are expected, and the caller
+            # says so explicitly.
             return SourceFreshness(
                 name=name,
                 mandatory=mandatory,
-                latest=latest,
-                age_days=(latest - as_of).days * -1,
+                latest=newest,
+                age_days=(newest - as_of).days * -1,
                 max_staleness_days=limit,
                 status=DataQualityStatus.CORRUPT,
+            )
+        if latest is None:
+            return SourceFreshness(
+                name=name,
+                mandatory=mandatory,
+                latest=None,
+                age_days=None,
+                max_staleness_days=limit,
+                status=DataQualityStatus.MISSING,
             )
 
         age = (as_of - latest).days

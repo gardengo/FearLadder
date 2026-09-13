@@ -63,7 +63,15 @@ class MarketObservationRepository(Protocol):
         """Wide frame indexed by observation_date, one column per symbol."""
         ...
 
-    def latest_observation_date(self, symbol: str) -> date | None: ...
+    def latest_observation_date(
+        self, symbol: str, *, on_or_before: date | None = None
+    ) -> date | None:
+        """Newest observation for ``symbol``, optionally capped at a date.
+
+        The cap is what makes replaying a past day honest: without it the query
+        sees rows the run is not entitled to know about yet.
+        """
+        ...
 
     def save_finding(self, finding: DataQualityFinding) -> None: ...
 
