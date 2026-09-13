@@ -113,8 +113,8 @@ def test_the_dashboard_never_recomputes_the_strategy() -> None:
 
     Parsed rather than grepped so a comment about the rule is not a violation.
     """
-    source = (paths.PROJECT_ROOT / "app" / "streamlit_app.py").read_text(encoding="utf-8")
-    tree = ast.parse(source)
+    app_dir = paths.PROJECT_ROOT / "app"
+    modules = [app_dir / "streamlit_app.py", *sorted((app_dir / "views").glob("*.py"))]
     banned = (
         "regime_monitor.indicators",
         "regime_monitor.scoring",
@@ -124,15 +124,19 @@ def test_the_dashboard_never_recomputes_the_strategy() -> None:
         "regime_monitor.pipeline.daily",
     )
     offenders = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            names = [alias.name for alias in node.names]
-        elif isinstance(node, ast.ImportFrom):
-            names = [node.module or ""]
-        else:
-            continue
-        offenders.extend(name for name in names if name.startswith(banned))
+    for path in modules:
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or ""]
+            else:
+                continue
+            offenders.extend(
+                f"{path.name}:{name}" for name in names if name.startswith(banned)
+            )
     assert not offenders, f"the dashboard imports compute modules: {offenders}"
+    assert len(modules) > 3, "the view modules should be picked up, not just the entry point"
 
 
 def test_the_query_layer_holds_no_engine_imports() -> None:
@@ -355,7 +359,10 @@ def test_the_streamlit_page_renders_without_error(
     assert {"Regime", "Market Score", "Target Leverage", "Last Update"} <= labels
 
     headers = {header.value for header in app.header}
-    assert {"Current", "Indicators", "History", "Events", "Backtest"} <= headers
+    assert {"Current", "Indicators", "History", "Events"} <= headers
+    # The two pages that explain the strategy render without a database row.
+    assert "이 전략은 어떻게 동작하는가" in headers
+    assert "성과" in headers
 
 
 def test_the_page_survives_an_empty_database(

@@ -67,10 +67,20 @@ def test_the_readme_states_the_no_auto_trading_rule() -> None:
     assert "자동매매 시스템이 아니다" in text
 
 
-def test_the_readme_is_honest_that_the_strategy_is_not_frozen() -> None:
+def test_the_readme_names_the_frozen_version_and_its_evidence() -> None:
+    """Until 2026-09-13 this asserted the opposite, and had to.
+
+    A README that still said "parameters undecided" after the freeze would be
+    lying about the thing a reader most needs to know, so the assertion flipped
+    with the strategy: name the version, and point at the evidence for it.
+    """
+    from regime_monitor.config.loader import load_config
+
     text = _text(README)
-    assert "RESEARCH" in text
-    assert "종료 코드 2" in text or "exit" in text.lower()
+    version = load_config().strategy.strategy_version
+    assert version in text, version
+    assert "config/frozen/" in text
+    assert "RESEARCH" in text, "the research-parameter escape hatch stays documented"
 
 
 def test_the_readme_commands_parse() -> None:

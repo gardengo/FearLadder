@@ -39,8 +39,19 @@ PY
 
 ### "Strategy not frozen" notice 가 뜬다
 
-정상이다. 전략이 아직 `RESEARCH` 상태라 운영할 전략이 없다.
-`docs/strategy.md` §4 의 freeze 절차를 마치면 자동으로 진행된다.
+**더 이상 정상이 아니다.** 전략은 2026-09-13 에 `v1.0-frozen` 으로 고정됐다
+(`docs/strategy.md` §2.8). 이 메시지가 보인다면 `config/strategy.yaml` 이
+고정본이 아니라는 뜻이므로, 덮어써졌거나 체크아웃이 잘못된 것이다.
+
+확인:
+
+```bash
+python -c "import sys; sys.path.insert(0,'src');   from regime_monitor.config.loader import load_config;   c = load_config(); print(c.strategy.strategy_version, c.strategy.parameter_status.value)"
+# v1.0-frozen FROZEN 이 나와야 한다
+```
+
+`config/frozen/v1.0-frozen.manifest.json` 이 그 숫자들에 대한 증거다.
+복구는 git 에서 되돌리는 것이며, 손으로 채워 넣는 것이 아니다.
 
 ### 비거래일
 
@@ -55,7 +66,7 @@ Actions → `daily-monitor` → Run workflow. 입력:
 | --- | --- |
 | `date` | 특정 날짜로 재실행 (멱등) |
 | `dry_run` | 계산·저장은 하되 알림은 보내지 않음 |
-| `profile` | `placeholder` 로 두면 미확정 파라미터로 시험 실행 |
+| `profile` | `placeholder` 로 두면 개발용 임시값으로 시험 실행 (실제 신호 아님) |
 
 ---
 

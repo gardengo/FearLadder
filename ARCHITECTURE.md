@@ -484,7 +484,10 @@ transition:
   hysteresis: null
 ```
 
-`null`은 아직 백테스트로 확정되지 않은 연구 파라미터다.
+`null`은 백테스트로 확정되지 않은 연구 파라미터를 뜻한다. **운영본
+`config/strategy.yaml` 에는 더 이상 `null` 이 없다** — 2026-09-13 에
+`v1.0-frozen` 으로 고정됐고, `null` 이 남은 것은
+`config/research/` 아래 탐색용 프로파일뿐이다.
 
 ---
 

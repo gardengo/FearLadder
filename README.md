@@ -1,194 +1,201 @@
 # RegimePilot
 
-**NASDAQ Leverage Regime Monitor**
+나스닥100 시장의 상태를 매일 판단해서 **QQQ · QLD · TQQQ · 현금을 어떤 비중으로
+들고 있어야 하는지** 알려주는 도구입니다.
 
-Nasdaq-100 시장의 가격 / 추세 / 변동성 / 투자심리 / breadth 지표를 매일 수집·종합하여
-현재 **시장 레짐(Market Regime)** 을 판단하고, QQQ · QLD · TQQQ · Cash 의
-**목표 비중과 Target Leverage** 를 계산한다.
-레짐 또는 중요 상태가 변경되면 Telegram 으로 알림을 보낸다.
-
-> ⚠️ 본 시스템은 **자동매매 시스템이 아니다.**
-> 분석 결과는 참고용이며, 실제 매매 여부와 주문은 사용자가 직접 결정한다.
+> ⚠️ **이 시스템은 자동매매 시스템이 아니다.** 목표 비중을 계산해 알려줄 뿐이고,
+> 실제 주문은 사람이 직접 냅니다. 투자 조언이 아닙니다.
 
 ---
 
-## 현재 상태
+## 한 문장으로
 
-| 항목 | 상태 |
-| --- | --- |
-| 파이프라인 (수집 → 지표 → 점수 → 레짐 → 배분 → 저장 → 알림) | 구현·검증 완료 |
-| 백테스트 / 최적화 / walk-forward / 누수 테스트 | 구현·검증 완료 |
-| **전략 파라미터** | **미확정 (`parameter_status: RESEARCH`)** |
-| 일일 운영 (GitHub Actions) | 전략 freeze 이후 자동 시작 |
+**시장이 공포에 질려 있을수록 레버리지를 늘리고, 탐욕에 차 있을수록 줄인다.
+단, 장기 추세가 무너진 동안에는 그 규칙을 정지시킨다.**
 
-`config/strategy.yaml` 의 전략 수치는 전부 `null` 이다. 가중치·경계·배분·임계값은
-백테스트와 검증을 거쳐 결정할 대상이며, 임의로 채워 넣지 않는다
-(`CLAUDE_CODE_INITIAL_PROMPT.md` §7, §10).
-
-**따라서 daily runner 는 지금 실행하면 종료 코드 2 로 거부한다.** 이는 버그가 아니라
-설계된 안전장치다. 개발·검증용으로는 명시적으로 표시된 RESEARCH_PLACEHOLDER
-프로파일을 쓴다.
+앞부분만 쓰면 하락장에서 파산합니다. 공포 지표는 *바닥*과 *하락 중간*을 구별하지
+못하기 때문입니다 — 둘 다 똑같이 무섭게 보입니다. 실제로 측정하면 필터 없이는
+연 −2.7%에 최대낙폭 98%가 나옵니다. **뒷부분이 이 전략의 핵심입니다.**
 
 ---
 
-## Pipeline
+## 어떻게 동작하는가
 
-```text
-Daily Market Data
-    ↓  Indicator Engine
-    ↓  Composite Score        0 = 극단적 공포 … 100 = 극단적 탐욕
-    ↓  Market Regime          confirmation / hysteresis / minimum duration
-    ↓  Target Leverage / Allocation
-    ↓  Regime Change Detection
-    ↓  SQLite Persistence
-    ↓  Telegram Alert
+매일 미국 장 마감 후 네 단계를 거칩니다.
+
+```
+1. 지표 수집      20개 지표 (가격 · 추세 · 변동성 · 투자심리)
+       ↓
+2. 종합점수       각 지표를 0~100으로 환산해 가중평균
+                  0 = 극단적 공포 ─────────── 100 = 극단적 탐욕
+       ↓
+3. 단계 판정      7단계. 하루 만에 뒤집히지 않도록 확인 · 유지 규칙
+       ↓
+4. 목표 비중      단계별 레버리지 + 추세 필터 상한
+       ↓
+   SQLite 저장 → 레짐 변경 시 Telegram 알림
 ```
 
-Streamlit 은 저장된 결과를 시각화하는 Dashboard 역할만 담당한다.
+### 7단계 사다리
 
-## Deployment
+| 단계 | 점수 | 레버리지 | 구성 |
+| --- | --- | --- | --- |
+| Capitulation | 0 – 12 | 3.00x | TQQQ 100% |
+| Panic | 12 – 27 | 2.58x | TQQQ 58% + QLD 42% |
+| Fear | 27 – 42 | 2.17x | TQQQ 17% + QLD 83% |
+| Neutral | 42 – 58 | 1.75x | QLD 75% + QQQ 25% |
+| Optimism | 58 – 73 | 1.33x | QLD 33% + QQQ 67% |
+| Greed | 73 – 85 | 0.92x | QQQ 92% + 현금 8% |
+| Euphoria | 85 – 100 | 0.50x | QQQ 50% + 현금 50% |
 
-- **GitHub Actions** — `scripts/daily_runner.py` 일일 실행 (운영 경로)
-- **SQLite** — 저장소에 커밋되는 상태 저장소 (`data/regime_monitor.db`)
-- **Streamlit Cloud** — 대시보드
-- 로컬 PC 는 운영 경로에 포함되지 않는다.
+**사다리는 "점수가 이렇게 말한다"이고, 실제 보유는 추세 필터를 통과한 결과입니다.**
+지난 22년간 Capitulation 단계에서도 실제 평균 보유는 0.68x였습니다 — 필터가
+93% 확률로 상한을 걸었기 때문입니다.
+
+### 추세 필터
+
+> `price_vs_200dma`가 **−2% 아래**이고, 동시에 52주 고점 대비 이미 **20% 이상**
+> 빠져 있으면 → 레버리지를 **0.5x**로 제한. 재진입은 200일선 **+2% 위**에서.
+
+세 조건이 각각 이유가 있습니다.
+
+- **200일선 아래** — 장기 추세가 꺾였다는 신호. 성과의 대부분을 이 조건이 만듭니다.
+- **재진입선을 다르게** — 같은 선이면 경계에서 오르내리며 수수료만 나갑니다.
+- **이미 20% 빠진 뒤에만** — −10%짜리 흔들림은 위기가 아닙니다. 이 조건이 없으면
+  평범한 조정마다 레버리지를 내렸다가 뒤늦게 복귀합니다.
+
+**대가**: 마지막 조건 때문에 하락의 **첫 20% 구간을 레버리지를 든 채 통과**합니다.
+천천히 갈리는 하락(2008년, 2022년)에서는 손해, 빠른 폭락(2000년, 2020년)에서는
+이득입니다. 이 성질은 숨길 수 없고, 아래 성과에 그대로 나타납니다.
 
 ---
 
-## 설치
+## 성과
 
-Python 3.11 이상이 필요하다.
+전체 30.7년(1996–2026), 거래비용 10bp 반영. 벤치마크는 분기 리밸런싱하는
+정적 조합이고, Sharpe는 현금 대비 초과수익 기준입니다.
 
-```bash
-python -m venv .venv
-source .venv/Scripts/activate       # Windows(Git Bash) / macOS·Linux 는 .venv/bin/activate
-pip install -e ".[dev,dashboard]"
-pytest -m "not network"             # 네트워크 테스트 제외
-```
+| | 최종 배수 | CAGR | 최대낙폭 | Sharpe |
+| --- | --- | --- | --- | --- |
+| **RegimePilot** | **202x** | **18.88%** | **−62.4%** | **0.65** |
+| QQQ 100% | 48x | 13.47% | −83.0% | 0.52 |
+| QLD 100% | 95x | 16.00% | −99.0% | 0.50 |
+| TQQQ 100% | 29x | 11.63% | −100.0% | 0.51 |
 
-### 실제 소스 접근 확인 (선택)
+### 같은 위험을 질 때
 
-```bash
-pytest -m network                   # FDR / CNN 엔드포인트에 실제로 붙는다
-```
+수익률만 비교하면 아무것도 결정할 수 없습니다. 전략과 **최대낙폭이 비슷한**
+정적 조합과 비교하면:
+
+| | CAGR | 최대낙폭 | 최종 배수 |
+| --- | --- | --- | --- |
+| **RegimePilot** | **18.88%** | −62.4% | **202x** |
+| QQQ 60% / 현금 40% | 9.60% | −62.1% | 17x |
+| QLD 30% / 현금 70% | 8.82% | −64.0% | 13x |
+| TQQQ 20% / 현금 80% | 8.49% | −64.1% | 12x |
+
+### 보유 기간별 (한 달 간격 모든 시작 시점)
+
+| 20년 보유 | CAGR 중앙 | **CAGR 최악** | 손실로 끝난 창 |
+| --- | --- | --- | --- |
+| **RegimePilot** | **17.2%** | **+9.3%** | **0%** |
+| QQQ 100% | 10.8% | +2.5% | 0% |
+| QLD 100% | 12.0% | −4.8% | 4% |
+| TQQQ 100% | 9.7% | −16.5% | **45%** |
+
+**레버리지 전략에서 봐야 할 것은 중앙값이 아니라 가장 나빴던 경우입니다.**
+TQQQ는 중앙값이 비슷하지만 20년 창의 45%가 손실로 끝납니다.
+
+### 약점 — 하락의 모양에 달렸습니다
+
+| 국면 | 성격 | RegimePilot | QQQ |
+| --- | --- | --- | --- |
+| 닷컴 붕괴 2000–2002 | 빠른 폭락 | **−62.4%** | −83.0% |
+| 코로나 2020-02~03 | 급락 V | **−23.1%** | −28.1% |
+| 금융위기 2007–2009 | 느린 폭락 | −59.7% | **−53.2%** |
+| 2022 약세장 | 느린 하락 | −44.0% | **−35.6%** |
+
+**빠른 폭락에서는 크게 이기고, 천천히 갈리는 하락에서는 그냥 QQQ를 들고 있는
+것보다 못합니다.**
 
 ---
 
-## 실행
+## 이 숫자들을 믿어도 되는가
 
-### 일일 워커
+데이터를 세 구간으로 나누고 **순서대로만** 사용했습니다.
+
+| 구간 | 기간 | 용도 | CAGR |
+| --- | --- | --- | --- |
+| 탐색 | 1999-01 … 2015-08 | 파라미터를 고르는 데 사용 | +12.78% |
+| 검증 | 2015-08 … 2021-02 | 고른 값이 통하는지 확인 | +28.29% |
+| **최종(OOS)** | 2021-02 … 2026-09 | **고정 후 단 한 번** 열람 | **+19.21%** |
+
+최종 구간은 전략을 `v1.0-frozen`으로 **고정한 다음에** 열었습니다. 순서가
+중요합니다 — 결과를 보고 숫자를 고칠 수 있으면 그 구간은 시험이 아닙니다.
+
+**최종 구간이 알려준 것**: 전략은 무너지지 않았지만(QQQ +15.35% 대비 +19.21%),
+QQQ를 위험조정으로는 이기지 못했습니다(Sharpe 0.737 대 0.750). 그리고 2022년이
+정확히 예고했던 약점(느린 하락)이었고, 예고한 만큼 손해를 봤습니다. **아무것도
+고치지 않았습니다.** 자세한 경위는 `docs/strategy.md` §2.8에 있습니다.
+
+---
+
+## 시작하기
 
 ```bash
-# 운영 (전략이 frozen 된 이후에만 동작)
+# 1. 설치
+python -m venv .venv && .venv/Scripts/activate   # Windows
+pip install -e ".[dev]"
+
+# 2. 데이터 수집 + 오늘 신호 계산
 python scripts/daily_runner.py
 
-# 개발·검증: RESEARCH_PLACEHOLDER 프로파일
-REGIME_MONITOR_ALLOW_RESEARCH_PARAMS=1 \
-  python scripts/daily_runner.py --profile placeholder --dry-run
-
-# 특정 날짜 재실행 (멱등하므로 몇 번을 돌려도 안전하다)
-python scripts/daily_runner.py --date 2024-03-16
+# 3. 대시보드
+streamlit run app/streamlit_app.py
 ```
 
-종료 코드:
+대시보드는 7개 탭입니다.
 
-| 코드 | 의미 |
+| 탭 | 무엇을 보여주는가 |
 | --- | --- |
-| 0 | 처리 완료 (DATA_FAILURE 를 기록한 경우 포함) |
-| 1 | 실행 중 예외. 정상 상태가 저장되지 않았다 |
-| 2 | 전략이 frozen 이 아니고 research 게이트도 열려 있지 않다 |
+| **오늘** | 오늘의 단계, 목표 비중, 그렇게 판단한 근거 |
+| **전략 설명** | 이 전략이 무엇을 보고 어떻게 판단하는지 (처음이라면 여기부터) |
+| **성과** | 벤치마크 대비 3·5·10·20년 롤링 통계, 국면별 성적 |
+| **지표** | 20개 지표의 오늘 점수와 개별 이력 |
+| **기록** | 운영하며 쌓인 레짐·점수·레버리지 추이 |
+| **이벤트** | 레짐 변경 이력과 발송된 알림 |
+| **운영** | 실행 기록, 데이터 커버리지, 검토가 필요한 항목 |
 
-### 백테스트
+### 자주 쓰는 명령
 
 ```bash
-# 데이터 수집 후 전 구간 백테스트 + 리포트 생성
-python scripts/backtest.py --profile placeholder --collect --report
+# 오늘 신호 계산 (멱등 — 여러 번 돌려도 같은 결과)
+python scripts/daily_runner.py
 
-# 이미 수집된 데이터로 기간 지정
-python scripts/backtest.py --profile placeholder --start 2015-01-01 --end 2024-12-31
+# 과거 특정 날짜로 재실행
+python scripts/daily_runner.py --date 2026-09-11
+
+# 알림 없이 계산만
+python scripts/daily_runner.py --dry-run
+
+# 고정된 전략으로 백테스트
+python scripts/backtest.py --profile config/strategy.yaml
+
+# 특정 구간만 (지표 워밍업은 그 앞 데이터로 채워집니다)
+python scripts/backtest.py --profile config/strategy.yaml --start 2021-02-27
+
+# 성과 리포트 재생성 (대시보드가 읽는 파일)
+python scripts/make_performance_report.py
 ```
-
-산출물은 `reports/backtest/` 에 쌓인다 (`BACKTEST_SPEC.md` §26).
-
-### 대시보드
-
-```bash
-streamlit run app/streamlit_app.py     # http://localhost:8501
-```
-
----
-
-## 설정
-
-| 파일 | 내용 |
-| --- | --- |
-| `config/indicators.yaml` | 지표 정의. 길이는 문서에 고정된 값, 정규화 window 는 연구 파라미터 |
-| `config/strategy.yaml` | **운영 전략.** 현재 전부 `null` |
-| `config/alerts.yaml` | 알림 규칙. secret 이 아니라 환경변수 '이름'만 보관 |
-| `config/data_sources.yaml` | 데이터 소스와 provenance |
-| `config/research/candidate.strategy.yaml` | 운영자가 결정한 항목 + 연구가 채울 항목 |
-| `config/research/placeholder.*.yaml` | RESEARCH_PLACEHOLDER 프로파일. 운영 경로에서 거부된다 |
 
 ### 환경변수
 
 | 변수 | 용도 |
 | --- | --- |
-| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | 알림 채널 |
-| `REGIME_MONITOR_DB` | DB 경로 오버라이드 (테스트·연구용) |
-| `REGIME_MONITOR_ALLOW_RESEARCH_PARAMS` | 미확정 파라미터로 실행 허용. **운영에서는 절대 설정하지 않는다** |
-| `REGIME_MONITOR_LOG_LEVEL` | 로그 레벨 |
-
-`.env.example` 참고. secret 은 코드·config·DB 어디에도 저장하지 않는다.
-
-### 외부 데이터
-
-CNN Fear & Greed 과거 데이터와 AAII 주간 설문은 공개 API 가 없어 파일로 받는다.
-자동 수집 스크립트가 있다.
-
-```bash
-python scripts/fetch_reference.py
-```
-
-| 파일 | 범위 | 비고 |
-| --- | --- | --- |
-| `data/reference/cnn/fear_greed_history.csv` | 2011~ | 재구성 데이터. 닷컴·금융위기를 덮지 못한다 |
-| `data/reference/aaii/sentiment.csv` | 1987~ | AAII 공식. 닷컴·금융위기 모두 포함 |
-| `data/reference/proshares/{qld,tqqq}.csv` | 수동 | 교차검증 기준 (TASK-028) |
-
-없어도 파이프라인은 동작한다. 해당 지표가 선택적으로 제외될 뿐이다.
-
-### 레버리지 ETF 과거 재구성
-
-QLD(2006~)와 TQQQ(2010~)는 닷컴버블과 금융위기에 존재하지 않았다. 두 구간은
-전략의 가장 중요한 보정 지점이므로, QQQ 에서 합성해 1996 년까지 소급한다.
-
-```text
-r_L = L·r_QQQ − (L−1)·실효연방기금금리 − drag
-```
-
-실제 펀드 대비 검증: QLD 20.2년 R²=0.990(누적오차 −1.5%),
-TQQQ 16.6년 R²=0.997(누적오차 −8.3%, 보수적 방향).
-
-재구성된 행은 전부 `quality_status = REVIEW` 로 저장되고 provenance 에 재구성
-사실이 기록된다. **모든 지표는 QQQ 에서 계산되므로 재구성은 NAV 경로에만
-영향을 주고 레짐 신호는 건드리지 않는다.**
-
----
-
-## GitHub Actions
-
-| 워크플로 | 트리거 | 역할 |
-| --- | --- | --- |
-| `.github/workflows/test.yml` | push / PR | lint + test |
-| `.github/workflows/daily_monitor.yml` | 평일 22:30 UTC + 수동 | 일일 워커, DB 커밋 |
-
-`22:30 UTC` 는 EST 17:30 / EDT 18:30 으로, 서머타임 양쪽 모두에서 미국 장 마감
-이후다. cron 은 서머타임을 따르지 않으므로 늦은 쪽으로 고정했다.
-
-**필요한 Secrets:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
-(Settings → Secrets and variables → Actions)
-
-전략이 frozen 이 아니면 daily 워크플로는 명시적 notice 를 남기고 중단한다.
+| `REGIME_MONITOR_DB` | SQLite 위치 변경. 기본은 `data/regime_monitor.db` |
+| `REGIME_MONITOR_LOG_LEVEL` | 로그 수준. 기본 `INFO` |
+| `REGIME_MONITOR_ALLOW_RESEARCH_PARAMS` | **운영에서 절대 켜지 말 것.** 미확정 파라미터로 실제 신호가 나갑니다 |
+| `TELEGRAM_BOT_TOKEN` · `TELEGRAM_CHAT_ID` | 알림용. 환경변수에만 둡니다 |
 
 ---
 
@@ -196,59 +203,80 @@ TQQQ 16.6년 R²=0.997(누적오차 −8.3%, 보수적 방향).
 
 ```text
 src/regime_monitor/
-├── config/        설정 스키마와 로더, production/research 게이트
-├── data/          모델 · 리포지토리 · 수집기 · 검증기
-├── indicators/    지표 계산 (전부 trailing-only)
-├── scoring/       0~100 정규화와 종합 점수
-├── regime/        레짐 분류와 전이 로직
-├── allocation/    목표 배분과 TQQQ 게이트
-├── backtest/      시뮬레이터 · 비용 · 벤치마크 · 성과지표
-├── research/      ← 연구 경로. 운영 코드는 여기를 import 하지 않는다
-├── alerts/        템플릿 · 중복방지 · Telegram
-└── pipeline/      일일 워커와 대시보드 조회
+  config/       설정 로딩과 스키마 — 파라미터 검증과 운영 게이트
+  data/         수집 · 검증 · SQLite 저장 (collectors/ repositories/ validators/)
+  indicators/   20개 지표 계산. 전부 후행(trailing) 계산
+  scoring/      지표를 0~100으로 정규화하고 가중평균
+  regime/       점수를 단계로. 확인 · 히스테리시스 · 최소 유지
+  allocation/   단계를 목표 비중으로. 추세 필터와 TQQQ 게이트
+  backtest/     NAV 시뮬레이터, 비용 모델, 성과 지표
+  research/     탐색 · 검증 · walk-forward · freeze · 성과 리포트
+  alerts/       이벤트 판정과 Telegram 발송
+  pipeline/     일일 워커와 대시보드용 읽기 전용 쿼리
+  monitoring/   로깅
+
+app/            Streamlit 대시보드 (views/ 아래 탭별 모듈)
+scripts/        CLI 진입점
+config/         운영 설정 + frozen/ 증거 + research/ 탐색 프로파일
+docs/           전략과 운영 문서
+reports/        성과 리포트 (대시보드가 읽음)
+tests/          624개
 ```
 
-`research/` 와 `pipeline/` 의 분리는 규약이 아니라 테스트로 강제된다
-(`BACKTEST_SPEC.md` §28).
+계층은 한 방향으로만 의존합니다. `pipeline` 이 엔진들을 호출하고, 엔진은 서로를
+모릅니다. 대시보드는 `pipeline/queries.py` 를 통해 **읽기만** 합니다 —
+`app/` 아래에서 엔진을 import 하면 테스트가 실패합니다.
 
 ---
 
-## 문서
+## 문서 안내
 
-| 문서 | 내용 |
+| 문서 | 무엇을 알려주는가 | 언제 읽는가 |
+| --- | --- | --- |
+| **README.md** (이 문서) | 전략이 무엇이고 얼마나 잘 되는가 | 처음 |
+| [docs/strategy.md](docs/strategy.md) | **왜 이 숫자인가.** 각 파라미터를 어떻게 정했고, 무엇을 시도했다 기각했으며, 어떤 대가를 받아들였는지 | 전략을 이해하거나 바꾸려 할 때 |
+| [docs/operations.md](docs/operations.md) | 매일 무엇이 돌고, 실패하면 어떻게 되고, 무엇을 손봐야 하는가 | 운영 중 문제가 생겼을 때 |
+| [PRD.md](PRD.md) | 이 시스템이 무엇을 하고 무엇을 하지 않기로 했는가 | 범위를 확인할 때 |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | 코드가 어떤 층으로 나뉘고 어디에 무엇이 있는가 | 코드를 고치기 전 |
+| [BACKTEST_SPEC.md](BACKTEST_SPEC.md) | 백테스트의 규칙 — 미래참조 금지, 구간 분리, 비용 모델 | 측정을 다시 하거나 검증할 때 |
+| [TASKS.md](TASKS.md) | 작업 단위와 진행 상태 | 개발 이력을 추적할 때 |
+| [CLAUDE_CODE_INITIAL_PROMPT.md](CLAUDE_CODE_INITIAL_PROMPT.md) | 이 프로젝트의 규율 — 파라미터를 손으로 채우지 않는다 등 | 기여하기 전 |
+
+**가장 중요한 문서는 `docs/strategy.md`입니다.** 성과보다 그 성과가 어떻게
+나왔는지가 더 중요하고, 실패한 시도와 기각 사유까지 남겨두었습니다.
+
+---
+
+## 현재 상태
+
+| 항목 | 상태 |
 | --- | --- |
-| [PRD.md](PRD.md) | 무엇을 만드는가 |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | 어떻게 구성하는가 |
-| [BACKTEST_SPEC.md](BACKTEST_SPEC.md) | 어떻게 검증하는가 |
-| [TASKS.md](TASKS.md) | 어떤 순서로 구현하는가 |
-| [docs/strategy.md](docs/strategy.md) | 전략 명세와 현재 확정 상태 |
-| [docs/operations.md](docs/operations.md) | 운영 가이드 |
+| 전략 파라미터 | **`v1.0-frozen` 고정 완료** (2026-09-13) |
+| 탐색 · 검증 · 최종 구간 | 전부 소비됨 |
+| 일일 파이프라인 | 동작 확인 완료 |
+| 대시보드 | 7개 탭 |
+| 테스트 | 624개 |
 
-문서 충돌 시 우선순위: BACKTEST_SPEC → PRD → ARCHITECTURE → TASKS.
-단, 안전성·데이터 누수 규칙이 최우선이다.
+고정된 설정은 `config/strategy.yaml`과 `config/frozen/v1.0-frozen.*`에 있습니다.
+**손으로 고치면 안 됩니다** — manifest가 그 숫자들에 대한 증거이고, 편집하면
+증거가 무효가 됩니다. 바꾸려면 탐색을 다시 하고 새 버전을 고정해야 합니다.
 
----
+### 남은 것
 
-## 설계상 지켜지는 것들
-
-이 시스템에서 다음은 의도가 아니라 구조로 보장된다.
-
-- **미래 데이터를 볼 수 없다.** 모든 지표·정규화가 trailing-only 이고,
-  전체 이력으로 계산한 값과 특정 시점까지만으로 계산한 값이 겹치는 구간에서
-  완전히 일치하는지 테스트한다.
-- **당일 체결이 표현 불가능하다.** 시뮬레이터는 '오늘 이전에 결정된' 목표만
-  조회하므로 same-day execution 을 코드로 쓸 수 없다.
-- **OOS 구간을 최적화가 읽을 수 없다.** `SplitGuard` 가 예외를 던진다.
-- **실패는 추측을 만들지 않는다.** 필수 데이터가 없으면 레짐 UNKNOWN,
-  점수·배분·레버리지 모두 없음, DATA_FAILURE 알림.
-- **재실행이 중복을 만들지 않는다.** 상태·이벤트·알림 모두 자연키 UNIQUE.
-- **하락 중에는 레버리지가 잠긴다.** 200일선 아래에서는 목표 레버리지가
-  상한에 걸린다. 공포 점수만으로는 "떨어지는 중"과 "바닥"을 구분할 수 없기
-  때문이다.
-- **자동매매 코드가 없다.** 증권사 API 의존성도, 주문 경로도 존재하지 않는다.
+- Telegram 알림 설정 (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` 환경변수)
+- GitHub Actions 일일 스케줄 활성화
+- 최종 구간까지 다 썼으므로, **다음 전략 변경에는 깨끗한 검증 구간이 없습니다.**
+  새 데이터가 쌓이기를 기다려야 합니다.
 
 ---
 
-## 라이선스
+## 규율
 
-Proprietary. 개인 투자 의사결정 보조용.
+이 프로젝트가 지키는 것들입니다. 대부분 한 번씩 어겼다가 손해를 보고 규칙이 된
+것들입니다 (경위는 `docs/strategy.md`).
+
+- **파라미터를 손으로 채우지 않는다.** 전부 탐색 결과이거나 정의상 존재하는 값입니다.
+- **미래를 보지 않는다.** 모든 계산은 그날까지의 데이터만 씁니다.
+- **검증 구간을 보고 고치지 않는다.** 고치면 그 구간은 더 이상 검증이 아닙니다.
+- **교차검증 불일치는 기록하되 자동 수정하지 않는다.**
+- **비밀정보는 환경변수에만 둔다.** 코드·설정·DB에 넣지 않습니다.

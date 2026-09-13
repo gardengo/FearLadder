@@ -94,10 +94,26 @@ Bottom Confirmation     (게이트가 답한다)
 게이트가 막으면 TQQQ 비중은 레버리지 사다리 한 칸 아래(QLD)로 이동하고,
 그 사실이 reason code 로 남는다.
 
-후보 규칙 (임계값은 미확정):
-`deep_drawdown`, `extreme_fear`, `high_vix`, `oversold_rsi`,
-`volatility_spike`, `price_stabilization`, `reversal_evidence`,
-`breadth_capitulation`
+후보 규칙과 고정된 임계값 (`config/strategy.yaml`):
+
+| 규칙 | 지표 | 조건 | 필수 |
+| --- | --- | --- | --- |
+| `deep_drawdown` | `drawdown_52w` | ≥ 0.35 | ✓ |
+| `extreme_fear` | `vix_percentile` | ≥ 0.85 | ✓ |
+| `high_vix` | `vix_level` | ≥ 30 | |
+| `oversold_rsi` | `rsi_14` | ≤ 32 | |
+| `volatility_spike` | `vix_change_5d` | ≥ 0.20 | |
+| `price_stabilization` | `drawdown_30d` | ≤ 0.08 | |
+| `reversal_evidence` | `momentum_1m` | ≥ 0 | |
+| `breadth_capitulation` | `breadth_pct_above_200dma` | ≤ 0.15 | |
+
+필수 2개 전원 + 후보 중 4개 이상이 통과해야 TQQQ 를 든다.
+
+> **이 게이트는 22년간 한 번도 열리지 않았다.** TQQQ 보유 비중은 전체 기간 0.0%
+> 다. TQQQ 가 등장하는 단계(Capitulation, Panic)는 정의상 추세가 무너진 때이고,
+> 그때는 추세 필터가 먼저 상한을 걸어 TQQQ 를 책에서 지워버리기 때문이다.
+> 운용자의 판단으로 남겨두었다 — 과거에 없었다고 앞으로도 없으리라는 법은 없다.
+> 다만 **지금까지 한 번도 작동한 적이 없다는 사실은 기록해 둔다.**
 
 ### 1.8 추세 필터 — 하락 중에는 레버리지를 잠근다
 
