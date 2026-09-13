@@ -443,7 +443,7 @@ GitHub Actions
 MVP의 기본 DB는 SQLite다.
 
 ```text
-data/regime_monitor.db
+data/fear_ladder.db
 ```
 
 SQLite를 선택한 이유:

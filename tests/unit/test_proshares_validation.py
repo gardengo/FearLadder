@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from regime_monitor.constants import DataQualityStatus
-from regime_monitor.data.models import MarketObservation, Provenance
-from regime_monitor.data.validators.proshares import (
+from fear_ladder.constants import DataQualityStatus
+from fear_ladder.data.models import MarketObservation, Provenance
+from fear_ladder.data.validators.proshares import (
     ProSharesCrossValidator,
     load_reference_prices,
 )

@@ -80,7 +80,7 @@ strategy_versions
 DB:
 
 ```text
-data/regime_monitor.db
+data/fear_ladder.db
 ```
 
 ---

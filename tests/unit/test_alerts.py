@@ -7,22 +7,22 @@ from typing import Any
 
 import pytest
 
-from regime_monitor.alerts.engine import (
+from fear_ladder.alerts.engine import (
     AlertContext,
     AlertEngine,
     NotificationError,
     NotificationProvider,
     NullNotifier,
 )
-from regime_monitor.alerts.telegram import (
+from fear_ladder.alerts.telegram import (
     MAX_MESSAGE_CHARS,
     TelegramNotConfiguredError,
     TelegramNotifier,
 )
-from regime_monitor.alerts.templates import DISCLAIMER, TEMPLATES, render
-from regime_monitor.config.schema import TelegramSpec
-from regime_monitor.constants import UNKNOWN_REGIME, Asset, EventType
-from regime_monitor.data.models import MarketState, TargetAllocation
+from fear_ladder.alerts.templates import DISCLAIMER, TEMPLATES, render
+from fear_ladder.config.schema import TelegramSpec
+from fear_ladder.constants import UNKNOWN_REGIME, Asset, EventType
+from fear_ladder.data.models import MarketState, TargetAllocation
 
 DAY = date(2024, 3, 16)
 VERSION = "v0.0-placeholder"
@@ -431,7 +431,7 @@ def test_an_alert_is_rendered_as_html_when_configured() -> None:
         bot_token="t", chat_id="c", parse_mode="HTML",
         transport=_transport(captured, {"ok": True}),
     )
-    from regime_monitor.data.models import AlertEvent
+    from fear_ladder.data.models import AlertEvent
 
     notifier.send(
         AlertEvent(
@@ -471,7 +471,7 @@ class _BodyStub:
 
 def test_no_secret_is_ever_written_to_configuration() -> None:
     # ARCHITECTURE.md 9 — config holds variable names, never values.
-    from regime_monitor import paths
+    from fear_ladder import paths
 
     text = (paths.CONFIG_DIR / "alerts.yaml").read_text(encoding="utf-8")
     assert "TELEGRAM_BOT_TOKEN" in text
@@ -480,7 +480,7 @@ def test_no_secret_is_ever_written_to_configuration() -> None:
 
 
 def test_utc_is_used_for_delivery_timestamps() -> None:
-    from regime_monitor.data.models import AlertEvent
+    from fear_ladder.data.models import AlertEvent
 
     alert = AlertEvent(
         event_date=DAY,

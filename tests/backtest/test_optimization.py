@@ -10,10 +10,10 @@ import pandas as pd
 import pytest
 from pandas import DataFrame
 
-from regime_monitor.backtest.metrics import PerformanceMetrics
-from regime_monitor.constants import Asset
-from regime_monitor.research.backtest_runner import MarketData
-from regime_monitor.research.search import (
+from fear_ladder.backtest.metrics import PerformanceMetrics
+from fear_ladder.constants import Asset
+from fear_ladder.research.backtest_runner import MarketData
+from fear_ladder.research.search import (
     Candidate,
     GridSearch,
     Objective,
@@ -27,9 +27,9 @@ from regime_monitor.research.search import (
     transition_candidates,
     weight_candidates,
 )
-from regime_monitor.research.sensitivity import SensitivityReport, analyse
-from regime_monitor.research.splits import DatasetSplit, Split, SplitGuard, Window
-from regime_monitor.research.walk_forward import (
+from fear_ladder.research.sensitivity import SensitivityReport, analyse
+from fear_ladder.research.splits import DatasetSplit, Split, SplitGuard, Window
+from fear_ladder.research.walk_forward import (
     WalkForward,
     generate_folds,
     stitch,
@@ -229,7 +229,7 @@ def test_regime_count_candidates_cover_every_stage_option(placeholder_config) ->
 
 
 def test_regime_count_candidates_keep_leverage_monotone(placeholder_config) -> None:
-    from regime_monitor.constants import ASSET_LEVERAGE
+    from fear_ladder.constants import ASSET_LEVERAGE
 
     for candidate in regime_count_candidates(placeholder_config):
         variant = candidate.apply(placeholder_config)
@@ -616,7 +616,7 @@ def test_the_absolute_candidate_uses_the_declared_range(placeholder_config) -> N
 
 
 def test_a_definitional_range_must_be_ascending() -> None:
-    from regime_monitor.config.schema import ConfigError, IndicatorSpec
+    from fear_ladder.config.schema import ConfigError, IndicatorSpec
 
     with pytest.raises(ConfigError, match="not ascending"):
         IndicatorSpec(

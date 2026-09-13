@@ -7,14 +7,14 @@ from pathlib import Path
 import pytest
 import yaml
 
-from regime_monitor import paths
-from regime_monitor.config.loader import (
+from fear_ladder import paths
+from fear_ladder.config.loader import (
     ensure_production_ready,
     load_config,
     load_research_placeholder_config,
     research_parameters_allowed,
 )
-from regime_monitor.config.schema import (
+from fear_ladder.config.schema import (
     AllocationSpec,
     ConfigError,
     CostModelSpec,
@@ -27,7 +27,7 @@ from regime_monitor.config.schema import (
     StrategyConfig,
     TelegramSpec,
 )
-from regime_monitor.constants import ParameterStatus
+from fear_ladder.constants import ParameterStatus
 
 # --------------------------------------------------------------------- loading
 
@@ -142,7 +142,7 @@ def test_placeholder_weights_cover_exactly_the_enabled_indicators() -> None:
 
 def test_placeholder_target_leverage_falls_as_greed_rises() -> None:
     # Only the *direction* PRD.md 2.1 states is encoded; the magnitudes are arbitrary.
-    from regime_monitor.constants import ASSET_LEVERAGE
+    from fear_ladder.constants import ASSET_LEVERAGE
 
     config = load_research_placeholder_config()
     labels = config.strategy.regime.labels
@@ -161,7 +161,7 @@ def test_placeholder_target_leverage_falls_as_greed_rises() -> None:
 
 
 def test_gate_passes_only_for_a_frozen_and_resolved_strategy(monkeypatch) -> None:
-    monkeypatch.delenv("REGIME_MONITOR_ALLOW_RESEARCH_PARAMS", raising=False)
+    monkeypatch.delenv("FEAR_LADDER_ALLOW_RESEARCH_PARAMS", raising=False)
 
     # The shipped config is frozen since v1.0-frozen, so it is what the gate
     # must now ACCEPT. Both directions are the point of the gate.
@@ -174,11 +174,11 @@ def test_gate_passes_only_for_a_frozen_and_resolved_strategy(monkeypatch) -> Non
 
 def test_gate_can_be_opened_explicitly_for_research(monkeypatch) -> None:
     config = load_research_placeholder_config()
-    ensure_production_ready(config, env={"REGIME_MONITOR_ALLOW_RESEARCH_PARAMS": "1"})
+    ensure_production_ready(config, env={"FEAR_LADDER_ALLOW_RESEARCH_PARAMS": "1"})
 
-    monkeypatch.setenv("REGIME_MONITOR_ALLOW_RESEARCH_PARAMS", "1")
+    monkeypatch.setenv("FEAR_LADDER_ALLOW_RESEARCH_PARAMS", "1")
     assert research_parameters_allowed()
-    monkeypatch.setenv("REGIME_MONITOR_ALLOW_RESEARCH_PARAMS", "0")
+    monkeypatch.setenv("FEAR_LADDER_ALLOW_RESEARCH_PARAMS", "0")
     assert not research_parameters_allowed()
 
 
@@ -260,7 +260,7 @@ def test_telegram_config_holds_variable_names_not_secrets() -> None:
 
 
 def test_normalization_rejects_mismatched_fields() -> None:
-    from regime_monitor.config.schema import NormalizationSpec
+    from fear_ladder.config.schema import NormalizationSpec
 
     with pytest.raises(ConfigError, match="does not take raw_at_score"):
         NormalizationSpec(method="rolling_percentile", window=252, raw_at_score_min=0.0)
@@ -271,7 +271,7 @@ def test_normalization_rejects_mismatched_fields() -> None:
 
 
 def test_indicator_research_params_must_exist_in_params() -> None:
-    from regime_monitor.config.schema import IndicatorSpec, NormalizationSpec
+    from fear_ladder.config.schema import IndicatorSpec, NormalizationSpec
 
     with pytest.raises(ConfigError, match="research_params not present"):
         IndicatorSpec(

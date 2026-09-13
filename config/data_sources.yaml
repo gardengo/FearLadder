@@ -33,7 +33,7 @@ price:
   # calibrated on. Both are reconstructed before their inception and stored
   # REVIEW-grade with provenance that says so. Every indicator is computed from
   # QQQ, so reconstruction prices the portfolio but never moves the signal.
-  # See src/regime_monitor/data/collectors/synthetic.py for the measured
+  # See src/fear_ladder/data/collectors/synthetic.py for the measured
   # tracking error against the real funds.
   reconstruction:
     enabled: true

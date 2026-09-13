@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "regime-monitor"
+name = "fear-ladder"
 version = "0.1.0"
-description = "NASDAQ Leverage Regime Monitor — daily market regime analysis and allocation advisory (no auto-trading)"
+description = "FearLadder — 공포가 깊을수록 레버리지를 올리되, 추세가 무너지면 멈춘다. 나스닥100 레짐 모니터 (자동매매 없음)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }
@@ -33,13 +33,13 @@ dev = [
 ]
 
 [project.scripts]
-regime-daily = "regime_monitor.pipeline.cli:main"
+fearladder-daily = "fear_ladder.pipeline.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-regime_monitor = ["data/repositories/*.sql"]
+fear_ladder = ["data/repositories/*.sql"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
@@ -50,7 +50,7 @@ markers = [
     "network: test requires live network access (deselect with '-m \"not network\"')",
     "slow: long-running test",
 ]
-filterwarnings = ["error::DeprecationWarning:regime_monitor.*"]
+filterwarnings = ["error::DeprecationWarning:fear_ladder.*"]
 
 [tool.ruff]
 line-length = 100
@@ -67,7 +67,7 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 [tool.mypy]
 python_version = "3.11"
 mypy_path = "src"
-packages = ["regime_monitor"]
+packages = ["fear_ladder"]
 warn_unused_configs = true
 disallow_untyped_defs = true
 no_implicit_optional = true

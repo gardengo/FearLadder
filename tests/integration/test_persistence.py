@@ -9,21 +9,21 @@ from pathlib import Path
 
 import pytest
 
-from regime_monitor.constants import (
+from fear_ladder.constants import (
     UNKNOWN_REGIME,
     Asset,
     DataQualityStatus,
     EventType,
     PipelineStatus,
 )
-from regime_monitor.data.interfaces import (
+from fear_ladder.data.interfaces import (
     EventRepository,
     IndicatorRepository,
     MarketObservationRepository,
     MarketStateRepository,
     StrategyRepository,
 )
-from regime_monitor.data.models import (
+from fear_ladder.data.models import (
     AlertEvent,
     DataQualityFinding,
     IndicatorScore,
@@ -35,12 +35,12 @@ from regime_monitor.data.models import (
     StrategyVersionRecord,
     TargetAllocation,
 )
-from regime_monitor.data.repositories.connection import (
+from fear_ladder.data.repositories.connection import (
     SCHEMA_VERSION,
     connect,
     current_schema_version,
 )
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 from tests.conftest import make_price_observation, make_scalar_observation
 
 DAY = date(2024, 1, 3)
@@ -77,7 +77,7 @@ def test_database_is_created_with_every_required_table(db_path: Path) -> None:
 
 
 def test_schema_creation_is_idempotent(db_path: Path) -> None:
-    from regime_monitor.data.repositories.sqlite import create_database
+    from fear_ladder.data.repositories.sqlite import create_database
 
     create_database(db_path)
     create_database(db_path)

@@ -21,12 +21,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from regime_monitor.alerts.telegram import RecordingNotifier
-from regime_monitor.constants import UNKNOWN_REGIME, Asset, EventType, PipelineStatus
-from regime_monitor.data.collection import CollectionReport
-from regime_monitor.data.models import Provenance
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
-from regime_monitor.pipeline.daily import DailyPipeline
+from fear_ladder.alerts.telegram import RecordingNotifier
+from fear_ladder.constants import UNKNOWN_REGIME, Asset, EventType, PipelineStatus
+from fear_ladder.data.collection import CollectionReport
+from fear_ladder.data.models import Provenance
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
+from fear_ladder.pipeline.daily import DailyPipeline
 from tests.conftest import make_price_observation, make_scalar_observation
 
 TODAY = date(2024, 9, 20)

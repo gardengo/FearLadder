@@ -13,18 +13,18 @@ from typing import Any
 import numpy as np
 import pytest
 
-from regime_monitor.alerts.engine import NullNotifier
-from regime_monitor.constants import (
+from fear_ladder.alerts.engine import NullNotifier
+from fear_ladder.constants import (
     UNKNOWN_REGIME,
     Asset,
     DataQualityStatus,
     EventType,
     PipelineStatus,
 )
-from regime_monitor.data.collection import CollectionReport
-from regime_monitor.data.models import Provenance
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
-from regime_monitor.pipeline.daily import DailyPipeline
+from fear_ladder.data.collection import CollectionReport
+from fear_ladder.data.models import Provenance
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
+from fear_ladder.pipeline.daily import DailyPipeline
 from tests.conftest import make_price_observation, make_scalar_observation
 
 TODAY = date(2024, 6, 28)
@@ -325,7 +325,7 @@ def test_a_crash_is_recorded_and_no_state_is_written(
     ``CLAUDE_CODE_INITIAL_PROMPT.md`` §5: never push a plausible-looking state
     produced by a run that did not finish.
     """
-    from regime_monitor.allocation.engine import AllocationEngine
+    from fear_ladder.allocation.engine import AllocationEngine
 
     class ExplodingError(RuntimeError):
         pass
@@ -376,8 +376,8 @@ def test_the_pipeline_refuses_to_start_on_unresolved_parameters(
 ) -> None:
     """Built here rather than loaded from config/: the shipped file is frozen
     now, so it is no longer a source of unresolved parameters."""
-    from regime_monitor.config.schema import RegimeSpec
-    from regime_monitor.regime.classifier import RegimeError
+    from fear_ladder.config.schema import RegimeSpec
+    from fear_ladder.regime.classifier import RegimeError
 
     strategy = placeholder_config.strategy.model_copy(
         update={"regime": RegimeSpec()}

@@ -14,8 +14,8 @@ import pandas as pd
 import pytest
 from pandas import Series
 
-from regime_monitor.config.schema import IndicatorSpec, NormalizationSpec
-from regime_monitor.indicators.computations import (
+from fear_ladder.config.schema import IndicatorSpec, NormalizationSpec
+from fear_ladder.indicators.computations import (
     REGISTRY,
     IndicatorError,
     change,
@@ -30,7 +30,7 @@ from regime_monitor.indicators.computations import (
     rsi,
     trailing_percentile,
 )
-from regime_monitor.indicators.engine import (
+from fear_ladder.indicators.engine import (
     IndicatorEngine,
     MissingSourceError,
     sources_from_frame,

@@ -6,14 +6,14 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from regime_monitor.constants import (
+from fear_ladder.constants import (
     UNKNOWN_REGIME,
     Asset,
     DataQualityStatus,
     EventType,
     PipelineStatus,
 )
-from regime_monitor.data.models import (
+from fear_ladder.data.models import (
     AlertEvent,
     DataQualityFinding,
     DomainError,

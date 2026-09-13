@@ -10,24 +10,24 @@ import pandas as pd
 import pytest
 from pandas import DataFrame, Series
 
-from regime_monitor.backtest.benchmarks import (
+from fear_ladder.backtest.benchmarks import (
     BenchmarkSpec,
     build_targets,
     rebalance_dates,
     standard_benchmarks,
 )
-from regime_monitor.backtest.costs import CostModel, turnover_between
-from regime_monitor.backtest.metrics import (
+from fear_ladder.backtest.costs import CostModel, turnover_between
+from fear_ladder.backtest.metrics import (
     compute_metrics,
     drawdown_series,
     metrics_from_result,
     recovery_days,
 )
-from regime_monitor.backtest.simulator import (
+from fear_ladder.backtest.simulator import (
     PortfolioSimulator,
     SimulationError,
 )
-from regime_monitor.constants import Asset, ExecutionTiming
+from fear_ladder.constants import Asset, ExecutionTiming
 
 START = date(2024, 1, 1)
 
@@ -81,7 +81,7 @@ def test_the_zero_cost_model_exists_for_the_required_comparison() -> None:
 
 
 def test_cost_model_refuses_unresolved_research_parameters() -> None:
-    from regime_monitor.config.schema import CostModelSpec
+    from fear_ladder.config.schema import CostModelSpec
 
     with pytest.raises(ValueError, match="unresolved research parameter"):
         CostModel.from_spec(CostModelSpec())

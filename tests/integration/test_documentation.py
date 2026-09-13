@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from regime_monitor import paths
+from fear_ladder import paths
 
 README = paths.PROJECT_ROOT / "README.md"
 STRATEGY_DOC = paths.PROJECT_ROOT / "docs" / "strategy.md"
@@ -74,7 +74,7 @@ def test_the_readme_names_the_frozen_version_and_its_evidence() -> None:
     lying about the thing a reader most needs to know, so the assertion flipped
     with the strategy: name the version, and point at the evidence for it.
     """
-    from regime_monitor.config.loader import load_config
+    from fear_ladder.config.loader import load_config
 
     text = _text(README)
     version = load_config().strategy.strategy_version
@@ -118,11 +118,11 @@ def test_the_readme_commands_parse() -> None:
 
 
 def test_the_readme_environment_variables_are_the_real_ones() -> None:
-    from regime_monitor.config.loader import ALLOW_RESEARCH_ENV
-    from regime_monitor.monitoring.logging import LEVEL_ENV
+    from fear_ladder.config.loader import ALLOW_RESEARCH_ENV
+    from fear_ladder.monitoring.logging import LEVEL_ENV
 
     text = _text(README)
-    for variable in (ALLOW_RESEARCH_ENV, LEVEL_ENV, "REGIME_MONITOR_DB"):
+    for variable in (ALLOW_RESEARCH_ENV, LEVEL_ENV, "FEAR_LADDER_DB"):
         assert variable in text, variable
 
 
@@ -156,7 +156,7 @@ def test_the_strategy_doc_separates_settled_from_unsettled() -> None:
 
 def test_the_strategy_doc_lists_exactly_the_open_parameters() -> None:
     """The doc's "not settled" table must match what the config actually reports."""
-    from regime_monitor.config.loader import load_config
+    from fear_ladder.config.loader import load_config
 
     text = _text(STRATEGY_DOC)
     unresolved = load_config().strategy.unresolved_parameters()
@@ -172,7 +172,7 @@ def test_the_strategy_doc_records_why_breadth_is_excluded() -> None:
 
 
 def test_the_strategy_doc_matches_the_leverage_constants() -> None:
-    from regime_monitor.constants import ASSET_LEVERAGE, Asset
+    from fear_ladder.constants import ASSET_LEVERAGE, Asset
 
     text = _text(STRATEGY_DOC)
     for asset, leverage in ASSET_LEVERAGE.items():
@@ -182,7 +182,7 @@ def test_the_strategy_doc_matches_the_leverage_constants() -> None:
 
 
 def test_the_strategy_doc_names_the_real_gate_rules() -> None:
-    from regime_monitor.config.loader import load_config
+    from fear_ladder.config.loader import load_config
 
     text = _text(STRATEGY_DOC)
     for rule in load_config().strategy.tqqq_gate.candidate_rules:
@@ -221,7 +221,7 @@ def test_every_symbol_the_runbook_names_still_exists() -> None:
         for node in ast.walk(ast.parse(snippet)):
             if not isinstance(node, ast.ImportFrom) or not node.module:
                 continue
-            if not node.module.startswith("regime_monitor"):
+            if not node.module.startswith("fear_ladder"):
                 continue
             module = importlib.import_module(node.module)
             for alias in node.names:
@@ -233,10 +233,10 @@ def test_every_symbol_the_runbook_names_still_exists() -> None:
 
 def test_the_runbook_repair_snippets_run(populated_db, monkeypatch) -> None:
     """Execute the read-only diagnostics against a real database."""
-    monkeypatch.setenv("REGIME_MONITOR_DB", str(populated_db))
+    monkeypatch.setenv("FEAR_LADDER_DB", str(populated_db))
 
-    from regime_monitor.data.repositories.connection import checkpoint, connect
-    from regime_monitor.pipeline.queries import DashboardQueries
+    from fear_ladder.data.repositories.connection import checkpoint, connect
+    from fear_ladder.pipeline.queries import DashboardQueries
 
     queries = DashboardQueries()
     assert queries.active_strategy_version() is not None
@@ -261,11 +261,11 @@ def test_the_runbook_repair_snippets_run(populated_db, monkeypatch) -> None:
 def test_the_runbook_freshness_snippet_runs(populated_db, monkeypatch) -> None:
     from datetime import date
 
-    monkeypatch.setenv("REGIME_MONITOR_DB", str(populated_db))
+    monkeypatch.setenv("FEAR_LADDER_DB", str(populated_db))
 
-    from regime_monitor.config.loader import load_config
-    from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
-    from regime_monitor.data.validators.freshness import FreshnessValidator
+    from fear_ladder.config.loader import load_config
+    from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
+    from fear_ladder.data.validators.freshness import FreshnessValidator
 
     config = load_config()
     with SQLiteUnitOfWork(populated_db) as uow:
@@ -290,10 +290,10 @@ def populated_db(db_path: Path, provenance, placeholder_config) -> Path:
 
     import numpy as np
 
-    from regime_monitor.alerts.engine import NullNotifier
-    from regime_monitor.data.collection import CollectionReport
-    from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
-    from regime_monitor.pipeline.daily import DailyPipeline
+    from fear_ladder.alerts.engine import NullNotifier
+    from fear_ladder.data.collection import CollectionReport
+    from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
+    from fear_ladder.pipeline.daily import DailyPipeline
     from tests.conftest import make_price_observation, make_scalar_observation
 
     class _NoCollection:

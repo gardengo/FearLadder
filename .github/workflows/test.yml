@@ -17,7 +17,7 @@ concurrency:
 
 env:
   # Tests must never touch the operational database.
-  REGIME_MONITOR_DB: ${{ github.workspace }}/.test-artifacts/test.db
+  FEAR_LADDER_DB: ${{ github.workspace }}/.test-artifacts/test.db
   PYTHONUTF8: "1"
 
 jobs:
@@ -51,12 +51,12 @@ jobs:
         # Network tests are excluded here on purpose. A CI run must not fail
         # because a third-party endpoint is rate-limiting; live sources are
         # checked on demand with `-m network`.
-        run: pytest -m "not network" --cov=regime_monitor --cov-report=term-missing
+        run: pytest -m "not network" --cov=fear_ladder --cov-report=term-missing
 
       - name: Check the shipped configuration still loads
         run: |
           python - <<'PY'
-          from regime_monitor.config.loader import load_config, load_research_placeholder_config
+          from fear_ladder.config.loader import load_config, load_research_placeholder_config
           operational = load_config()
           placeholder = load_research_placeholder_config()
           print(f"operational: {operational.strategy.strategy_version} "

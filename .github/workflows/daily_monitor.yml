@@ -66,7 +66,7 @@ jobs:
         id: preflight
         run: |
           python - <<'PY' >> "$GITHUB_OUTPUT"
-          from regime_monitor.config.loader import load_config
+          from fear_ladder.config.loader import load_config
           config = load_config()
           unresolved = config.unresolved_parameters()
           ready = config.is_production_ready
@@ -109,7 +109,7 @@ jobs:
           # The placeholder profile is for manual testing only, and opening the
           # research gate is what makes that possible. The scheduled path never
           # takes this branch.
-          REGIME_MONITOR_ALLOW_RESEARCH_PARAMS: ${{ inputs.profile == 'placeholder' && '1' || '' }}
+          FEAR_LADDER_ALLOW_RESEARCH_PARAMS: ${{ inputs.profile == 'placeholder' && '1' || '' }}
         run: |
           python scripts/daily_runner.py \
             --profile "${{ inputs.profile || 'operational' }}" \
@@ -124,8 +124,8 @@ jobs:
         if: steps.run.outcome == 'success'
         run: |
           python - <<'PY'
-          from regime_monitor.data.repositories.connection import connect
-          from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
+          from fear_ladder.data.repositories.connection import connect
+          from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 
           connection = connect(read_only=True)
           integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
@@ -144,7 +144,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/regime_monitor.db
+          git add data/fear_ladder.db
           if git diff --cached --quiet; then
             echo "::notice::database unchanged (likely a non-trading day); nothing to commit"
             exit 0

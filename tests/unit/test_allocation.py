@@ -6,20 +6,20 @@ from datetime import date
 
 import pytest
 
-from regime_monitor.allocation.engine import (
+from fear_ladder.allocation.engine import (
     AllocationDecision,
     AllocationEngine,
     AllocationError,
 )
-from regime_monitor.allocation.tqqq_gate import (
+from fear_ladder.allocation.tqqq_gate import (
     BottomConfirmationRule,
     GateConfigurationError,
     GateContext,
     ThresholdRule,
     TqqqGate,
 )
-from regime_monitor.config.schema import AllocationConstraints, TqqqGateSpec
-from regime_monitor.constants import UNKNOWN_REGIME, Asset
+from fear_ladder.config.schema import AllocationConstraints, TqqqGateSpec
+from fear_ladder.constants import UNKNOWN_REGIME, Asset
 
 DAY = date(2024, 3, 16)
 

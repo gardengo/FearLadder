@@ -22,8 +22,8 @@ sys.path.insert(0, str(APP_DIR))
 
 import streamlit as st  # noqa: E402
 
-from regime_monitor import paths  # noqa: E402
-from regime_monitor.pipeline.queries import DashboardDataError  # noqa: E402
+from fear_ladder import paths  # noqa: E402
+from fear_ladder.pipeline.queries import DashboardDataError  # noqa: E402
 from views import (  # noqa: E402
     events,
     history,
@@ -36,8 +36,8 @@ from views import (  # noqa: E402
 from views.common import load  # noqa: E402
 
 st.set_page_config(
-    page_title="RegimePilot",
-    page_icon="📈",
+    page_title="FearLadder",
+    page_icon="🪜",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -55,9 +55,10 @@ TABS = (
 
 
 def main() -> None:
-    st.title("📈 RegimePilot")
+    st.title("🪜 FearLadder")
     st.caption(
-        "나스닥 레버리지 레짐 모니터 — 분석과 알림만 제공합니다. "
+        "공포가 깊을수록 한 칸 더 올라가는 레버리지 사다리 — "
+        "분석과 알림만 제공합니다. "
         "**자동매매를 하지 않으며, 매매 결정은 사용자의 몫입니다.**"
     )
 
@@ -68,7 +69,7 @@ def main() -> None:
         return
 
     with st.sidebar:
-        st.header("RegimePilot")
+        st.header("FearLadder")
         st.write(f"strategy: `{version or '—'}`")
         st.write(f"db: `{paths.default_db_path().name}`")
         st.caption(f"오늘: {date.today()}")

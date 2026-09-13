@@ -8,8 +8,8 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from regime_monitor.constants import UNKNOWN_REGIME
-from regime_monitor.pipeline.queries import is_signal_stale
+from fear_ladder.constants import UNKNOWN_REGIME
+from fear_ladder.pipeline.queries import is_signal_stale
 from views.common import load
 
 

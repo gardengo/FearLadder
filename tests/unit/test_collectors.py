@@ -9,8 +9,8 @@ import pandas as pd
 import pytest
 from pandas import DataFrame
 
-from regime_monitor.constants import DataQualityStatus
-from regime_monitor.data.collectors.base import (
+from fear_ladder.constants import DataQualityStatus
+from fear_ladder.data.collectors.base import (
     Collector,
     CollectorError,
     DataUnavailableError,
@@ -23,12 +23,12 @@ from regime_monitor.data.collectors.base import (
     standardize_series,
     with_retry,
 )
-from regime_monitor.data.collectors.breadth import (
+from fear_ladder.data.collectors.breadth import (
     BreadthUnavailableError,
     UnavailableBreadthProvider,
 )
-from regime_monitor.data.collectors.files import AaiiSentimentProvider, CsvSeriesProvider
-from regime_monitor.data.collectors.registry import (
+from fear_ladder.data.collectors.files import AaiiSentimentProvider, CsvSeriesProvider
+from fear_ladder.data.collectors.registry import (
     ProviderRegistry,
     UnknownProviderError,
     build_registry,
@@ -344,8 +344,8 @@ def test_registry_refuses_a_disabled_series_with_its_reason(
 
 
 def test_registry_rejects_an_unimplemented_provider(placeholder_config, tmp_path: Path) -> None:
-    from regime_monitor.config.schema import SeriesSourceSpec
-    from regime_monitor.data.collectors.registry import _build_series_provider
+    from fear_ladder.config.schema import SeriesSourceSpec
+    from fear_ladder.data.collectors.registry import _build_series_provider
 
     spec = SeriesSourceSpec(provider="bloomberg", underlying_source="x")
     with pytest.raises(UnknownProviderError, match="not implemented"):

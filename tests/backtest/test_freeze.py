@@ -10,11 +10,11 @@ import pandas as pd
 import pytest
 from pandas import DataFrame
 
-from regime_monitor.config.loader import load_strategy
-from regime_monitor.config.schema import StrategyConfig
-from regime_monitor.constants import ParameterStatus
-from regime_monitor.research.backtest_runner import MarketData, StrategyBacktest
-from regime_monitor.research.freeze import (
+from fear_ladder.config.loader import load_strategy
+from fear_ladder.config.schema import StrategyConfig
+from fear_ladder.constants import ParameterStatus
+from fear_ladder.research.backtest_runner import MarketData, StrategyBacktest
+from fear_ladder.research.freeze import (
     FROZEN_HEADER,
     Fingerprint,
     FreezeError,
@@ -70,7 +70,7 @@ def _researched(placeholder_config):
     """
     payload = placeholder_config.strategy.model_dump()
     payload["parameter_status"] = ParameterStatus.RESEARCH.value
-    from regime_monitor.config.schema import AppConfig
+    from fear_ladder.config.schema import AppConfig
 
     return AppConfig(
         indicators=placeholder_config.indicators,
@@ -107,8 +107,8 @@ def test_freezing_produces_a_frozen_strategy_and_a_manifest(placeholder_config) 
 
 
 def test_a_frozen_strategy_passes_the_production_gate(placeholder_config) -> None:
-    from regime_monitor.config.loader import ensure_production_ready
-    from regime_monitor.config.schema import AppConfig
+    from fear_ladder.config.loader import ensure_production_ready
+    from fear_ladder.config.schema import AppConfig
 
     frozen, _ = freeze(
         _researched(placeholder_config),
@@ -147,7 +147,7 @@ def test_freezing_requires_every_parameter_to_be_settled(placeholder_config) -> 
     The unresolved config is built here rather than loaded from ``config/``:
     that file is frozen since v1.0-frozen, so it no longer supplies nulls.
     """
-    from regime_monitor.config.schema import RegimeSpec
+    from fear_ladder.config.schema import RegimeSpec
 
     researched = _researched(placeholder_config)
     strategy = researched.strategy.model_copy(update={"regime": RegimeSpec()})
@@ -224,7 +224,7 @@ def test_different_inputs_give_a_different_fingerprint(placeholder_config) -> No
 
 
 def test_a_changed_parameter_changes_the_fingerprint(placeholder_config) -> None:
-    from regime_monitor.research.search import Candidate
+    from fear_ladder.research.search import Candidate
 
     data = _market()
     base = Fingerprint.of_run(
@@ -277,7 +277,7 @@ def test_a_frozen_strategy_reproduces_itself_across_a_reload(
     identical. A round-trip that loses precision or reorders anything would
     change the advice the daily worker gives.
     """
-    from regime_monitor.config.schema import AppConfig
+    from fear_ladder.config.schema import AppConfig
 
     data = _market()
     researched = _researched(placeholder_config)

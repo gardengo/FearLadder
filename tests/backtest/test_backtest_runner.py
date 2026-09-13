@@ -10,9 +10,9 @@ import pandas as pd
 import pytest
 from pandas import DataFrame
 
-from regime_monitor.backtest.costs import CostModel
-from regime_monitor.constants import UNKNOWN_REGIME, Asset, ExecutionTiming
-from regime_monitor.research.backtest_runner import MarketData, StrategyBacktest
+from fear_ladder.backtest.costs import CostModel
+from fear_ladder.constants import UNKNOWN_REGIME, Asset, ExecutionTiming
+from fear_ladder.research.backtest_runner import MarketData, StrategyBacktest
 
 START = date(2015, 1, 1)
 LENGTH = 1400

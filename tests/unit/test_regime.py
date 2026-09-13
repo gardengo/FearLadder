@@ -8,10 +8,10 @@ import pandas as pd
 import pytest
 from pandas import Series
 
-from regime_monitor.config.schema import RegimeSpec, TransitionSpec
-from regime_monitor.constants import UNKNOWN_REGIME
-from regime_monitor.regime.classifier import RegimeClassifier, RegimeError, RegimeScale
-from regime_monitor.regime.transition import (
+from fear_ladder.config.schema import RegimeSpec, TransitionSpec
+from fear_ladder.constants import UNKNOWN_REGIME
+from fear_ladder.regime.classifier import RegimeClassifier, RegimeError, RegimeScale
+from fear_ladder.regime.transition import (
     ReasonCode,
     TransitionEngine,
     TransitionState,

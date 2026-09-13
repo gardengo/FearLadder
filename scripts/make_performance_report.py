@@ -21,14 +21,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from regime_monitor import paths
-from regime_monitor.config.loader import load_config
-from regime_monitor.constants import Asset
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
-from regime_monitor.monitoring.logging import configure_logging
-from regime_monitor.research.backtest_runner import StrategyBacktest
-from regime_monitor.research.data_loader import load_market_data
-from regime_monitor.research.performance import (
+from fear_ladder import paths
+from fear_ladder.config.loader import load_config
+from fear_ladder.constants import Asset
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
+from fear_ladder.monitoring.logging import configure_logging
+from fear_ladder.research.backtest_runner import StrategyBacktest
+from fear_ladder.research.data_loader import load_market_data
+from fear_ladder.research.performance import (
     cash_curve,
     episode_returns,
     risk_matched,
@@ -185,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def _rolling_reference(nav):
     """The strategy's own rolling CAGRs, so every benchmark is scored against it."""
-    from regime_monitor.research.performance import rolling_cagrs
+    from fear_ladder.research.performance import rolling_cagrs
 
     reference = {}
     for years in ROLLING_YEARS:
@@ -196,7 +196,7 @@ def _rolling_reference(nav):
 
 
 def _leverage(asset: object) -> float:
-    from regime_monitor.constants import ASSET_LEVERAGE
+    from fear_ladder.constants import ASSET_LEVERAGE
 
     key = asset if isinstance(asset, Asset) else Asset(str(asset))
     return ASSET_LEVERAGE[key]

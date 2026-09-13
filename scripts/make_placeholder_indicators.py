@@ -17,8 +17,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from regime_monitor import paths
-from regime_monitor.config.loader import (
+from fear_ladder import paths
+from fear_ladder.config.loader import (
     PLACEHOLDER_INDICATORS,
     RESEARCH_DIR_NAME,
 )

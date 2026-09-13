@@ -32,7 +32,7 @@ htmlcov/
 .ruff_cache/
 
 # Data
-# NOTE: data/regime_monitor.db 는 운영상 커밋 대상이므로 무시하지 않는다.
+# NOTE: data/fear_ladder.db 는 운영상 커밋 대상이므로 무시하지 않는다.
 data/raw/
 data/processed/
 data/snapshots/

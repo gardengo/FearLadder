@@ -14,13 +14,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from regime_monitor import paths
-from regime_monitor.alerts.engine import NullNotifier
-from regime_monitor.constants import UNKNOWN_REGIME, Asset
-from regime_monitor.data.models import Provenance
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
-from regime_monitor.pipeline.daily import DailyPipeline
-from regime_monitor.pipeline.queries import (
+from fear_ladder import paths
+from fear_ladder.alerts.engine import NullNotifier
+from fear_ladder.constants import UNKNOWN_REGIME, Asset
+from fear_ladder.data.models import Provenance
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
+from fear_ladder.pipeline.daily import DailyPipeline
+from fear_ladder.pipeline.queries import (
     DashboardDataError,
     DashboardQueries,
     is_signal_stale,
@@ -35,7 +35,7 @@ HISTORY_DAYS = 900
 
 class _NoCollection:
     def collect(self, repository: object, *, start: date, end: date):
-        from regime_monitor.data.collection import CollectionReport
+        from fear_ladder.data.collection import CollectionReport
 
         return CollectionReport()
 
@@ -116,12 +116,12 @@ def test_the_dashboard_never_recomputes_the_strategy() -> None:
     app_dir = paths.PROJECT_ROOT / "app"
     modules = [app_dir / "streamlit_app.py", *sorted((app_dir / "views").glob("*.py"))]
     banned = (
-        "regime_monitor.indicators",
-        "regime_monitor.scoring",
-        "regime_monitor.regime",
-        "regime_monitor.allocation",
-        "regime_monitor.research",
-        "regime_monitor.pipeline.daily",
+        "fear_ladder.indicators",
+        "fear_ladder.scoring",
+        "fear_ladder.regime",
+        "fear_ladder.allocation",
+        "fear_ladder.research",
+        "fear_ladder.pipeline.daily",
     )
     offenders = []
     for path in modules:
@@ -140,12 +140,12 @@ def test_the_dashboard_never_recomputes_the_strategy() -> None:
 
 
 def test_the_query_layer_holds_no_engine_imports() -> None:
-    from regime_monitor.pipeline import queries as module
+    from fear_ladder.pipeline import queries as module
 
     tree = ast.parse(inspect.getsource(module))
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
-            assert not (node.module or "").startswith("regime_monitor.research")
+            assert not (node.module or "").startswith("fear_ladder.research")
 
 
 # ------------------------------------------------------------------ TASK-140

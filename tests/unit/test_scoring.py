@@ -9,11 +9,11 @@ import pandas as pd
 import pytest
 from pandas import DataFrame, Series
 
-from regime_monitor.config.schema import NormalizationSpec, ScoreSpec
-from regime_monitor.constants import IndicatorDirection
-from regime_monitor.indicators.engine import IndicatorEngine
-from regime_monitor.scoring.composite import ScoreEngine, ScoringError
-from regime_monitor.scoring.normalizers import (
+from fear_ladder.config.schema import NormalizationSpec, ScoreSpec
+from fear_ladder.constants import IndicatorDirection
+from fear_ladder.indicators.engine import IndicatorEngine
+from fear_ladder.scoring.composite import ScoreEngine, ScoringError
+from fear_ladder.scoring.normalizers import (
     LinearMappingNormalizer,
     NormalizationError,
     RollingPercentileNormalizer,
@@ -165,7 +165,7 @@ def test_a_future_shock_does_not_change_earlier_scores() -> None:
 
 
 def _engine(weights: dict[str, float], **kwargs) -> ScoreEngine:
-    from regime_monitor.config.loader import load_research_placeholder_config
+    from fear_ladder.config.loader import load_research_placeholder_config
 
     config = load_research_placeholder_config()
     return ScoreEngine(

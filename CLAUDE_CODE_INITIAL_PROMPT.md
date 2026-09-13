@@ -136,7 +136,7 @@ Streamlit은 일일 batch 실행의 핵심 orchestrator가 아니다.
 MVP DB는:
 
 ```text
-data/regime_monitor.db
+data/fear_ladder.db
 ```
 
 이다.

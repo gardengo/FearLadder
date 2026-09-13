@@ -9,7 +9,7 @@ result plus a human decision; ``CLAUDE_CODE_INITIAL_PROMPT.md`` §7 and §10 are
 explicit that a developer may not invent weights, thresholds, boundaries or
 allocations. So the workflow is:
 
-1. run ``scripts/backtest.py`` and the searches in ``regime_monitor.research``
+1. run ``scripts/backtest.py`` and the searches in ``fear_ladder.research``
 2. validate on the validation window, then walk-forward
 3. write the chosen numbers into a candidate strategy yaml
 4. run this tool, which verifies completeness, stamps FROZEN, records the
@@ -29,13 +29,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from regime_monitor import paths
-from regime_monitor.config.loader import load_config
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
-from regime_monitor.monitoring.logging import configure_logging
-from regime_monitor.research.backtest_runner import StrategyBacktest
-from regime_monitor.research.data_loader import load_market_data
-from regime_monitor.research.freeze import (
+from fear_ladder import paths
+from fear_ladder.config.loader import load_config
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
+from fear_ladder.monitoring.logging import configure_logging
+from fear_ladder.research.backtest_runner import StrategyBacktest
+from fear_ladder.research.data_loader import load_market_data
+from fear_ladder.research.freeze import (
     FROZEN_HEADER,
     FROZEN_INDICATORS_HEADER,
     Fingerprint,
@@ -46,7 +46,7 @@ from regime_monitor.research.freeze import (
     write_indicators_yaml,
     write_strategy_yaml,
 )
-from regime_monitor.research.reports import code_commit
+from fear_ladder.research.reports import code_commit
 
 logger = logging.getLogger("freeze")
 

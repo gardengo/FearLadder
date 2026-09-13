@@ -924,7 +924,7 @@ research 구간 효과: 단기금리 평균 1.92%, CAGR **+8.81% → +9.27%**, M
 
 ## 4. Freeze 절차 (TASK-100)
 
-1. `scripts/backtest.py` 와 `regime_monitor.research` 의 탐색으로 후보 도출
+1. `scripts/backtest.py` 와 `fear_ladder.research` 의 탐색으로 후보 도출
    (research 구간에서만 — `SplitGuard` 가 강제)
 2. validation 구간 검증
 3. walk-forward (`WalkForward`) — train → freeze → test

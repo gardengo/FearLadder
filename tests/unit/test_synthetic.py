@@ -15,8 +15,8 @@ import pandas as pd
 import pytest
 from pandas import DataFrame, Series
 
-from regime_monitor.data.collectors.base import SourceDescription, standardize_prices
-from regime_monitor.data.collectors.synthetic import (
+from fear_ladder.data.collectors.base import SourceDescription, standardize_prices
+from fear_ladder.data.collectors.synthetic import (
     INCEPTION,
     MEASURED_DRAG,
     TRADING_DAYS_PER_YEAR,
@@ -51,7 +51,7 @@ class _FakeProvider:
         series = self.frames[symbol]
         window = series[(series.index >= start) & (series.index <= end)]
         if window.empty:
-            from regime_monitor.data.collectors.base import DataUnavailableError
+            from fear_ladder.data.collectors.base import DataUnavailableError
 
             raise DataUnavailableError(f"{symbol}: nothing in {start}..{end}")
         return standardize_prices(window.to_frame("close"), symbol=symbol)

@@ -23,17 +23,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from regime_monitor.alerts.engine import NotificationProvider, NullNotifier
-from regime_monitor.alerts.telegram import TelegramNotConfiguredError, TelegramNotifier
-from regime_monitor.config.loader import (
+from fear_ladder.alerts.engine import NotificationProvider, NullNotifier
+from fear_ladder.alerts.telegram import TelegramNotConfiguredError, TelegramNotifier
+from fear_ladder.config.loader import (
     ensure_production_ready,
     load_config,
     load_research_placeholder_config,
 )
-from regime_monitor.config.schema import AppConfig, ResearchParameterError
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
-from regime_monitor.monitoring.logging import configure_logging
-from regime_monitor.pipeline.daily import DailyPipeline
+from fear_ladder.config.schema import AppConfig, ResearchParameterError
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
+from fear_ladder.monitoring.logging import configure_logging
+from fear_ladder.pipeline.daily import DailyPipeline
 
 logger = logging.getLogger("daily_runner")
 
@@ -99,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     except ResearchParameterError as exc:
         logger.error("%s", exc)
         logger.error(
-            "set REGIME_MONITOR_ALLOW_RESEARCH_PARAMS=1 only for development, "
+            "set FEAR_LADDER_ALLOW_RESEARCH_PARAMS=1 only for development, "
             "never in the scheduled workflow"
         )
         return 2

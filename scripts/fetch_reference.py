@@ -37,8 +37,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import pandas as pd
 
-from regime_monitor import paths
-from regime_monitor.monitoring.logging import configure_logging
+from fear_ladder import paths
+from fear_ladder.monitoring.logging import configure_logging
 
 logger = logging.getLogger("fetch_reference")
 

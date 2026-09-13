@@ -24,15 +24,15 @@ import pandas as pd
 import pytest
 from pandas import DataFrame
 
-from regime_monitor.config.schema import CostModelSpec, DatasetSplitSpec
-from regime_monitor.constants import Asset, ExecutionTiming
-from regime_monitor.research.backtest_runner import MarketData, StrategyBacktest
-from regime_monitor.research.search import (
+from fear_ladder.config.schema import CostModelSpec, DatasetSplitSpec
+from fear_ladder.constants import Asset, ExecutionTiming
+from fear_ladder.research.backtest_runner import MarketData, StrategyBacktest
+from fear_ladder.research.search import (
     GridSearch,
     Objective,
     transition_candidates,
 )
-from regime_monitor.research.splits import (
+from fear_ladder.research.splits import (
     DatasetSplit,
     OutOfSampleViolationError,
     Split,
@@ -117,7 +117,7 @@ def test_a_signal_never_uses_a_later_price(placeholder_config) -> None:
 
 
 def test_todays_target_cannot_be_traded_today() -> None:
-    from regime_monitor.backtest.simulator import PortfolioSimulator
+    from fear_ladder.backtest.simulator import PortfolioSimulator
 
     days = [START + timedelta(days=offset) for offset in range(3)]
     index = pd.Index(days, name="observation_date")
@@ -162,7 +162,7 @@ def test_no_normalizer_can_see_the_whole_sample() -> None:
     The abstraction has no full-sample entry point, and this test asserts that
     each implementation only reaches the data through a trailing window.
     """
-    from regime_monitor.scoring import normalizers
+    from fear_ladder.scoring import normalizers
 
     banned = ("expanding(", ".mean()", ".std(")
     allowed_owners = {"RollingZScoreNormalizer"}
@@ -178,8 +178,8 @@ def test_no_normalizer_can_see_the_whole_sample() -> None:
 
 
 def test_normalized_scores_do_not_change_when_the_future_arrives() -> None:
-    from regime_monitor.constants import IndicatorDirection
-    from regime_monitor.scoring.normalizers import RollingPercentileNormalizer
+    from fear_ladder.constants import IndicatorDirection
+    from fear_ladder.scoring.normalizers import RollingPercentileNormalizer
 
     rng = np.random.default_rng(3)
     index = pd.Index([START + timedelta(days=i) for i in range(500)])
@@ -257,7 +257,7 @@ def test_split_windows_cannot_overlap() -> None:
 
 
 def test_same_day_execution_cannot_be_configured() -> None:
-    from regime_monitor.config.schema import ConfigError, ExecutionSpec
+    from fear_ladder.config.schema import ConfigError, ExecutionSpec
 
     with pytest.raises(ConfigError):
         ExecutionSpec(same_day_execution_allowed=True)
@@ -268,7 +268,7 @@ def test_the_execution_enum_offers_no_same_day_option() -> None:
 
 
 def test_the_simulator_has_no_same_day_code_path() -> None:
-    from regime_monitor.backtest import simulator
+    from fear_ladder.backtest import simulator
 
     source = inspect.getsource(simulator)
     # The only target lookup is "strictly before today"; if that ever changed to
@@ -282,7 +282,7 @@ def test_the_simulator_has_no_same_day_code_path() -> None:
 
 
 def test_a_weekly_survey_is_not_readable_before_publication() -> None:
-    from regime_monitor.data.collectors.base import Collector, market_close_utc
+    from fear_ladder.data.collectors.base import Collector, market_close_utc
 
     class WeeklyProvider:
         def fetch(self, start: date, end: date) -> DataFrame:
@@ -290,7 +290,7 @@ def test_a_weekly_survey_is_not_readable_before_publication() -> None:
             return DataFrame({"value": [0.12]}, index=index)
 
         def describe(self):
-            from regime_monitor.data.collectors.base import SourceDescription
+            from fear_ladder.data.collectors.base import SourceDescription
 
             return SourceDescription("pandas", "x", "AAII")
 
@@ -331,8 +331,8 @@ def test_the_repository_hides_rows_that_were_not_yet_published(uow, provenance) 
 
 def test_reconstructed_sentiment_is_never_labelled_official(tmp_path) -> None:
     # PRD.md 6.5 — a reconstructed series must not masquerade as published data.
-    from regime_monitor.constants import DataQualityStatus
-    from regime_monitor.data.collectors.registry import historical_cnn_provider
+    from fear_ladder.constants import DataQualityStatus
+    from fear_ladder.data.collectors.registry import historical_cnn_provider
 
     provider = historical_cnn_provider(tmp_path)
     assert provider.quality_status is DataQualityStatus.REVIEW
@@ -350,8 +350,8 @@ def test_a_split_is_flagged_for_review_not_silently_adjusted(provenance) -> None
     corporate-action leak: the corrected history would not have been available
     at the time (``BACKTEST_SPEC.md`` 5.5).
     """
-    from regime_monitor.constants import DataQualityStatus
-    from regime_monitor.data.validators.proshares import ProSharesCrossValidator
+    from fear_ladder.constants import DataQualityStatus
+    from fear_ladder.data.validators.proshares import ProSharesCrossValidator
     from tests.conftest import make_price_observation
 
     observations = [
@@ -369,7 +369,7 @@ def test_a_split_is_flagged_for_review_not_silently_adjusted(provenance) -> None
 
 
 def test_the_validator_never_writes_back_a_corrected_price(provenance) -> None:
-    from regime_monitor.data.validators.proshares import ProSharesCrossValidator
+    from fear_ladder.data.validators.proshares import ProSharesCrossValidator
     from tests.conftest import make_price_observation
 
     observations = [make_price_observation("QLD", date(2024, 1, 2), 70.0, provenance)]
@@ -391,11 +391,11 @@ def test_the_production_pipeline_does_not_import_the_research_package() -> None:
     import ast
     import pkgutil
 
-    import regime_monitor.pipeline as pipeline_package
+    import fear_ladder.pipeline as pipeline_package
 
     offenders: list[str] = []
     for module in pkgutil.walk_packages(
-        pipeline_package.__path__, prefix="regime_monitor.pipeline."
+        pipeline_package.__path__, prefix="fear_ladder.pipeline."
     ):
         imported = __import__(module.name, fromlist=["_"])
         tree = ast.parse(inspect.getsource(imported))
@@ -406,15 +406,15 @@ def test_the_production_pipeline_does_not_import_the_research_package() -> None:
                 names = [node.module or ""]
             else:
                 continue
-            if any(name.startswith("regime_monitor.research") for name in names):
+            if any(name.startswith("fear_ladder.research") for name in names):
                 offenders.append(f"{module.name}: {names}")
     assert not offenders, f"production modules importing research code: {offenders}"
 
 
 def test_the_daily_runner_cannot_reach_the_optimiser() -> None:
-    from regime_monitor.research import search
+    from fear_ladder.research import search
 
-    assert "regime_monitor.pipeline" not in inspect.getsource(search)
+    assert "fear_ladder.pipeline" not in inspect.getsource(search)
 
 
 # ------------------------------------------------------------------ coverage
@@ -429,7 +429,7 @@ def test_every_numbered_check_has_a_test() -> None:
 
 def test_the_cost_model_cannot_be_left_undeclared() -> None:
     # A backtest with unstated costs is not comparable to anything (§17, §25).
-    from regime_monitor.backtest.costs import CostModel
+    from fear_ladder.backtest.costs import CostModel
 
     with pytest.raises(ValueError, match="unresolved research parameter"):
         CostModel.from_spec(CostModelSpec())

@@ -12,9 +12,9 @@ from datetime import date, timedelta
 
 import pytest
 
-from regime_monitor.data.collectors.base import Collector, DataUnavailableError
-from regime_monitor.data.collectors.cnn import CnnFearGreedProvider
-from regime_monitor.data.collectors.fdr import (
+from fear_ladder.data.collectors.base import Collector, DataUnavailableError
+from fear_ladder.data.collectors.cnn import CnnFearGreedProvider
+from fear_ladder.data.collectors.fdr import (
     FinanceDataReaderPriceProvider,
     FinanceDataReaderSeriesProvider,
     library_version,

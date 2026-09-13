@@ -6,8 +6,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from regime_monitor.constants import UNKNOWN_REGIME
-from regime_monitor.pipeline.queries import regime_spans
+from fear_ladder.constants import UNKNOWN_REGIME
+from fear_ladder.pipeline.queries import regime_spans
 from views.common import UNKNOWN_COLOUR, load, regime_palette
 
 

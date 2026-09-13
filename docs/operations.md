@@ -16,7 +16,7 @@ TASK-172. 무언가 잘못됐을 때 읽는 문서.
 ```bash
 # 로컬에서 같은 것을 보기
 python - <<'PY'
-from regime_monitor.pipeline.queries import DashboardQueries
+from fear_ladder.pipeline.queries import DashboardQueries
 q = DashboardQueries()
 print("strategy:", q.active_strategy_version())
 print("latest  :", q.latest_state())
@@ -46,7 +46,7 @@ PY
 확인:
 
 ```bash
-python -c "import sys; sys.path.insert(0,'src');   from regime_monitor.config.loader import load_config;   c = load_config(); print(c.strategy.strategy_version, c.strategy.parameter_status.value)"
+python -c "import sys; sys.path.insert(0,'src');   from fear_ladder.config.loader import load_config;   c = load_config(); print(c.strategy.strategy_version, c.strategy.parameter_status.value)"
 # v1.0-frozen FROZEN 이 나와야 한다
 ```
 
@@ -98,7 +98,7 @@ curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getMe"
 
 # 2) 보낼 것이 있었는지 (없으면 정상이다 — 레짐이 안 바뀌면 알림도 없다)
 python - <<'PY'
-from regime_monitor.pipeline.queries import DashboardQueries
+from fear_ladder.pipeline.queries import DashboardQueries
 print(DashboardQueries().alert_events(limit=20).to_string())
 PY
 ```
@@ -120,10 +120,10 @@ PY
 
 ```bash
 python - <<'PY'
-from regime_monitor.alerts.engine import AlertEngine
-from regime_monitor.alerts.telegram import TelegramNotifier
-from regime_monitor.config.loader import load_config
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
+from fear_ladder.alerts.engine import AlertEngine
+from fear_ladder.alerts.telegram import TelegramNotifier
+from fear_ladder.config.loader import load_config
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 
 config = load_config()
 engine = AlertEngine(config.alerts, TelegramNotifier.from_spec(config.alerts.telegram))
@@ -146,9 +146,9 @@ PY
 ```bash
 python - <<'PY'
 from datetime import date
-from regime_monitor.config.loader import load_config
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
-from regime_monitor.data.validators.freshness import FreshnessValidator
+from fear_ladder.config.loader import load_config
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
+from fear_ladder.data.validators.freshness import FreshnessValidator
 
 config = load_config()
 with SQLiteUnitOfWork() as uow:
@@ -170,9 +170,9 @@ PY
 ```bash
 python - <<'PY'
 from datetime import date, timedelta
-from regime_monitor.config.loader import load_config
-from regime_monitor.data.collection import CollectionService
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
+from fear_ladder.config.loader import load_config
+from fear_ladder.data.collection import CollectionService
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 
 config = load_config()
 with SQLiteUnitOfWork() as uow:
@@ -200,7 +200,7 @@ CNN / AAII 는 `mandatory: false` 다. 빠지면 해당 지표만 제외되고 �
 
 ```bash
 python -c "
-from regime_monitor.pipeline.queries import DashboardQueries
+from fear_ladder.pipeline.queries import DashboardQueries
 print(DashboardQueries().open_findings().to_string())"
 ```
 
@@ -210,7 +210,7 @@ print(DashboardQueries().open_findings().to_string())"
 ```bash
 python - <<'PY'
 from datetime import UTC, datetime
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 
 with SQLiteUnitOfWork() as uow:
     uow.connection.execute(
@@ -229,8 +229,8 @@ PY
 
 ```bash
 python - <<'PY'
-from regime_monitor import paths
-from regime_monitor.data.repositories.connection import connect
+from fear_ladder import paths
+from fear_ladder.data.repositories.connection import connect
 
 connection = connect(read_only=True)
 print(connection.execute("PRAGMA integrity_check").fetchone()[0])
@@ -243,8 +243,8 @@ PY
 DB 는 git 으로 관리되므로 이전 커밋으로 되돌릴 수 있다.
 
 ```bash
-git log --oneline -- data/regime_monitor.db | head -20
-git checkout <commit> -- data/regime_monitor.db
+git log --oneline -- data/fear_ladder.db | head -20
+git checkout <commit> -- data/fear_ladder.db
 
 # 되돌린 지점 이후를 다시 계산 (멱등)
 python scripts/daily_runner.py --date 2024-03-14
@@ -258,7 +258,7 @@ python scripts/daily_runner.py --date 2024-03-16
 
 ```bash
 python -c "
-from regime_monitor.data.repositories.connection import connect, checkpoint
+from fear_ladder.data.repositories.connection import connect, checkpoint
 c = connect(); checkpoint(c); c.close(); print('checkpointed')"
 ```
 
@@ -269,9 +269,9 @@ c = connect(); checkpoint(c); c.close(); print('checkpointed')"
 
 ```bash
 python -c "
-from regime_monitor.data.repositories.sqlite import create_database
-from regime_monitor import paths
-print(create_database(paths.DATA_DIR / 'regime_monitor.db'))"
+from fear_ladder.data.repositories.sqlite import create_database
+from fear_ladder import paths
+print(create_database(paths.DATA_DIR / 'fear_ladder.db'))"
 
 python scripts/backtest.py --collect --start 2010-02-11   # 이력 재수집
 ```
@@ -289,7 +289,7 @@ managed DB. 리포지토리 계층이 분리되어 있으므로 `data/interfaces
 ### Streamlit Cloud
 
 1. https://share.streamlit.io → New app
-2. Repository: `gardengo/RegimePilot`, Branch: `main`
+2. Repository: `gardengo/FearLadder`, Branch: `main`
 3. Main file path: `app/streamlit_app.py`
 4. 의존성은 `requirements.txt` 에서 자동 설치된다
 
@@ -300,12 +300,12 @@ Streamlit Cloud 가 자동 재배포된다.
 
 1. 사이드바 → 새로고침 (앱 캐시 TTL 은 5분)
 2. 그래도 안 바뀌면 daily 워커가 최근에 커밋했는지 확인:
-   `git log --oneline -5 -- data/regime_monitor.db`
+   `git log --oneline -5 -- data/fear_ladder.db`
 3. Streamlit Cloud → Manage app → Reboot
 
 ### "no database at ..." 오류
 
-배포 브랜치에 `data/regime_monitor.db` 가 없다. daily 워커가 한 번도 커밋하지
+배포 브랜치에 `data/fear_ladder.db` 가 없다. daily 워커가 한 번도 커밋하지
 않았거나 gitignore 되었는지 확인한다.
 
 ---
@@ -316,7 +316,7 @@ Streamlit Cloud 가 자동 재배포된다.
 
 ```bash
 python -c "
-from regime_monitor.config.loader import load_config
+from fear_ladder.config.loader import load_config
 c = load_config()
 print(c.strategy.strategy_version, c.strategy.parameter_status.value)
 print('production ready:', c.is_production_ready)
@@ -329,12 +329,12 @@ print('unresolved:', c.unresolved_parameters())"
 python - <<'PY'
 import json
 from pathlib import Path
-from regime_monitor import paths
-from regime_monitor.config.loader import load_config
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
-from regime_monitor.research.backtest_runner import StrategyBacktest
-from regime_monitor.research.data_loader import load_market_data
-from regime_monitor.research.freeze import Fingerprint, RegressionRecord
+from fear_ladder import paths
+from fear_ladder.config.loader import load_config
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
+from fear_ladder.research.backtest_runner import StrategyBacktest
+from fear_ladder.research.data_loader import load_market_data
+from fear_ladder.research.freeze import Fingerprint, RegressionRecord
 
 config = load_config()
 record_path = paths.CONFIG_DIR / "frozen" / f"{config.strategy.strategy_version}.regression.json"
@@ -357,7 +357,7 @@ PY
 | 하지 말 것 | 이유 |
 | --- | --- |
 | `config/strategy.yaml` 을 손으로 수정 | manifest 가 조용히 무효가 된다 |
-| 운영에서 `REGIME_MONITOR_ALLOW_RESEARCH_PARAMS=1` | 미확정 파라미터로 실제 신호가 나간다 |
+| 운영에서 `FEAR_LADDER_ALLOW_RESEARCH_PARAMS=1` | 미확정 파라미터로 실제 신호가 나간다 |
 | OOS 결과를 보고 파라미터 조정 | 그 구간이 더 이상 OOS 가 아니게 된다 |
 | 교차검증 불일치를 임의 보정 | 미공시 정보를 소급 적용하는 누수다 |
 | DATA_FAILURE 를 무시하고 이전 신호 사용 | 시스템이 판단을 포기한 날이다. 사람이 판단해야 한다 |

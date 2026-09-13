@@ -13,24 +13,24 @@ import pandas as pd
 import pytest
 from pandas import Series
 
-from regime_monitor.allocation.engine import AllocationEngine, AllocationError
-from regime_monitor.allocation.sleeves import (
+from fear_ladder.allocation.engine import AllocationEngine, AllocationError
+from fear_ladder.allocation.sleeves import (
     SleeveError,
     leverage_of,
     market_exposure,
     portfolio_for,
 )
-from regime_monitor.allocation.tqqq_gate import GateContext, ThresholdRule, TqqqGate
-from regime_monitor.allocation.trend_filter import (
+from fear_ladder.allocation.tqqq_gate import GateContext, ThresholdRule, TqqqGate
+from fear_ladder.allocation.trend_filter import (
     TrendFilter,
     TrendFilterError,
 )
-from regime_monitor.config.schema import (
+from fear_ladder.config.schema import (
     AllocationConstraints,
     ConfigError,
     TrendFilterSpec,
 )
-from regime_monitor.constants import Asset
+from fear_ladder.constants import Asset
 
 DAY = date(2001, 9, 21)  # deep inside the dot-com decline
 
@@ -188,7 +188,7 @@ def test_a_cap_that_caps_nothing_is_rejected() -> None:
 
 
 def test_the_filter_must_name_a_real_indicator(placeholder_config) -> None:
-    from regime_monitor.config.schema import AppConfig, StrategyConfig
+    from fear_ladder.config.schema import AppConfig, StrategyConfig
 
     payload = placeholder_config.strategy.model_dump()
     payload["trend_filter"] = {
@@ -287,7 +287,7 @@ def test_the_overheat_floor_still_binds_when_the_trend_is_intact() -> None:
 
 
 def test_an_unknown_regime_is_untouched_by_the_filter() -> None:
-    from regime_monitor.constants import UNKNOWN_REGIME
+    from fear_ladder.constants import UNKNOWN_REGIME
 
     decision = _engine().allocate(UNKNOWN_REGIME, DAY, context=_context())
     assert decision.allocation is None

@@ -16,15 +16,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from regime_monitor import paths
-from regime_monitor.config.loader import load_config, load_research_placeholder_config
-from regime_monitor.config.schema import AppConfig
-from regime_monitor.data.collection import CollectionService
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
-from regime_monitor.monitoring.logging import configure_logging
-from regime_monitor.research.backtest_runner import StrategyBacktest
-from regime_monitor.research.data_loader import load_market_data
-from regime_monitor.research.reports import ReportWriter
+from fear_ladder import paths
+from fear_ladder.config.loader import load_config, load_research_placeholder_config
+from fear_ladder.config.schema import AppConfig
+from fear_ladder.data.collection import CollectionService
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
+from fear_ladder.monitoring.logging import configure_logging
+from fear_ladder.research.backtest_runner import StrategyBacktest
+from fear_ladder.research.data_loader import load_market_data
+from fear_ladder.research.reports import ReportWriter
 
 logger = logging.getLogger("backtest")
 

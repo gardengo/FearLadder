@@ -14,9 +14,9 @@ from typing import Any
 
 import streamlit as st
 
-from regime_monitor import paths
-from regime_monitor.constants import UNKNOWN_REGIME
-from regime_monitor.pipeline.queries import DashboardQueries
+from fear_ladder import paths
+from fear_ladder.constants import UNKNOWN_REGIME
+from fear_ladder.pipeline.queries import DashboardQueries
 
 CACHE_SECONDS = 300
 

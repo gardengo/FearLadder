@@ -69,7 +69,7 @@ Streamlit은 저장된 결과를 시각화하는 Dashboard 역할을 담당한�
 # 3. Repository Structure
 
 ```text
-nasdaq-leverage-regime-monitor/
+nasdaq-leverage-fear-ladder/
 ├── README.md
 ├── PRD.md
 ├── ARCHITECTURE.md
@@ -88,7 +88,7 @@ nasdaq-leverage-regime-monitor/
 │   └── data_sources.yaml
 │
 ├── src/
-│   └── regime_monitor/
+│   └── fear_ladder/
 │       ├── config/
 │       ├── data/
 │       │   ├── models.py
@@ -116,7 +116,7 @@ nasdaq-leverage-regime-monitor/
 │   └── streamlit_app.py
 │
 ├── data/
-│   ├── regime_monitor.db
+│   ├── fear_ladder.db
 │   ├── reference/           # 운영자가 배치하는 외부 자료 (ProShares/CNN/AAII)
 │   ├── raw/
 │   ├── processed/
@@ -288,7 +288,7 @@ checkout
 DB 파일:
 
 ```text
-data/regime_monitor.db
+data/fear_ladder.db
 ```
 
 권장 테이블:
@@ -609,7 +609,7 @@ GitHub Actions의 test workflow와 daily workflow를 분리한다.
 `BACKTEST_SPEC.md` §28 의 요구를 패키지 경계로 구현한다.
 
 ```text
-regime_monitor.research/     연구 경로
+fear_ladder.research/     연구 경로
   backtest_runner.py         전체 체인 백테스트
   search.py                  파라미터 탐색 (TASK-080~085)
   walk_forward.py            TASK-091
@@ -618,7 +618,7 @@ regime_monitor.research/     연구 경로
   freeze.py                  TASK-101/102
   reports.py                 아티팩트
 
-regime_monitor.pipeline/     운영 경로
+fear_ladder.pipeline/     운영 경로
   daily.py                   일일 워커
   queries.py                 대시보드 조회 (read-only)
 ```

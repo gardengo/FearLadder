@@ -32,21 +32,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import yaml
 from pandas import DataFrame
 
-from regime_monitor import paths
-from regime_monitor.config.loader import load_config
-from regime_monitor.config.schema import AppConfig
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork
-from regime_monitor.monitoring.logging import configure_logging
-from regime_monitor.research.backtest_runner import MarketData
-from regime_monitor.research.data_loader import load_market_data
-from regime_monitor.research.ladder import LadderSpec, build_ladder, default_labels
-from regime_monitor.research.search import (
+from fear_ladder import paths
+from fear_ladder.config.loader import load_config
+from fear_ladder.config.schema import AppConfig
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
+from fear_ladder.monitoring.logging import configure_logging
+from fear_ladder.research.backtest_runner import MarketData
+from fear_ladder.research.data_loader import load_market_data
+from fear_ladder.research.ladder import LadderSpec, build_ladder, default_labels
+from fear_ladder.research.search import (
     Candidate,
     GridSearch,
     Objective,
     SearchReport,
 )
-from regime_monitor.research.splits import DatasetSplit, Split, SplitGuard
+from fear_ladder.research.splits import DatasetSplit, Split, SplitGuard
 
 logger = logging.getLogger("optimize")
 
@@ -251,7 +251,7 @@ def _absolute_candidates(
 
 def transition_candidates_for(config: AppConfig) -> list[Candidate]:
     """TASK-085 — confirmation, hysteresis, minimum duration."""
-    from regime_monitor.research.search import transition_candidates
+    from fear_ladder.research.search import transition_candidates
 
     return list(transition_candidates(config))
 
@@ -514,7 +514,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _rename(config: AppConfig, candidate_path: Path) -> AppConfig:
-    from regime_monitor.config.schema import StrategyConfig
+    from fear_ladder.config.schema import StrategyConfig
 
     original = yaml.safe_load(candidate_path.read_text(encoding="utf-8"))["strategy_version"]
     payload = config.strategy.model_dump()

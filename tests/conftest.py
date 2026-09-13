@@ -1,7 +1,7 @@
 """Shared fixtures.
 
 Every test runs against a throwaway database; nothing may touch the operational
-``data/regime_monitor.db``.
+``data/fear_ladder.db``.
 """
 
 from __future__ import annotations
@@ -12,23 +12,23 @@ from pathlib import Path
 
 import pytest
 
-from regime_monitor.config.loader import load_research_placeholder_config
-from regime_monitor.config.schema import AppConfig
-from regime_monitor.constants import DataQualityStatus
-from regime_monitor.data.models import MarketObservation, Provenance
-from regime_monitor.data.repositories.sqlite import SQLiteUnitOfWork, create_database
+from fear_ladder.config.loader import load_research_placeholder_config
+from fear_ladder.config.schema import AppConfig
+from fear_ladder.constants import DataQualityStatus
+from fear_ladder.data.models import MarketObservation, Provenance
+from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork, create_database
 
 
 @pytest.fixture(autouse=True)
 def _isolate_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Point every default DB lookup at a per-test file."""
-    monkeypatch.setenv("REGIME_MONITOR_DB", str(tmp_path / "test.db"))
+    monkeypatch.setenv("FEAR_LADDER_DB", str(tmp_path / "test.db"))
 
 
 @pytest.fixture(autouse=True)
 def _closed_research_gate(monkeypatch: pytest.MonkeyPatch) -> None:
     """Tests must never inherit a developer's open research-parameter gate."""
-    monkeypatch.delenv("REGIME_MONITOR_ALLOW_RESEARCH_PARAMS", raising=False)
+    monkeypatch.delenv("FEAR_LADDER_ALLOW_RESEARCH_PARAMS", raising=False)
 
 
 @pytest.fixture

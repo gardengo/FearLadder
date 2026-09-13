@@ -12,13 +12,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-from regime_monitor.config.schema import (
+from fear_ladder.config.schema import (
     DataSourcesConfig,
     PriceSourceSpec,
     SymbolSpec,
 )
-from regime_monitor.constants import DataQualityStatus
-from regime_monitor.data.validators.freshness import FreshnessValidator
+from fear_ladder.constants import DataQualityStatus
+from fear_ladder.data.validators.freshness import FreshnessValidator
 
 TODAY = date(2026, 9, 11)
 PAST = date(2022, 6, 15)
