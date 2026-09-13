@@ -7,6 +7,7 @@ this?" has to be answerable from the log alone.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import sys
@@ -18,7 +19,15 @@ LEVEL_ENV = "REGIME_MONITOR_LOG_LEVEL"
 
 
 def configure_logging(level: int | None = None, *, stream: object | None = None) -> None:
-    """Configure the root logger once, idempotently."""
+    """Configure the root logger once, idempotently.
+
+    Also forces UTF-8 on the process's own streams. Every entry point calls
+    this, and it is the last moment before anything is printed. A Windows
+    console defaults to cp949 here, which cannot encode an em dash; logging
+    survives that by escaping, but a bare ``print`` raises, and it raises
+    halfway through a run that has already spent twenty minutes of compute.
+    """
+    _force_utf8_output()
     resolved = level if level is not None else _level_from_env()
     root = logging.getLogger()
     for handler in list(root.handlers):
@@ -32,6 +41,16 @@ def configure_logging(level: int | None = None, *, stream: object | None = None)
     # These are noisy and say nothing about the pipeline.
     for noisy in ("urllib3", "requests", "matplotlib"):
         logging.getLogger(noisy).setLevel(max(resolved, logging.WARNING))
+
+
+def _force_utf8_output() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:  # a pipe or a StringIO under test
+            continue
+        # already detached, or not a text stream
+        with contextlib.suppress(ValueError, OSError):
+            reconfigure(encoding="utf-8", errors="backslashreplace")
 
 
 def _level_from_env() -> int:

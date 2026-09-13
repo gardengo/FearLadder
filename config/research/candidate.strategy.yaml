@@ -13,11 +13,20 @@
 # NOT FROZEN. The out-of-sample window has not been spent, so this has not had
 # its final test. scripts/freeze.py is a separate, deliberate act.
 #
+# The VALIDATION window was spent on 2026-09-13 (docs/strategy.md 2.5). Nothing
+# here was changed afterwards, and nothing here may be: a parameter tuned to a
+# window is no longer tested by it.
+#
 # HOW WELL EACH PARAMETER IS ACTUALLY SUPPORTED
 #
 #   trend_filter        STRONG   monotone, and the single largest effect found:
-#                                without it the research window returns -2.74%
+#     (on/off)                   without it the research window returns -2.74%
 #                                CAGR at 98.4% drawdown; with it, +9.5% at 58.2%.
+#   trend_filter        NONE     the threshold VALUE is a different question from
+#     .threshold = -0.02         the filter's existence, and sensitivity calls it
+#                                a SPIKE (neighbour gap +34.4%). Switching the
+#                                leverage off below the 200dma is decisive;
+#                                whether the line sits at -2% or 0% is noise.
 #   regime.count = 7    OPERATOR chosen by the operator, and re-measured against
 #                                the final configuration: 3 +6.30%, 5 +7.74%,
 #                                7 +9.81%, 9 +7.61% CAGR.

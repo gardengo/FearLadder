@@ -544,9 +544,8 @@ def test_the_search_refuses_to_overwrite_the_placeholder_profile(tmp_path) -> No
 
 
 def test_the_search_writes_indicators_to_their_own_file(placeholder_config, tmp_path) -> None:
-    import yaml as yaml_module
-
     import scripts.optimize as optimize_cli
+    import yaml as yaml_module
 
     source = tmp_path / "placeholder.indicators.yaml"
     source.write_text("version: 1\n", encoding="utf-8")

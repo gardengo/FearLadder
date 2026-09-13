@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from itertools import pairwise
 
 import numpy as np
 import pandas as pd
@@ -422,7 +423,7 @@ def _run_cash(days: list[date], rates: Series | None, weights=None):
 def _accrued(days: list[date], annual_pct: float, cash_weight: float = 1.0) -> float:
     """ACT/365 compounding, reimplemented independently of the simulator."""
     held, value = days[1:], 1.0
-    for start, finish in zip(held, held[1:], strict=False):
+    for start, finish in pairwise(held):
         value *= 1 + cash_weight * annual_pct / 100 * (finish - start).days / 365
     return value
 
