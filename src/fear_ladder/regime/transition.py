@@ -59,7 +59,6 @@ class TransitionState:
     pending_regime: str | None = None
     pending_days: int = 0
 
-    @property
     def has_pending(self) -> bool:
         return self.pending_regime is not None
 

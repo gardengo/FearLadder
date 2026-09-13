@@ -88,15 +88,3 @@ def standard_benchmarks(*, mix_rebalance: RebalanceFrequency = "monthly") -> lis
         ),
     ]
 
-
-def baseline_position() -> BenchmarkSpec:
-    """The starting position ``PRD.md`` 2.1 describes, for reference.
-
-    Not one of the three required benchmarks, but the portfolio the strategy is
-    meant to improve on, so it is worth being able to plot.
-    """
-    return BenchmarkSpec(
-        name="Baseline QLD 70 / Cash 30",
-        weights={Asset.QLD: 0.7, Asset.CASH: 0.3},
-        rebalance="monthly",
-    )

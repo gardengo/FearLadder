@@ -101,15 +101,6 @@ class IndicatorRepository(Protocol):
         strategy_version: str,
     ) -> list[IndicatorScore]: ...
 
-    def get_score_history(
-        self,
-        indicator_name: str,
-        *,
-        strategy_version: str,
-        start: date | None = None,
-        end: date | None = None,
-    ) -> list[IndicatorScore]: ...
-
 
 @runtime_checkable
 class MarketStateRepository(Protocol):

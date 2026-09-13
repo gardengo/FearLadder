@@ -181,7 +181,6 @@ class DataSourcesConfig(_Base):
     #: holds cash - and this strategy holds roughly a fifth of the book in it.
     cash_rate_series: str | None = None
 
-    @property
     def mandatory_series(self) -> tuple[str, ...]:
         return tuple(
             name for name, spec in self.series.items() if spec.enabled and spec.mandatory

@@ -37,9 +37,6 @@ class CollectionReport:
     def ok(self) -> bool:
         return not self.failures
 
-    def failed_mandatory(self, mandatory: tuple[str, ...]) -> tuple[str, ...]:
-        return tuple(name for name in mandatory if name in self.failures)
-
     def summary(self) -> str:
         rows = [f"{name}={count}" for name, count in sorted(self.collected.items())]
         text = f"collected {', '.join(rows) or 'nothing'}"

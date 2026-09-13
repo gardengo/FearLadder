@@ -37,7 +37,7 @@ PY
 3. `Verify the database is still readable` 통과
 4. DB 가 바뀌었으면 `chore(data): daily state ...` 커밋
 
-### "Strategy not frozen" notice 가 뜬다
+### "Strategy is not frozen" 으로 실패한다
 
 **더 이상 정상이 아니다.** 전략은 2026-09-13 에 `v1.0-frozen` 으로 고정됐다
 (`docs/strategy.md` §2.8). 이 메시지가 보인다면 `config/strategy.yaml` 이
@@ -353,7 +353,7 @@ python scripts/backtest.py --collect --start 2010-02-11   # 이력 재수집
 ### DB 가 너무 커졌다
 
 `PRD.md` §13 의 이전 경로: SQLite → snapshots/Parquet → object storage 또는
-managed DB. 리포지토리 계층이 분리되어 있으므로 `data/interfaces.py` 의 Protocol
+managed DB. 리포지토리 계층이 분리되어 있으므로 `src/fear_ladder/data/interfaces.py` 의 Protocol
 을 구현한 새 어댑터만 추가하면 된다.
 
 ---

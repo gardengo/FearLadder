@@ -739,29 +739,33 @@ frozen strategy 명세.
 [x] 모든 unit test 통과
 [x] integration test 통과
 [x] leakage test 통과            BACKTEST_SPEC §24 의 7개 항목 전부
-[ ] OOS 검증 완료                 ← 도구는 완성. 실행은 TASK-100 과 함께
-[ ] strategy freeze 완료          ← 도구는 완성. 파라미터 결정이 선행되어야 함
+[x] OOS 검증 완료                 2026-09-13, 고정 이후 한 번. docs/strategy.md 2.8
+[x] strategy freeze 완료          v1.0-frozen, 지문 b425a9b104b62daa
 [x] SQLite 정상 저장
-[x] GitHub Actions daily 실행     ← 워크플로 완성. frozen 이후 자동 시작
+[x] GitHub Actions daily 실행     평일 22:30 UTC, dry-run 으로 완주 확인
 [x] Telegram alert 정상
 [x] Streamlit dashboard 정상
 [-] Docker 실행 정상              ← 운영자 결정으로 범위에서 제외
 [x] 자동주문 기능 없음
 ```
 
-## 남은 항목에 대하여
+## 완료 (2026-09-13)
 
-**OOS 검증과 strategy freeze 는 코드가 아니라 판단이 필요한 항목이다.**
+전략은 `v1.0-frozen` 으로 고정됐고 OOS 구간까지 소비했다. 순서를 지켰다 —
+탐색(1999–2015) → 검증(2015–2021) → **고정** → 최종(2021–2026). 고정을 먼저
+한 것이 중요하다. 결과를 보고 숫자를 고칠 수 있으면 그 구간은 시험이 아니다.
 
-Phase 8~10 은 탐색·walk-forward·민감도 분석·freeze·회귀 검증 도구를 모두
-제공하지만, 어떤 가중치·경계·배분을 고를지는 연구 결과를 보고 사람이 결정한다.
-`CLAUDE_CODE_INITIAL_PROMPT.md` §7/§10/§15 가 개발자의 임의 확정을 금지한다.
+| 구간 | CAGR | MDD | Sharpe |
+| --- | --- | --- | --- |
+| 탐색 1999–2015 | +12.78% | 62.4% | 0.56 |
+| 검증 2015–2021 | +28.29% | 27.9% | 1.01 |
+| **최종 2021–2026** | **+19.21%** | **46.6%** | **0.74** |
 
-절차는 `docs/strategy.md` §4 에 있다. 완료되면:
+증거는 `config/frozen/v1.0-frozen.{manifest,regression,indicators,oos}` 에 있다.
+경위와 기각한 시도는 `docs/strategy.md` 2.5~2.8.
 
-- `config/strategy.yaml` 이 `parameter_status: FROZEN` 이 되고
-- `config/frozen/` 에 manifest 와 회귀 기준이 생기며
-- daily-monitor 워크플로가 자동으로 실행을 시작한다
+**남은 구간이 없다.** 다음에 파라미터를 바꾸려면 새 데이터가 쌓이기를 기다려야
+한다. 지금 고치면 검증할 창이 없다.
 
 **Docker 는 범위에서 제외했다.** 운영 경로는 GitHub Actions + Streamlit Cloud +
 Telegram 이고 그 어디에도 컨테이너가 쓰이지 않는다. 유지할 이유가 없어

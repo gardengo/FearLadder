@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -157,12 +156,6 @@ def load_research_placeholder_config(config_dir: Path | None = None) -> AppConfi
         strategy_path=research / PLACEHOLDER_STRATEGY,
         indicators_path=research / PLACEHOLDER_INDICATORS,
     )
-
-
-@lru_cache(maxsize=1)
-def get_config() -> AppConfig:
-    """Process-wide configuration singleton for application code."""
-    return load_config()
 
 
 def research_parameters_allowed(env: dict[str, str] | None = None) -> bool:

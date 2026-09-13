@@ -15,7 +15,6 @@ from __future__ import annotations
 import html
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date
 
 from fear_ladder.constants import Asset, EventType
 from fear_ladder.data.models import MarketState, TargetAllocation
@@ -277,6 +276,3 @@ def as_html(alert: RenderedAlert) -> str:
     """Telegram HTML rendering: bold title, plain body."""
     return f"<b>{_escape(alert.title)}</b>\n\n{_escape(alert.body)}"
 
-
-def format_date(day: date) -> str:
-    return day.isoformat()

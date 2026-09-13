@@ -137,22 +137,6 @@ class SQLiteIndicatorRepository(_Base):
         ).fetchall()
         return [_score_from_row(row) for row in rows]
 
-    def get_score_history(
-        self,
-        indicator_name: str,
-        *,
-        strategy_version: str,
-        start: date | None = None,
-        end: date | None = None,
-    ) -> list[IndicatorScore]:
-        clause, params = self._range("observation_date", start, end)
-        rows = self._connection.execute(
-            "SELECT * FROM indicator_scores WHERE indicator_name = ? AND strategy_version = ?"
-            f"{clause} ORDER BY observation_date",
-            [indicator_name, strategy_version, *params],
-        ).fetchall()
-        return [_score_from_row(row) for row in rows]
-
 
 def _score_from_row(row: sqlite3.Row) -> IndicatorScore:
     return IndicatorScore(

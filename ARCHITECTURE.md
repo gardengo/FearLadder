@@ -82,19 +82,22 @@ nasdaq-leverage-fear-ladder/
 ├── .gitignore
 │
 ├── config/
-│   ├── indicators.yaml
-│   ├── strategy.yaml
+│   ├── indicators.yaml      # 지표 정의 (손으로 관리, 연구 후보 그리드 포함)
+│   ├── strategy.yaml        # FROZEN 출력. 손으로 고치지 않는다
 │   ├── alerts.yaml
-│   └── data_sources.yaml
+│   ├── data_sources.yaml
+│   ├── frozen/              # v1.0-frozen.{manifest,regression,indicators,oos}
+│   └── research/            # 탐색용 프로파일 (candidate / placeholder)
 │
 ├── src/
 │   └── fear_ladder/
 │       ├── config/
 │       ├── data/
 │       │   ├── models.py
-│       │   ├── interfaces.py
+│       │   ├── interfaces.py    # 포트 (Protocol)
+│       │   ├── retention.py     # 보관 기간의 하한을 설정에서 계산
 │       │   ├── collectors/
-│       │   ├── repositories/
+│       │   ├── repositories/    # sqlite/ 아래 표 그룹별 어댑터
 │       │   └── validators/
 │       ├── indicators/
 │       ├── scoring/
@@ -106,14 +109,24 @@ nasdaq-leverage-fear-ladder/
 │       ├── alerts/
 │       └── monitoring/
 │
-├── scripts/
-│   ├── daily_runner.py
-│   ├── backtest.py
+├── scripts/                 # 얇은 CLI. 로직은 패키지 안에 있다
+│   ├── daily_runner.py      # 운영: 하루치 실행
+│   ├── notify.py            # 알림 채널 점검·복구
+│   ├── prune_observations.py
+│   ├── backfill_history.py
 │   ├── fetch_reference.py
-│   └── freeze.py
+│   ├── backtest.py          # 연구
+│   ├── optimize.py
+│   ├── validate.py
+│   ├── freeze.py
+│   ├── make_performance_report.py
+│   ├── make_placeholder_indicators.py
+│   └── make_favicon.py
 │
 ├── app/
-│   └── streamlit_app.py
+│   ├── streamlit_app.py     # 탭 배선만
+│   ├── assets/favicon.png
+│   └── views/               # 탭 하나당 모듈. 엔진을 import 하지 않는다
 │
 ├── data/
 │   ├── fear_ladder.db
@@ -138,7 +151,8 @@ nasdaq-leverage-fear-ladder/
 │       └── test.yml
 │
 └── reports/
-    └── backtest/
+    ├── performance.json     # 대시보드가 읽는 성과 증거
+    └── backtest/            # scripts/backtest.py --report 산출물 (미추적)
 ```
 
 ---

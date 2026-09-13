@@ -78,11 +78,6 @@ DEFAULT_LOOKBACK_DAYS = 2000
 #: How many indicators to name in an alert.
 TOP_INDICATOR_COUNT = 3
 
-
-class PipelineError(RuntimeError):
-    """Raised when the daily pipeline cannot complete."""
-
-
 @dataclass(frozen=True, slots=True)
 class DailyResult:
     """Everything one run produced."""

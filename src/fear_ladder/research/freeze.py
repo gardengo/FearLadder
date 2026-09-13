@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pandas import DataFrame, Series
+from pandas import DataFrame
 
 from fear_ladder.config.schema import AppConfig, IndicatorsConfig, StrategyConfig
 from fear_ladder.constants import ParameterStatus
@@ -274,10 +274,6 @@ class Fingerprint:
             rows=len(frame),
             columns=tuple(str(column) for column in frame.columns),
         )
-
-    @classmethod
-    def of_series(cls, series: Series) -> Fingerprint:
-        return cls.of_frame(series.to_frame(series.name or "value"))
 
     def matches(self, other: Fingerprint) -> bool:
         return self.digest == other.digest

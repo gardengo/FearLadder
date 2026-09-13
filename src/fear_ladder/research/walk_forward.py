@@ -20,7 +20,6 @@ the honest measure of how much the search overfitted — is visible.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
@@ -256,7 +255,3 @@ def stitch(navs: object) -> Series:
     stitched.name = "nav"
     return stitched
 
-
-def candidates_from(sequences: Sequence[Sequence[Candidate]]) -> tuple[Candidate, ...]:
-    """Flatten several space builders into one candidate pool."""
-    return tuple(candidate for sequence in sequences for candidate in sequence)
