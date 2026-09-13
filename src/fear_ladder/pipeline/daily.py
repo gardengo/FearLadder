@@ -55,6 +55,7 @@ from fear_ladder.data.models import (
     MarketState,
     PipelineRun,
     RegimeEvent,
+    StrategyVersionRecord,
     TargetAllocation,
 )
 from fear_ladder.data.validators.freshness import FreshnessReport, FreshnessValidator
@@ -203,6 +204,7 @@ class DailyPipeline:
         replaying: bool = False,
     ) -> DailyResult:
         observations = uow.observations  # type: ignore[attr-defined]
+        self._register_version(uow)
 
         collection: CollectionReport | None = None
         if collect:
@@ -361,6 +363,41 @@ class DailyPipeline:
             trend_broken=self._trend_broken(indicator_results, day),
         )
         return self.allocations.allocate(decision.regime, day, context=context)
+
+    def _register_version(self, uow: object) -> None:
+        """Record which strategy produced the rows this run is about to write.
+
+        The daily worker is the only thing that actually *runs* a version, so it
+        is what registers one. Without this the table stayed empty and the
+        dashboard had to guess the active version from whichever row happened to
+        be newest — fine with one strategy, ambiguous the moment a second is
+        frozen.
+
+        Idempotent: re-running a day re-upserts the same row, and switching
+        versions stands the previous one down rather than leaving two active.
+        """
+        strategy = self.config.strategy
+        record = StrategyVersionRecord(
+            strategy_version=strategy.strategy_version,
+            parameter_status=strategy.parameter_status.value,
+            parameter_version=strategy.parameter_version,
+            data_version=strategy.data_version,
+            frozen_at=strategy.frozen_at,
+            manifest={
+                "regime_labels": list(strategy.regime.labels or ()),
+                "indicators": len(self.config.indicators.enabled_indicators),
+            },
+            is_active=True,
+        )
+        strategies = uow.strategies  # type: ignore[attr-defined]
+        active = strategies.get_active_version()
+        if active is not None and active.strategy_version != record.strategy_version:
+            logger.warning(
+                "active strategy changes from %s to %s",
+                active.strategy_version,
+                record.strategy_version,
+            )
+        strategies.save_version(record)
 
     def _trend_broken(
         self, indicator_results: dict[str, IndicatorResult], day: date

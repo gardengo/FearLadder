@@ -56,7 +56,11 @@ class SQLiteStrategyRepository(_Base):
                 None if record.frozen_at is None else to_db_datetime(record.frozen_at),
                 record.code_commit,
                 to_json(record.manifest),
-                int(record.is_active),
+                # Always inserted inactive, even when the record asks to be
+                # active: a partial unique index allows one active row, so
+                # inserting a second active one fails before anything can stand
+                # the old one down. activate() does both halves in order.
+                0,
                 to_db_datetime(record.created_at),
                 now,
             ),

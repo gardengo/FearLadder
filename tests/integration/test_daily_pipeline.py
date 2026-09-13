@@ -387,6 +387,41 @@ def test_the_pipeline_refuses_to_start_on_unresolved_parameters(
         DailyPipeline(config)
 
 
+def test_a_daily_run_registers_the_strategy_it_used(
+    seeded: Path, placeholder_config
+) -> None:
+    """The worker is the only thing that runs a version, so it registers one.
+
+    Before this the table stayed empty and the dashboard had to guess the active
+    version from whichever state row was newest.
+    """
+    with SQLiteUnitOfWork(seeded) as uow:
+        _pipeline(placeholder_config).run(uow, as_of=TODAY)
+
+    with SQLiteUnitOfWork(seeded) as uow:
+        active = uow.strategies.get_active_version()
+        assert active is not None
+        assert active.strategy_version == placeholder_config.strategy.strategy_version
+        assert active.manifest["regime_labels"] == list(
+            placeholder_config.strategy.regime.labels or ()
+        )
+
+
+def test_re_running_a_day_does_not_duplicate_the_registration(
+    seeded: Path, placeholder_config
+) -> None:
+    pipeline = _pipeline(placeholder_config)
+    for _ in range(2):
+        with SQLiteUnitOfWork(seeded) as uow:
+            pipeline.run(uow, as_of=TODAY)
+
+    with SQLiteUnitOfWork(seeded) as uow:
+        count = uow.connection.execute(
+            "SELECT COUNT(*) FROM strategy_versions"
+        ).fetchone()[0]
+    assert count == 1
+
+
 def test_the_allocation_never_holds_tqqq_without_the_gate(
     seeded: Path, placeholder_config
 ) -> None:
