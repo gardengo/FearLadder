@@ -70,6 +70,34 @@ Actions → `daily-monitor` → Run workflow. 입력:
 
 ---
 
+### 1.1 DB 가 매일 커밋되는데 왜 계속 작아지는가
+
+워크플로는 매 거래일 `data/fear_ladder.db` 를 통째로 커밋한다. SQLite 파일은
+델타 압축이 거의 되지 않으므로, 아무 조치도 하지 않으면 저장소가 **매일 DB 크기
+만큼** 불어난다.
+
+그래서 커밋 직전에 `scripts/prune_observations.py --keep-years 5` 가 돈다.
+원시 관측치만 5년 롤링 창으로 잘라내고 파일 크기를 3MB 근처에 고정한다.
+**계산된 상태(단계·배분·점수·이벤트)는 지우지 않는다** — 용량이 작고, 대시보드
+'기록' 탭이 실제로 보여주는 것이 그쪽이다.
+
+창 길이를 줄이려면 주의해야 한다. 스크립트는 설정에서 **지표가 실제로 필요로
+하는 기간을 계산**해서, 그보다 짧은 창을 요구하면 거부한다:
+
+```bash
+python scripts/prune_observations.py --keep-years 1
+# refusing to prune: 1 years is below the 4.13-year floor ...
+```
+
+거부하는 이유는 짧은 창이 오류를 내지 않기 때문이다. 절반만 찬 롤링 창으로
+점수가 계산되고, 아무도 그 사실을 모른 채 신호가 나간다. 현재 하한은 AAII
+주간 지표(104주 = 약 2년)가 정한다.
+
+30년 전체 성과는 `reports/performance.json` 에 이미 계산돼 있으므로 '성과' 탭은
+이 정리에 영향받지 않는다.
+
+---
+
 ## 2. Telegram 설정
 
 ### 최초 설정

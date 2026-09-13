@@ -35,9 +35,16 @@ from views import (  # noqa: E402
 )
 from views.common import load  # noqa: E402
 
+#: A drawn icon rather than an emoji. Streamlit renders an emoji page_icon as
+#: text inside an SVG data URI, so the browser has to own a font covering that
+#: codepoint — and U+1FA9C (the ladder) is Unicode 13.0, which many emoji fonts
+#: still lack, leaving an empty box in the tab. Regenerate with
+#: scripts/make_favicon.py.
+FAVICON = APP_DIR / "assets" / "favicon.png"
+
 st.set_page_config(
     page_title="FearLadder",
-    page_icon="🪜",
+    page_icon=str(FAVICON) if FAVICON.is_file() else "📈",
     layout="wide",
     initial_sidebar_state="expanded",
 )

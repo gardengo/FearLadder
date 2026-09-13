@@ -76,33 +76,31 @@ jobs:
           print(f"unresolved={len(unresolved)}")
           PY
 
-      - name: Stop here until the strategy is frozen
+      # Until 2026-09-13 an unfrozen strategy was the normal state and this step
+      # merely said so. The strategy is frozen now (v1.0-frozen), so the same
+      # condition means config/strategy.yaml was overwritten or the checkout is
+      # wrong — and operating on it would emit a signal nobody researched.
+      - name: Refuse to run on an unfrozen strategy
         if: >-
           steps.preflight.outputs.ready != 'true' &&
           inputs.profile != 'placeholder'
         run: |
-          echo "::notice title=Strategy not frozen::\
+          echo "::error title=Strategy is not frozen::\
           ${{ steps.preflight.outputs.version }} is \
           ${{ steps.preflight.outputs.status }} with \
           ${{ steps.preflight.outputs.unresolved }} unresolved parameters. \
-          Phase 10 (TASK-100) has not run, so there is no strategy to operate. \
-          This is the documented current state, not a failure."
-          echo "Run scripts/freeze.py once the research is complete."
+          config/strategy.yaml should be v1.0-frozen, and the manifest under \
+          config/frozen/ is the evidence for it. Restore it from git rather \
+          than filling values in by hand."
+          exit 1
 
-      # Everything below only runs once there is something to operate.
       - name: Run the tests that guard the pipeline
-        if: >-
-          steps.preflight.outputs.ready == 'true' ||
-          inputs.profile == 'placeholder'
         run: |
           pip install -e ".[dev]"
           pytest -m "not network" -q
 
       - name: Daily run
         id: run
-        if: >-
-          steps.preflight.outputs.ready == 'true' ||
-          inputs.profile == 'placeholder'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -138,6 +136,14 @@ jobs:
               print(f"latest state: {state.observation_date} {state.regime}" if state
                     else "no state recorded yet")
           PY
+
+      # The whole database is re-committed every trading day and SQLite does not
+      # delta-compress, so without a bound the repository grows by the size of
+      # the file daily. The script refuses a window shorter than the indicators'
+      # longest lookback, so this cannot quietly degrade tomorrow's signal.
+      - name: Prune raw observations to the retention window
+        if: steps.run.outcome == 'success' && inputs.dry_run != true
+        run: python scripts/prune_observations.py --keep-years 5
 
       - name: Commit the updated database
         if: steps.run.outcome == 'success' && inputs.dry_run != true
