@@ -1,8 +1,15 @@
 # Reference datasets
 
-Files the operator places here by hand, because the sources have no API this
-project is willing to depend on. Nothing here is fetched automatically, and
-nothing here is committed (see `.gitignore`) — they are inputs, not results.
+Third-party inputs, not results of this project, so **nothing here is
+committed** (see `.gitignore`) — a public repository is not the place to
+redistribute someone else's survey data.
+
+`scripts/fetch_reference.py` downloads the CNN and AAII files where the source
+allows it, and the daily workflow runs it on every job so a fresh runner has
+them. The ProShares exports still have to be placed by hand. When a fetch
+fails the run continues — those indicators are optional — but the workflow
+raises a warning, because a silently redistributed weight means the live signal
+no longer matches the backtested one.
 
 ## Expected layout
 

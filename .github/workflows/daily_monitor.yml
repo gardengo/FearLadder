@@ -99,6 +99,28 @@ jobs:
           pip install -e ".[dev]"
           pytest -m "not network" -q
 
+      # CNN's long history and the AAII survey have no API worth depending on,
+      # so they arrive as files. They are not committed — they are third-party
+      # inputs, not results of this project — which means a fresh runner starts
+      # without them and has to fetch them each time.
+      - name: Refresh the reference datasets
+        id: reference
+        continue-on-error: true
+        run: python scripts/fetch_reference.py
+
+      # AAII is optional, so a failed fetch degrades the score rather than
+      # stopping the run: its weight is redistributed across the indicators that
+      # did read. That is a quieter outcome than a crash and therefore the one
+      # worth announcing — the live signal stops matching the backtested one.
+      - name: Say so when a reference dataset is missing
+        if: steps.reference.outcome != 'success'
+        run: |
+          echo "::warning title=Reference data not refreshed::\
+          scripts/fetch_reference.py failed, so AAII sentiment (5.6% of the \
+          composite score) may be stale or absent. The run continues with its \
+          weight redistributed, which means today's signal is not the one that \
+          was backtested. See data/reference/README.md."
+
       - name: Daily run
         id: run
         env:
