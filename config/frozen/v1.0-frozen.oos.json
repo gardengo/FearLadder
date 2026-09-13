@@ -1,0 +1,45 @@
+{
+  "code_commit": "36f35ec378273a3497ca2f096eac6c28898786ee",
+  "fingerprint": "b425a9b104b62daa",
+  "frozen_before_read": true,
+  "post_hoc_note": "The depth floor (min_depth_to_engage 0.20) cost this window: without it the same strategy reads CAGR 22.39%, MDD 39.1%, Sharpe 0.88, 2022 -34.1% against the frozen -42.4%. 2022 was the slow grind that docs/strategy.md 2.7 named as this rule's exposure, and it arrived. This is recorded, NOT acted on: changing a parameter because the out-of-sample window disliked it is precisely what spends the window for nothing (BACKTEST_SPEC.md 20).",
+  "result": {
+    "QLD 100%": {
+      "cagr": 0.215187,
+      "calmar": 0.337332,
+      "max_drawdown": 0.637909,
+      "sharpe": 0.659395,
+      "worst_year": -0.606381
+    },
+    "QLD 70% / Cash 30%": {
+      "cagr": 0.177917,
+      "calmar": 0.364471,
+      "max_drawdown": 0.488152,
+      "sharpe": 0.683451,
+      "worst_year": -0.457448
+    },
+    "QQQ 100%": {
+      "cagr": 0.153468,
+      "calmar": 0.430881,
+      "max_drawdown": 0.356172,
+      "sharpe": 0.749614,
+      "worst_year": -0.330703
+    },
+    "strategy": {
+      "cagr": 0.192062,
+      "calmar": 0.411737,
+      "max_drawdown": 0.466466,
+      "sharpe": 0.737356,
+      "turnover_per_year": 3.212858,
+      "worst_year": -0.412521
+    }
+  },
+  "spent_at": "2026-09-13",
+  "spent_by": "scripts/validate.py --unseal-oos",
+  "strategy_version": "v1.0-frozen",
+  "verdict": "Beats QQQ on return (+19.21% vs +15.35%) and beats QLD 70/30 on every axis. Does NOT beat plain QQQ risk-adjusted: Sharpe 0.737 vs 0.750, Calmar 0.412 vs 0.431, max drawdown 46.6% vs 35.6%.",
+  "window": {
+    "end": "2026-09-11",
+    "start": "2021-02-27"
+  }
+}
