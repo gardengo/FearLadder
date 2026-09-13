@@ -43,6 +43,12 @@
 #                                (neighbour gap +90%). Chosen structurally:
 #                                turnover falls monotonically with duration, so
 #                                the longer end is preferred for robustness.
+#   min_depth_to_engage STRUCT   0.20 is the conventional definition of a bear
+#                                market, not a fitted value. Every floor from
+#                                16% to 28% beats having none (CAGR 10.9-12.8%
+#                                against 9.35%), so this is a plateau rather
+#                                than a peak, and the middle of it is the
+#                                textbook number. See docs/strategy.md 2.7.
 #   indicator norm      STRUCT   RSI on its definitional 0-100 scale, everything
 #                                else left on the 504-day rolling percentile. The
 #                                objective ranked this 9th; it was taken over the
@@ -231,6 +237,28 @@ trend_filter:
   # 1.0x was measured too and is not a real option: +5.45% at 84.9% drawdown is
   # QQQ buy-and-hold (+5.30% / 83.0%), so the strategy would earn nothing.
   max_leverage_below: 0.5
+  # The filter may only engage once the market has ALREADY fallen this far from
+  # its 52-week high. Without it the filter reacts to every dip below the trend
+  # line, and most dips are not crises: 391 of the days it engaged over
+  # 1999-2015 fell outside any 20% drawdown episode. With it, 53.
+  #
+  # Both real crashes are still caught, because both went deep fast: QQQ was
+  # 20% down 16 days after the 2000 peak. The dot-com result is unchanged to
+  # the basis point. What this buys is the 2004-2006, 2010, 2011 and 2012
+  # scares, where the market fell 10-19% and recovered — the strategy used to
+  # de-lever into each of them and climb back in late.
+  #
+  # 0.20 is not fitted. It is the conventional definition of a bear market, the
+  # same kind of definitional anchor as the RSI scale in docs/strategy.md 2.6.
+  # It also sits inside a plateau: every floor from 16% to 28% beats no floor
+  # at all (CAGR 10.9-12.8% against 9.35%), so the choice is a region, not a peak.
+  #
+  # What it costs is the crash that grinds. The 2008 decline took eleven months
+  # to reach -20% and the strategy now holds leverage through that stretch:
+  # 2008 goes from -39.8% to -46.7%, the GFC from -54.5% to -59.7%. Maximum
+  # drawdown is unchanged at 62.4% because the dot-com still sets it.
+  depth_indicator: drawdown_52w
+  min_depth_to_engage: 0.20
   research_candidates:
     threshold:
     - -0.08
@@ -249,6 +277,12 @@ trend_filter:
     - 0.02
     - 0.04
     - 0.06
+    min_depth_to_engage:
+    - 0.0
+    - 0.15
+    - 0.20
+    - 0.25
+    - 0.30
 execution:
   timing: NEXT_OPEN
   same_day_execution_allowed: false

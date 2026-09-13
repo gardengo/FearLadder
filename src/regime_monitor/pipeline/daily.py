@@ -364,7 +364,12 @@ class DailyPipeline:
         history = result.values[result.values.index <= day]
         if history.empty:
             return None
-        return bool(filt.engaged_series(history).iloc[-1])
+        depth = None
+        if filt.gated_on_depth:
+            measured = indicator_results.get(filt.depth_indicator or "")
+            if measured is not None:
+                depth = measured.values[measured.values.index <= day]
+        return bool(filt.engaged_series(history, depth).iloc[-1])
 
     def _build_state(
         self,

@@ -395,3 +395,123 @@ def test_the_engine_holds_the_cap_while_the_band_is_uncrossed() -> None:
     assert decision.allocation is not None
     assert decision.allocation.target_leverage == pytest.approx(1.0)
     assert any(code.startswith("TREND_BROKEN") for code in decision.reason_codes)
+
+
+# ------------------------------------------------------- depth floor (TASK-096)
+
+
+def _depth_filter(**overrides) -> TrendFilter:
+    defaults = {
+        "indicator": "t",
+        "threshold": -0.02,
+        "max_leverage_below": 0.5,
+        "reentry_threshold": 0.02,
+        "depth_indicator": "d",
+        "min_depth_to_engage": 0.20,
+    }
+    return TrendFilter(**{**defaults, **overrides})
+
+
+def _depth(*readings: float | None) -> Series:
+    index = pd.date_range("2001-09-03", periods=len(readings), freq="B")
+    return Series(readings, index=index, dtype="float64")
+
+
+def test_a_shallow_dip_below_the_line_no_longer_engages() -> None:
+    """The whole point: most dips below the trend line are not crises.
+
+    Measured over 1999-2015, 391 of the days the filter engaged fell outside
+    any 20% drawdown episode — 2010's European scare, 2011, 2015-08. Each one
+    cost two sides of trading and a stretch at half leverage into a recovery.
+    """
+    filt = _depth_filter()
+    engaged = filt.engaged_series(
+        _values(0.01, -0.05, -0.06, -0.04), _depth(0.02, 0.08, 0.12, 0.15)
+    )
+    assert list(engaged) == [False, False, False, False]
+
+
+def test_the_same_dip_engages_once_the_fall_is_already_deep() -> None:
+    filt = _depth_filter()
+    engaged = filt.engaged_series(
+        _values(0.01, -0.05, -0.06, -0.04), _depth(0.02, 0.08, 0.21, 0.25)
+    )
+    #                          deep enough on day 3 ^^^^
+    assert list(engaged) == [False, False, True, True]
+
+
+def test_depth_gates_engaging_but_never_releasing() -> None:
+    """A recovering depth reading must not lift the cap on its own.
+
+    Depth climbs back under the floor while price is still beneath the line.
+    Releasing there would hand the leverage back mid-decline, which is the
+    failure this filter exists to prevent.
+    """
+    filt = _depth_filter()
+    engaged = filt.engaged_series(
+        _values(-0.05, -0.06, -0.05, 0.03), _depth(0.21, 0.25, 0.05, 0.01)
+    )
+    #                        cap held ^^^^^  released by price ^^^^
+    assert list(engaged) == [True, True, True, False]
+
+
+def test_an_unreadable_depth_counts_as_deep() -> None:
+    """Same direction as an unreadable trend: assume the worst, keep the cap."""
+    filt = _depth_filter()
+    engaged = filt.engaged_series(_values(-0.05, -0.05), _depth(None, 0.01))
+    assert list(engaged) == [True, True]
+
+
+def test_a_missing_depth_series_falls_back_to_the_stricter_filter(caplog) -> None:
+    filt = _depth_filter()
+    with caplog.at_level("WARNING"):
+        engaged = filt.engaged_series(_values(0.01, -0.05))
+    assert list(engaged) == [False, True]
+    assert "gated on d" in caplog.text
+
+
+def test_the_depth_floor_is_causal() -> None:
+    filt = _depth_filter()
+    readings = _values(0.05, -0.03, -0.06, 0.01, -0.04, -0.05, -0.01, 0.03)
+    depths = _depth(0.01, 0.05, 0.22, 0.18, 0.09, 0.24, 0.26, 0.02)
+    full = filt.engaged_series(readings, depths)
+    for cut in range(1, len(readings) + 1):
+        truncated = filt.engaged_series(readings.iloc[:cut], depths.iloc[:cut])
+        assert list(truncated) == list(full.iloc[:cut])
+
+
+def test_apply_honours_the_depth_floor_without_a_resolved_state() -> None:
+    filt = _depth_filter()
+    book = portfolio_for(2.0)
+    shallow, verdict = filt.apply(book, -0.05, depth_observed=0.05)
+    assert not verdict.engaged
+    assert leverage_of(shallow) == pytest.approx(2.0)
+    deep, verdict = filt.apply(book, -0.05, depth_observed=0.30)
+    assert verdict.engaged
+    assert leverage_of(deep) == pytest.approx(0.5)
+
+
+def test_half_a_depth_floor_is_refused() -> None:
+    with pytest.raises(TrendFilterError, match="meaningless apart"):
+        TrendFilter(
+            indicator="t", threshold=-0.02, max_leverage_below=0.5, min_depth_to_engage=0.2
+        )
+    with pytest.raises(ConfigError, match="meaningless apart"):
+        TrendFilterSpec(enabled=True, indicator="t", threshold=-0.02,
+                        max_leverage_below=0.5, depth_indicator="d")
+
+
+def test_the_spec_carries_the_depth_floor_into_the_filter() -> None:
+    spec = TrendFilterSpec(
+        enabled=True,
+        indicator="price_vs_200dma",
+        threshold=-0.02,
+        reentry_threshold=0.02,
+        max_leverage_below=0.5,
+        depth_indicator="drawdown_52w",
+        min_depth_to_engage=0.20,
+    )
+    filt = TrendFilter.from_spec(spec)
+    assert filt.gated_on_depth
+    assert filt.depth_indicator == "drawdown_52w"
+    assert filt.min_depth_to_engage == pytest.approx(0.20)

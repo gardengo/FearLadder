@@ -474,6 +474,17 @@ class TrendFilterSpec(_Base):
     reentry_threshold: float | None = None
     #: Ceiling on target leverage while the trend is broken.
     max_leverage_below: Annotated[float, Field(ge=0.0, le=3.0)] | None = None
+    #: Indicator measuring how far the market has already fallen, e.g.
+    #: ``drawdown_52w``. Paired with ``min_depth_to_engage``.
+    depth_indicator: str | None = None
+    #: How deep the fall must already be before the filter may engage at all.
+    #: Without it the filter reacts to every dip below the trend line, and most
+    #: dips are not crises: measured over 1999-2015, 391 of the days it engaged
+    #: fell outside any 20% drawdown episode. A depth floor ignores those while
+    #: still catching the two real crashes, because both went deep quickly.
+    #: The cost is the crash that grinds: the 2008 decline took eleven months to
+    #: reach -20%, and this rule holds leverage through that stretch.
+    min_depth_to_engage: Annotated[float, Field(ge=0.0, lt=1.0)] | None = None
     research_candidates: dict[str, tuple[float, ...]] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -483,6 +494,18 @@ class TrendFilterSpec(_Base):
             raise ConfigError(
                 f"reentry_threshold ({self.reentry_threshold}) is below threshold "
                 f"({self.threshold}); that inverts the band"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _depth_needs_both_halves(self) -> Self:
+        named = self.depth_indicator is not None
+        floored = self.min_depth_to_engage is not None
+        if named != floored:
+            raise ConfigError(
+                "depth_indicator and min_depth_to_engage are meaningless apart; "
+                f"got depth_indicator={self.depth_indicator!r}, "
+                f"min_depth_to_engage={self.min_depth_to_engage!r}"
             )
         return self
 

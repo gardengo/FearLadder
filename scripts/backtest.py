@@ -110,7 +110,14 @@ def main(argv: list[str] | None = None) -> int:
             logger.info("collection: %s", report.summary())
             uow.commit()
 
-        data = load_market_data(uow.observations, config, start=args.start, end=args.end)
+        # --start windows the SIMULATION, not the data. Loading from the window
+        # instead would leave the indicators without their warm-up: a 504-day
+        # rolling percentile needs two years of history before it means
+        # anything, so the first stretch of the window would be scored on
+        # readings that are still filling up. Measured, that is not a small
+        # effect - the research window reads 7.07% CAGR loaded short against
+        # 12.78% loaded whole.
+        data = load_market_data(uow.observations, config, end=args.end)
 
     logger.info(
         "loaded %d trading days (%s .. %s)",
@@ -118,8 +125,15 @@ def main(argv: list[str] | None = None) -> int:
         data.closes.index.min(),
         data.closes.index.max(),
     )
+    if args.start:
+        logger.info("simulating %s onwards; earlier days are indicator warm-up", args.start)
 
-    run = StrategyBacktest(config).run(data, include_benchmarks=not args.no_benchmarks)
+    run = StrategyBacktest(config).run(
+        data,
+        start=args.start,
+        end=args.end,
+        include_benchmarks=not args.no_benchmarks,
+    )
     print(run.comparison().to_string())
 
     if config.strategy.parameter_status.value == "RESEARCH_PLACEHOLDER":

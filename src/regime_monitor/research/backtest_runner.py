@@ -262,7 +262,12 @@ class StrategyBacktest:
         trend_state: dict[date, bool] = {}
         filt = engine.trend_filter
         if filt.enabled and filt.indicator in values.columns:
-            trend_state = filt.engaged_series(values[filt.indicator]).to_dict()
+            depth = (
+                values[filt.depth_indicator]
+                if filt.gated_on_depth and filt.depth_indicator in values.columns
+                else None
+            )
+            trend_state = filt.engaged_series(values[filt.indicator], depth).to_dict()
 
         allocations: dict[date, AllocationDecision] = {}
         for decision in decisions:

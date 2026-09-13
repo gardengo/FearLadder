@@ -103,6 +103,10 @@ class TrendFilter:
     #: Level the trend must climb back above to release the cap. Equal to
     #: ``threshold`` means no hysteresis.
     reentry_threshold: float | None = None
+    #: Indicator measuring how far the market has already fallen, and how deep
+    #: that must be before the filter may engage. Both or neither.
+    depth_indicator: str | None = None
+    min_depth_to_engage: float | None = None
     enabled: bool = True
 
     def __post_init__(self) -> None:
@@ -118,12 +122,34 @@ class TrendFilter:
                 f"reentry_threshold {self.reentry_threshold} is below threshold "
                 f"{self.threshold}; that inverts the band"
             )
+        if (self.depth_indicator is None) != (self.min_depth_to_engage is None):
+            raise TrendFilterError(
+                "depth_indicator and min_depth_to_engage are meaningless apart"
+            )
 
     @property
     def release_at(self) -> float:
         return self.threshold if self.reentry_threshold is None else self.reentry_threshold
 
-    def engaged_series(self, values: Series) -> Series:
+    @property
+    def gated_on_depth(self) -> bool:
+        return self.depth_indicator is not None and self.min_depth_to_engage is not None
+
+    def _deep_enough(self, depth: float | None) -> bool:
+        """Whether the fall is already deep enough to permit engaging.
+
+        An unreadable depth counts as deep, for the same reason an unreadable
+        trend counts as broken: this is the defensive direction, and failing
+        open would remove the protection the filter exists for.
+        """
+        if not self.gated_on_depth:
+            return True
+        if depth is None or pd.isna(depth):
+            return True
+        assert self.min_depth_to_engage is not None
+        return float(depth) >= self.min_depth_to_engage
+
+    def engaged_series(self, values: Series, depth: Series | None = None) -> Series:
         """Whether the cap is on, day by day, with hysteresis.
 
         A state machine rather than a comparison: engage when the trend falls
@@ -131,15 +157,23 @@ class TrendFilter:
         ``release_at``. Between the two the previous state persists, so a level
         that is merely brushed does not flip the book.
 
-        Strictly causal — each day's state depends only on that day's reading
+        ``depth`` carries ``depth_indicator`` over the same index. When the
+        filter is gated on depth, engaging additionally requires the market to
+        have already fallen ``min_depth_to_engage``. Only *engaging* is gated —
+        once the cap is on, release is governed by the trend alone, so a
+        recovering depth reading cannot lift the cap while price is still under
+        the line.
+
+        Strictly causal — each day's state depends only on that day's readings
         and the state carried from the day before.
         """
         if not self.enabled:
             return Series(False, index=values.index, dtype=bool)
 
+        depths = self._aligned_depth(values, depth)
         state = False
         states: list[bool] = []
-        for value in values:
+        for day, value in values.items():
             if pd.isna(value):
                 # An unreadable trend is a broken trend: failing open would
                 # remove exactly the protection this exists for.
@@ -147,9 +181,26 @@ class TrendFilter:
             elif state:
                 state = value < self.release_at
             else:
-                state = value < self.threshold
+                state = value < self.threshold and self._deep_enough(depths.get(day))
             states.append(state)
         return Series(states, index=values.index, dtype=bool, name="trend_broken")
+
+    def _aligned_depth(
+        self, values: Series, depth: Series | None
+    ) -> dict[object, float | None]:
+        if not self.gated_on_depth:
+            return {}
+        if depth is None:
+            # The depth floor can only relax the filter, so losing the reading
+            # has to fall back to the stricter, un-gated behaviour rather than
+            # silently holding leverage through a decline.
+            logger.warning(
+                "trend filter is gated on %s but no depth series was supplied; "
+                "engaging on the trend alone",
+                self.depth_indicator,
+            )
+            return {}
+        return depth.reindex(values.index).to_dict()
 
     @classmethod
     def from_spec(cls, spec: TrendFilterSpec) -> Self:
@@ -168,6 +219,8 @@ class TrendFilter:
             threshold=spec.threshold,
             max_leverage_below=spec.max_leverage_below,
             reentry_threshold=spec.reentry_threshold,
+            depth_indicator=spec.depth_indicator,
+            min_depth_to_engage=spec.min_depth_to_engage,
         )
 
     def apply(
@@ -176,12 +229,14 @@ class TrendFilter:
         observed: float | None,
         *,
         engaged: bool | None = None,
+        depth_observed: float | None = None,
     ) -> tuple[dict[Asset, float], TrendVerdict]:
         """Cap ``weights`` if the trend is broken. Returns the book and why.
 
         ``engaged`` carries a state already resolved by :meth:`engaged_series`,
         which is how hysteresis reaches this per-day call. Without it the
-        threshold is compared directly and the filter has no memory.
+        threshold is compared directly — against ``depth_observed`` too, when
+        the filter is gated on depth — and the filter has no memory.
         """
         before = leverage_of(weights)
         if not self.enabled:
@@ -198,7 +253,8 @@ class TrendFilter:
         # to stop the strategy levering into a decline it cannot see; failing
         # open would remove exactly the protection it was added for.
         unknown = observed is None
-        broken = engaged if engaged is not None else (unknown or observed < self.threshold)
+        fresh = unknown or (observed < self.threshold and self._deep_enough(depth_observed))
+        broken = engaged if engaged is not None else fresh
         if not broken:
             return weights, TrendVerdict(
                 engaged=False,
