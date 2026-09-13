@@ -1,9 +1,10 @@
 """How much raw history the operational database has to keep.
 
 The daily workflow commits ``data/fear_ladder.db`` back to the repository on
-every trading day, and a SQLite file does not delta-compress well, so an
-unbounded database turns into unbounded git history. Keeping a rolling window
-bounds the blob committed each day.
+every trading day, so a rolling window keeps the working tree and a fresh clone
+small. Git itself copes better than expected — measured, a day's change adds
+about 6 KB of pack — so the window is chosen for tidiness, not to rescue the
+history from a size it could not survive.
 
 The window cannot be chosen freely. Every indicator reads trailing data, and
 pruning past the longest lookback would not shrink the database so much as

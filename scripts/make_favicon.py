@@ -31,15 +31,15 @@ SIZE = 128
 
 BACKGROUND = (11, 26, 43, 255)  # deep navy, reads on light and dark tab bars
 RAIL = (240, 244, 248, 255)
-#: Top rung red, bottom rung blue — the deeper the fear, the further UP you
-#: climb, so the aggressive end is the top. Same red-fear / blue-greed reading
-#: as the dashboard's regime palette, and the same direction as the name.
+#: Top rung red, bottom rung green — the deeper the fear, the further UP you
+#: climb, so the aggressive end is the top. Same red-fear / green-greed reading
+#: as the dashboard palette and as every price chart.
 RUNGS = [
-    (200, 70, 70, 255),
-    (225, 140, 100, 255),
-    (235, 200, 130, 255),
-    (150, 190, 225, 255),
-    (120, 170, 215, 255),
+    (178, 24, 43, 255),
+    (214, 96, 77, 255),
+    (244, 165, 130, 255),
+    (166, 217, 106, 255),
+    (26, 152, 80, 255),
 ]
 
 

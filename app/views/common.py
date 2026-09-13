@@ -20,12 +20,15 @@ from fear_ladder.pipeline.queries import DashboardQueries
 
 CACHE_SECONDS = 300
 
-#: Fear (red) through neutral (grey) to greed (blue). Deliberately not
-#: red=bad/green=good: a fearful regime is where this strategy *adds* leverage.
+#: Fear (red) through neutral (grey) to greed (green), following the convention
+#: every price chart already uses: falling is red, rising is green. A fearful
+#: regime is where this strategy *adds* leverage, so the colours describe the
+#: market rather than whether the day is good news for the portfolio.
 REGIME_COLOURS = [
-    "#b2182b", "#d6604d", "#f4a582", "#d9d9d9",
-    "#92c5de", "#4393c3", "#2166ac", "#1a4a7a", "#0d2d4d",
+    "#b2182b", "#d6604d", "#f4a582", "#d9d9d9", "#a6d96a", "#66bd63", "#1a9850",
 ]
+#: Continuous version for the 0-100 composite score.
+SCORE_SCALE = ["#b2182b", "#d9d9d9", "#1a9850"]
 UNKNOWN_COLOUR = "#9e9e9e"
 
 PERFORMANCE_REPORT = paths.REPORTS_DIR / "performance.json"
@@ -57,15 +60,54 @@ def performance_report(path: str | None = None) -> dict[str, Any] | None:
     return json.loads(target.read_text(encoding="utf-8"))
 
 
+@st.cache_data(ttl=CACHE_SECONDS)
+def regime_order() -> list[str]:
+    """The regimes from fear to greed, as the strategy defines them.
+
+    Reading the configuration matters: the labels arriving from a query are in
+    whatever order the database returned them, and sorting those alphabetically
+    put Panic at the greed end of the palette and Euphoria at the fear end —
+    every crash on the history chart was shaded as if it were a rally.
+    """
+    from fear_ladder.config.loader import load_config
+
+    return list(load_config().strategy.regime.labels or ())
+
+
 def regime_palette(labels: list[str]) -> dict[str, str]:
+    """Colour per regime, placed by where each sits on the fear-greed range."""
+    order = regime_order()
     known = [label for label in labels if label != UNKNOWN_REGIME]
-    step = max(1, len(REGIME_COLOURS) // max(len(known), 1))
+    ranked = [label for label in order if label in known]
+    # Anything the configuration does not know about goes after what it does,
+    # so an unexpected label cannot shift the colours of the real ones.
+    ranked += sorted(label for label in known if label not in order)
+
+    last = len(REGIME_COLOURS) - 1
+    span = max(len(ranked) - 1, 1)
     palette = {
-        label: REGIME_COLOURS[min(index * step, len(REGIME_COLOURS) - 1)]
-        for index, label in enumerate(known)
+        label: REGIME_COLOURS[round(index / span * last)]
+        for index, label in enumerate(ranked)
     }
     palette[UNKNOWN_REGIME] = UNKNOWN_COLOUR
     return palette
+
+
+@st.cache_data(ttl=CACHE_SECONDS)
+def weekly_indicators() -> set[str]:
+    """Indicators fed by a source that publishes weekly rather than daily.
+
+    They have no reading on four days out of five, which is not a failure and
+    must not be reported as one — the backtest treats those days the same way.
+    """
+    from fear_ladder.config.loader import load_config
+    from fear_ladder.data.retention import WEEKLY_SOURCES
+
+    return {
+        name
+        for name, spec in load_config().indicators.enabled_indicators.items()
+        if spec.source in WEEKLY_SOURCES
+    }
 
 
 def missing_report_notice() -> None:

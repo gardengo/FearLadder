@@ -22,8 +22,7 @@ def render(version: str) -> None:
         return
 
     prices = load("price_history", ("QQQ",), days=days)
-    labels = sorted(history["regime"].dropna().unique().tolist())
-    palette = regime_palette(labels)
+    palette = regime_palette(history["regime"].dropna().unique().tolist())
 
     st.subheader("QQQ 와 단계")
     figure = go.Figure()
@@ -43,7 +42,8 @@ def render(version: str) -> None:
     figure.update_layout(height=420, showlegend=False)
     st.plotly_chart(figure, width="stretch")
     st.caption(
-        "배경색 = 레짐 (왼쪽 진한 빨강 = 공포 … 오른쪽 진한 파랑 = 탐욕, 회색 = UNKNOWN)"
+        "배경색 = 단계. 빨강 = 공포(레버리지를 올리는 구간), 초록 = 탐욕(내리는 구간), "
+        "회색 = 신호 없음. 차트 관례대로 하락이 빨강, 상승이 초록이다."
     )
 
     left, right = st.columns(2)

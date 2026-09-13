@@ -6,7 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from views.common import load
+from views.common import SCORE_SCALE, load, weekly_indicators
 
 
 def render(version: str) -> None:
@@ -29,7 +29,7 @@ def render(version: str) -> None:
         orientation="h",
         range_x=[0, 100],
         color="score",
-        color_continuous_scale=["#b2182b", "#d9d9d9", "#2166ac"],
+        color_continuous_scale=SCORE_SCALE,
         range_color=[0, 100],
         labels={"score": "Score (0=공포, 100=탐욕)", "indicator_name": ""},
     )
@@ -37,12 +37,21 @@ def render(version: str) -> None:
     figure.update_layout(height=max(400, 22 * len(ordered)), coloraxis_showscale=False)
     st.plotly_chart(figure, width="stretch")
 
-    missing = scores[scores["score"].isna()]
-    if not missing.empty:
+    missing = set(scores[scores["score"].isna()]["indicator_name"])
+    weekly = missing & weekly_indicators()
+    if weekly:
+        st.info(
+            "주간 지표라 오늘은 값이 없습니다: "
+            + ", ".join(sorted(weekly))
+            + ". 발표일에만 값이 생기고 나머지 날에는 가중치가 다른 지표로 "
+            "재분배됩니다. 백테스트도 같은 방식이라 신호가 어긋나지는 않습니다."
+        )
+    unexpected = missing - weekly
+    if unexpected:
         st.warning(
             "점수를 계산하지 못한 지표: "
-            + ", ".join(missing["indicator_name"].tolist())
-            + " — 가중치는 나머지 지표로 재분배되었습니다."
+            + ", ".join(sorted(unexpected))
+            + " — 가중치는 나머지 지표로 재분배되었습니다. 데이터를 확인하세요."
         )
 
     st.subheader("지표 이력")

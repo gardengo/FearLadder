@@ -153,7 +153,12 @@ def _rolling(report: dict) -> None:
     only_highlight = st.checkbox("주요 벤치마크만 보기", value=True)
     if only_highlight:
         frame = frame[frame["구성"].isin(HIGHLIGHT)]
-    frame = frame.sort_values("CAGR 최악", ascending=False)
+    # The strategy is the reference every other row is scored against, so it
+    # stays on top no matter how it ranks; the benchmarks sort by the typical
+    # outcome first and the worst one as the tie-break.
+    frame = frame.assign(_reference=frame["구성"].eq(STRATEGY_LABEL)).sort_values(
+        ["_reference", "CAGR 중앙", "CAGR 최악"], ascending=[False, False, False]
+    ).drop(columns="_reference")
 
     st.dataframe(
         frame.style.format(

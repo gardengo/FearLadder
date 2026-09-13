@@ -62,7 +62,16 @@ TABS = (
 
 
 def main() -> None:
-    st.title("🪜 FearLadder")
+    # The drawn icon again rather than the emoji: U+1FA9C renders as an empty
+    # box wherever the font does not cover it, and a broken glyph in the title
+    # is more visible than one in a tab.
+    if FAVICON.is_file():
+        st.logo(str(FAVICON))
+        heading = st.columns([1, 14], vertical_alignment="center")
+        heading[0].image(str(FAVICON), width=64)
+        heading[1].title("FearLadder")
+    else:
+        st.title("FearLadder")
     st.caption(
         "공포가 깊을수록 한 칸 더 올라가는 레버리지 사다리 — "
         "분석과 알림만 제공합니다. "

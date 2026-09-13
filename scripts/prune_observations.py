@@ -2,9 +2,11 @@
 
     python scripts/prune_observations.py --keep-years 5
 
-The daily workflow commits ``data/fear_ladder.db`` on every trading day. SQLite
-files do not delta-compress well, so without a bound the repository grows by the
-size of the whole database each day.
+The daily workflow commits ``data/fear_ladder.db`` on every trading day, so the
+file's size is a standing cost. Git turns out to handle it far better than the
+raw size suggests — measured on this database, a 9.7 MB file packs to 1.2 MB and
+an ordinary day's change adds about 6 KB — so this is about keeping the working
+tree and a fresh clone small, not about rescuing the history.
 
 Only ``market_observations`` is pruned. Computed state — the daily regime,
 allocation, scores and events — is tiny and is what the dashboard's history is
@@ -34,6 +36,9 @@ from fear_ladder.monitoring.logging import configure_logging
 logger = logging.getLogger("prune")
 
 DEFAULT_KEEP_YEARS = 5.0
+#: Compact only once this share of the file is free pages. Below it, rewriting
+#: the file costs more in git history than the space it reclaims.
+VACUUM_ABOVE_WASTE = 0.10
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -96,21 +101,37 @@ def main(argv: list[str] | None = None) -> int:
         logger.info("deleted %d observations before %s, kept %d", doomed, cutoff, kept)
 
     # VACUUM cannot run inside a transaction, so it comes after the unit of work
-    # closes. Without it the pages are freed but the file does not shrink, which
-    # is the entire point of pruning.
+    # closes. Without it the pages are freed but the file does not shrink.
+    #
+    # It is not run on every prune, though. VACUUM rewrites the file, and the
+    # database is committed to git daily: measured, an ordinary day costs about
+    # 6 KB of pack and a day that vacuums costs about 51 KB. Deleting a handful
+    # of rows and leaving the pages on the freelist is cheaper, and the next
+    # prune reuses them.
+    from fear_ladder import paths
     from fear_ladder.data.repositories.connection import connect
 
+    target = Path(args.db or paths.default_db_path())
     connection = connect(args.db)
     try:
         connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        connection.execute("VACUUM")
+        free = connection.execute("PRAGMA freelist_count").fetchone()[0]
+        total = connection.execute("PRAGMA page_count").fetchone()[0]
+        wasted = free / total if total else 0.0
+        if wasted >= VACUUM_ABOVE_WASTE:
+            logger.info("%.0f%% of pages are free; compacting", wasted * 100)
+            connection.execute("VACUUM")
+        else:
+            logger.info(
+                "%.0f%% of pages are free, under the %.0f%% mark; leaving the file "
+                "as it is so tomorrow's commit stays a small delta",
+                wasted * 100,
+                VACUUM_ABOVE_WASTE * 100,
+            )
     finally:
         connection.close()
 
-    from fear_ladder import paths
-
-    target = args.db or paths.default_db_path()
-    logger.info("%s is now %.1f MB", target.name, Path(target).stat().st_size / 1048576)
+    logger.info("%s is now %.1f MB", target.name, target.stat().st_size / 1048576)
     return 0
 
 
