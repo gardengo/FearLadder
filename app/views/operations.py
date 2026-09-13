@@ -8,9 +8,9 @@ from views.common import load
 
 
 def render() -> None:
-    st.header("Operations")
+    st.header("운영")
 
-    st.subheader("Recent Runs")
+    st.subheader("최근 실행")
     runs = load("recent_runs")
     if runs.empty:
         st.info("실행 기록이 없습니다.")
@@ -20,12 +20,12 @@ def render() -> None:
             st.error(f"최근 {len(runs)}회 중 {len(failures)}회가 실패했습니다.")
         st.dataframe(runs, hide_index=True, width="stretch")
 
-    st.subheader("Data Coverage")
+    st.subheader("데이터 커버리지")
     coverage = load("data_coverage")
     st.dataframe(coverage, hide_index=True, width="stretch")
 
     findings = load("open_findings")
-    st.subheader(f"Open Data-Quality Findings ({len(findings)})")
+    st.subheader(f"검토가 필요한 데이터 품질 항목 ({len(findings)}건)")
     if findings.empty:
         st.success("검토가 필요한 항목이 없습니다.")
     else:
@@ -35,7 +35,7 @@ def render() -> None:
         )
         st.dataframe(findings, hide_index=True, width="stretch")
 
-    st.subheader("Strategy Versions")
+    st.subheader("전략 버전")
     versions = load("strategy_versions")
     if versions.empty:
         st.info("등록된 전략 버전이 없습니다.")

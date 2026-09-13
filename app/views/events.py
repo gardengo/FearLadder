@@ -8,16 +8,16 @@ from views.common import load
 
 
 def render(version: str) -> None:
-    st.header("Events")
+    st.header("이벤트")
 
-    st.subheader("Regime Changes")
+    st.subheader("단계 변경")
     events = load("regime_events", version)
     if events.empty:
         st.info("기록된 레짐 변경이 없습니다.")
     else:
         st.dataframe(events, hide_index=True, width="stretch")
 
-    st.subheader("Alerts")
+    st.subheader("알림")
     alerts = load("alert_events")
     if alerts.empty:
         st.info("기록된 알림이 없습니다.")

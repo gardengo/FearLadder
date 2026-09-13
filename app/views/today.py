@@ -14,7 +14,7 @@ from views.common import load
 
 
 def render(version: str | None) -> None:
-    st.header("Current")
+    st.header("오늘의 신호")
     state = load("latest_state", version)
     if state is None:
         st.info(
@@ -53,7 +53,7 @@ def render(version: str | None) -> None:
 
     left, right = st.columns([1, 1])
     with left:
-        st.subheader("Target Allocation")
+        st.subheader("목표 비중")
         allocation = load("latest_allocation", version)
         if allocation.empty:
             st.write("배분 없음 (상태 불명)")

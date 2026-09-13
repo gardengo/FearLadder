@@ -359,7 +359,7 @@ def test_the_streamlit_page_renders_without_error(
     assert {"Regime", "Market Score", "Target Leverage", "Last Update"} <= labels
 
     headers = {header.value for header in app.header}
-    assert {"Current", "Indicators", "History", "Events"} <= headers
+    assert {"오늘의 신호", "지표", "기록", "이벤트", "운영"} <= headers
     # The two pages that explain the strategy render without a database row.
     assert "이 전략은 어떻게 동작하는가" in headers
     assert "성과" in headers

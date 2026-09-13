@@ -10,7 +10,7 @@ from views.common import load
 
 
 def render(version: str) -> None:
-    st.header("Indicators")
+    st.header("지표")
     state = load("latest_state", version)
     if state is None:
         st.info("저장된 상태가 없습니다.")

@@ -12,7 +12,7 @@ from views.common import UNKNOWN_COLOUR, load, regime_palette
 
 
 def render(version: str) -> None:
-    st.header("History")
+    st.header("기록")
     years = st.slider("기간 (년)", 1, 15, 3)
     days = years * 365
 
@@ -25,7 +25,7 @@ def render(version: str) -> None:
     labels = sorted(history["regime"].dropna().unique().tolist())
     palette = regime_palette(labels)
 
-    st.subheader("QQQ + Regime")
+    st.subheader("QQQ 와 단계")
     figure = go.Figure()
     if not prices.empty:
         figure.add_scatter(
@@ -48,19 +48,19 @@ def render(version: str) -> None:
 
     left, right = st.columns(2)
     with left:
-        st.subheader("Market Score")
+        st.subheader("종합점수")
         figure = px.line(history, y="composite_score", range_y=[0, 100])
         figure.add_hline(y=50, line_dash="dash", line_color="#999")
         figure.update_layout(height=300, yaxis_title="score")
         st.plotly_chart(figure, width="stretch")
 
     with right:
-        st.subheader("Target Leverage")
+        st.subheader("목표 레버리지")
         figure = px.line(history, y="target_leverage")
         figure.update_layout(height=300, yaxis_title="leverage (x)")
         st.plotly_chart(figure, width="stretch")
 
-    st.subheader("Target Allocation")
+    st.subheader("목표 비중")
     allocations = load("allocation_history", version, days=days)
     if allocations.empty:
         st.info("배분 이력이 없습니다.")
