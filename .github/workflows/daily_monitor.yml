@@ -2,10 +2,20 @@ name: daily-monitor
 
 # TASK-131, TASK-132, TASK-133 — the operational daily worker.
 #
-# Timing: US equities close at 16:00 America/New_York. Cron only understands UTC
-# and does not follow daylight saving, so the schedule is pinned late enough to
-# be after the close in *both* offsets: 22:30 UTC is 17:30 EST and 18:30 EDT.
-# Running late costs nothing; running early would read an unsettled close.
+# Timing: the binding constraint is not the 16:00 America/New_York close, it is
+# when the price feed publishes that close. The schedule used to be 22:30 UTC —
+# comfortably after the close in either offset — and on 2026-09-14 that was
+# still too early: at 00:45 UTC the FinanceDataReader US equity feed had VIX and
+# CNN for the 14th but no QQQ bar yet. QQQ carries 77.8% of the composite
+# weight against a 60% minimum coverage, so the day scored nothing and the run
+# published the 11th as if it were current. The same bar was present by 05:15
+# UTC.
+#
+# So the run now happens the *morning after* each trading day: 06:00 UTC is
+# 02:00 EDT and 01:00 EST. Days 2-6 (Tue-Sat UTC) are the mornings that follow
+# Mon-Fri in New York. Running late costs nothing but freshness, and the
+# staleness tolerances have days of slack; running early costs a stale signal
+# that nothing flags.
 #
 # The job is a no-op on non-trading days by construction: the pipeline finds no
 # new data, reports the last trading day it already has, and the database ends
@@ -13,7 +23,7 @@ name: daily-monitor
 
 on:
   schedule:
-    - cron: "30 22 * * 1-5" # weekdays, after the US close in either offset
+    - cron: "0 6 * * 2-6" # the morning after each US trading day
   workflow_dispatch:
     inputs:
       date:

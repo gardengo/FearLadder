@@ -30,7 +30,10 @@ PY
 
 ### 정상 동작
 
-`daily-monitor` 는 평일 22:30 UTC 에 돈다. 정상이면:
+`daily-monitor` 는 미국 거래일 다음 날 아침 06:00 UTC (평일 기준 화~토) 에 돈다.
+미국 장 마감이 아니라 **가격 피드가 그 마감을 게시하는 시점**이 기준이다 —
+22:30 UTC 로 돌던 시절 QQQ 봉이 아직 안 올라와서 하루 묵은 신호를 게시한 적이
+있다 (`.github/workflows/daily_monitor.yml` 상단 주석). 정상이면:
 
 1. 테스트 통과
 2. `Daily run` 스텝이 `2024-03-16: Fear (score 31.2, leverage 2.00x)` 같은 한 줄 출력
