@@ -63,7 +63,7 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 
 둘 다 **상대 경로**라서 워크트리 안에서 실행하면 워크트리 자신의 `src` 가 잡힌다.
 검증됨: 워크트리에서 `fear_ladder.__file__` 이
-`E:\Develop\FearLadder-research\src\...` 로 해석되고 테스트도 통과한다.
+`E:\Develop\FearLadder\validation\src\...` 로 해석되고 테스트도 통과한다.
 
 `data/fear_ladder.db` 는 워크트리에도 커밋된 5년치 사본이 따로 있다. §0.1 의
 `full.db` 는 저장소 밖에 두므로 워크트리와 메인이 **같은 파일을 공유**해도 된다.

@@ -60,4 +60,4 @@ Thumbs.db
 # Git worktrees checked out inside the repository. Orca creates them here, and
 # without this a `git add -A` in the main worktree would commit a second copy
 # of the whole tree.
-/research-validation/
+/validation/
