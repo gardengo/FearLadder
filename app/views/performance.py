@@ -20,8 +20,6 @@ from views.common import (
     STRATEGY_LABEL,
     missing_report_notice,
     performance_report,
-    sensitivity,
-    sensitivity_frame,
 )
 
 #: The benchmarks worth showing by default. The report holds every 10% step;
@@ -71,7 +69,6 @@ def render() -> None:
     st.divider()
     _episodes(report)
     st.divider()
-    _robustness()
     _full_grid(overall)
 
 
@@ -233,143 +230,6 @@ def _episodes(report: dict) -> None:
     st.caption(
         "느린 폭락(2008)과 느린 하락(2022)에서 전략이 QQQ 에 진다는 점을 확인하세요. "
         "이는 추세 필터의 깊이 조건이 만든 알려진 대가입니다 (docs/strategy.md §2.7)."
-    )
-
-
-def _robustness() -> None:
-    """Whether the headline number survives the strategy being pushed around.
-
-    A single backtested CAGR is one realised path. These are the same strategy
-    measured again with the transition deliberately perturbed — the closest
-    this repository can get to asking "how much of this was luck?" without a
-    clean window to spend.
-    """
-    trigger = sensitivity("trigger")
-    research = sensitivity("research")
-    validation = sensitivity("validation")
-    if not (trigger or (research and validation)):
-        return
-
-    st.subheader("이 숫자는 운인가 — 흔들어 본 결과")
-    st.markdown(
-        "위의 성적은 **한 번 실현된 경로 하나**입니다. 같은 전략을 전이 장치만 "
-        "일부러 흔들어 다시 재면, 그 성적이 설정을 정확히 맞춰서 나온 것인지 "
-        "아니면 웬만큼 틀어져도 나오는 것인지 알 수 있습니다."
-    )
-
-    if trigger:
-        _trigger_chart(trigger)
-    if research and validation:
-        _duration_chart(research, validation, sensitivity("real_etf"))
-
-    st.caption(
-        "전이 장치만 흔든 결과입니다. **성과의 대부분을 만드는 추세 필터와 지표 "
-        "가중치는 이 측정의 대상이 아닙니다.** 고정된 v1.0-frozen 을 잰 기록이며 "
-        "설정은 바뀌지 않았습니다 (`docs/strategy.md` §2.10–2.11)."
-    )
-
-
-def _trigger_chart(trigger: dict) -> None:
-    baseline = sensitivity_frame(trigger, "baseline")
-    lags = sensitivity_frame(trigger, "lag")
-    family = pd.concat([baseline, lags]) if not lags.empty else baseline
-    if family.empty:
-        return
-
-    spread = (family["cagr"].max() - family["cagr"].min()) * 100
-    columns = st.columns([2, 3])
-    columns[0].markdown(
-        f"""
-**트리거 날짜를 바꿔도 되는가**
-
-단계가 바뀌는 날은 최소 유지 기간이 풀린 뒤 점수가 칸을 벗어난 첫 날입니다.
-그 하루가 우연이면 석 달 반이 통째로 흔들립니다.
-
-신호를 1~10거래일 늦춰 그 '첫 날'이 다른 날이 되게 하면 —
-
-- CAGR 폭 **{spread:.2f}%p**
-- 최대낙폭 폭 **{abs(family["max_drawdown"].min() - family["max_drawdown"].max()) * 100:.1f}%p**
-- 단계 변경 횟수는 전부 동일
-
-거의 움직이지 않습니다.
-"""
-    )
-    figure = px.scatter(
-        family,
-        x="max_drawdown",
-        y="cagr",
-        text="variant",
-        color="frozen",
-        color_discrete_map={True: "#b2182b", False: "#9e9e9e"},
-        labels={"max_drawdown": "최대낙폭", "cagr": "CAGR", "frozen": "고정 설정"},
-    )
-    figure.update_traces(textposition="top center", marker={"size": 11})
-    figure.update_xaxes(tickformat=".0%")
-    figure.update_yaxes(tickformat=".1%")
-    figure.update_layout(height=320, showlegend=False, margin={"l": 8, "r": 8, "t": 10, "b": 8})
-    columns[1].plotly_chart(figure, width="stretch")
-
-
-def _duration_chart(research: dict, validation: dict, real_etf: dict | None) -> None:
-    left = sensitivity_frame(research, "d=")
-    right = sensitivity_frame(validation, "d=")
-    if left.empty or right.empty:
-        return
-
-    st.markdown(
-        "**유지 기간 75일에 근거가 있는가** — 창을 나눠 따로 쓸어 봤습니다. "
-        "아래는 각 창에서 **가장 얕았던 낙폭 대비 얼마나 더 깊은가**입니다 "
-        "(0 = 그 창의 최선). 창마다 낙폭 규모 자체가 달라 그대로는 겹쳐 볼 수 "
-        "없어 이렇게 맞췄습니다."
-    )
-    windows = [
-        left.assign(창="탐색 1999–2015 (재구성 가격)"),
-        right.assign(창="검증 2015–2021 (재구성 가격)"),
-    ]
-    real = sensitivity_frame(real_etf or {}, "d=")
-    if not real.empty:
-        windows.append(real.assign(창="실물 2010–2026 (실제 가격)"))
-    frame = pd.concat(windows)
-    frame["유지 기간"] = frame["variant"].str.removeprefix("d=").astype(int)
-    # Each window against its own best, because the two differ in level by
-    # 30 percentage points — on one raw axis the shapes cannot be compared,
-    # and the shapes are the whole question.
-    frame["최선 대비"] = frame.groupby("창")["max_drawdown"].transform("max") - frame[
-        "max_drawdown"
-    ]
-    figure = px.line(
-        frame,
-        x="유지 기간",
-        y="최선 대비",
-        color="창",
-        markers=True,
-        labels={"최선 대비": "그 창의 최선보다 깊은 정도"},
-        color_discrete_sequence=["#b2182b", "#1a9850", "#2166ac"],
-    )
-    figure.add_vline(
-        x=75, line={"color": "#8a6d1f", "width": 1.5, "dash": "dash"},
-        annotation_text="현재 75일", annotation_position="top",
-        annotation_font={"size": 10, "color": "#8a6d1f"},
-    )
-    figure.update_yaxes(tickformat=".0%")
-    figure.update_layout(height=340, margin={"l": 8, "r": 8, "t": 30, "b": 8})
-    st.plotly_chart(figure, width="stretch")
-    st.markdown(
-        "**소비된 두 창(빨강·초록)에서는 75일이 1위입니다** — 0에 닿는 지점입니다. "
-        "하지만 그 두 창의 낙폭은 **전부 2010-02-11 이전**에 났습니다. QLD·TQQQ 가 "
-        "상장하기 전이라 그 구간의 레버리지 가격은 **재구성된 모델 값**입니다."
-    )
-    if not real.empty:
-        st.markdown(
-            "**파랑이 실물 가격만으로 다시 잰 것입니다 — 그리고 뒤집힙니다.** "
-            "75일은 아홉 개 중 낙폭 꼴찌이고, 창 사이의 낙폭 순위 상관은 0 이거나 "
-            "음수입니다. **낙폭 축은 이 값을 지지하지 않습니다.**"
-        )
-    st.markdown(
-        "남는 근거는 회전율이고 그것은 단조합니다 — 20일이면 단계가 173번, "
-        "75일이면 53번 바뀝니다. **비용으로 고른 값**으로 읽는 편이 정확합니다. "
-        "틀렸을 때 한 칸 차이는 레버리지 0.4x 수준이고, 추세 필터가 단계와 "
-        "무관하게 매일 돌아 손해를 제한합니다."
     )
 
 

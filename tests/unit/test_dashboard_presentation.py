@@ -307,44 +307,6 @@ def test_bands_are_painted_harder_on_the_dark_ground(
     assert dark > common.band_opacity()
 
 
-# ------------------------------------------------------ sensitivity reports
-
-
-def test_a_missing_measurement_is_simply_absent() -> None:
-    """The robustness sections are optional; nothing may crash without them."""
-    assert common.sensitivity("no-such-measurement") is None
-    assert common.sensitivity_frame(None, "d=").empty
-
-
-def test_a_family_is_picked_out_by_its_prefix() -> None:
-    report = {
-        "variants": [
-            {"variant": "d=60", "cagr": 0.1, "max_drawdown": -0.5, "sharpe": 0.4,
-             "regime_changes": 10},
-            {"variant": "d=75 *", "cagr": 0.2, "max_drawdown": -0.4, "sharpe": 0.5,
-             "regime_changes": 9},
-            {"variant": "c=1 *", "cagr": 0.2, "max_drawdown": -0.4, "sharpe": 0.5,
-             "regime_changes": 9},
-        ]
-    }
-    frame = common.sensitivity_frame(report, "d=")
-    assert list(frame["variant"]) == ["d=60", "d=75"]
-    # The star marks the frozen value and must not survive into the label.
-    assert list(frame["frozen"]) == [False, True]
-
-
-def test_the_committed_measurements_are_readable() -> None:
-    """If these ship, the dashboard must be able to render them."""
-    for name in ("trigger", "research", "validation"):
-        report = common.sensitivity(name)
-        if report is None:
-            continue
-        assert report["variants"]
-        prefix = "lag" if name == "trigger" else "d="
-        frame = common.sensitivity_frame(report, prefix)
-        assert not frame.empty
-        assert frame["cagr"].notna().all()
-
 # ------------------------------------------------------- architecture guard
 
 
