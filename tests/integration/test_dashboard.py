@@ -199,17 +199,6 @@ def test_indicator_scores_are_readable(queries: DashboardQueries) -> None:
     assert usable.between(0, 100).all()
 
 
-def test_indicator_history_is_readable(queries: DashboardQueries) -> None:
-    version = queries.active_strategy_version()
-    assert version is not None
-    names = queries.available_indicators(version)
-    assert "rsi_14" in names
-
-    history = queries.indicator_history("rsi_14", version)
-    assert not history.empty
-    assert history.index.is_monotonic_increasing
-
-
 # ------------------------------------------------------------------ TASK-142
 
 
@@ -217,7 +206,15 @@ def test_history_series_are_readable(queries: DashboardQueries) -> None:
     version = queries.active_strategy_version()
     history = queries.state_history(version)
     assert not history.empty
-    assert {"composite_score", "regime", "target_leverage"} <= set(history.columns)
+    # raw_regime and reason_codes carry the ladder-lock story the record tab
+    # tells; without them the page would have to re-run the transition engine.
+    assert {
+        "composite_score",
+        "regime",
+        "raw_regime",
+        "target_leverage",
+        "reason_codes",
+    } <= set(history.columns)
 
     prices = queries.price_history(("QQQ",))
     assert not prices.empty
@@ -359,7 +356,7 @@ def test_the_streamlit_page_renders_without_error(
     assert {"Regime", "Market Score", "Target Leverage", "Last Update"} <= labels
 
     headers = {header.value for header in app.header}
-    assert {"오늘의 신호", "지표", "기록", "이벤트", "운영"} <= headers
+    assert {"오늘의 신호", "기록", "이벤트", "운영"} <= headers
     # The two pages that explain the strategy render without a database row.
     assert "이 전략은 어떻게 동작하는가" in headers
     assert "성과" in headers

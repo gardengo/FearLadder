@@ -9,6 +9,15 @@ equity/cash benchmark grid beside it, and writes the comparison out as JSON so
 This is a *reporting* step, not a research step. It reads the frozen profile and
 changes nothing: if the numbers here look wrong, the fix is a new freeze, not an
 edit to this file or its output.
+
+**It refuses to write a report that cannot cover the frozen strategy's own
+research window.** The operational database is pruned to a five-year rolling
+window every trading day (``scripts/prune_observations.py``), so running this on
+a working checkout would otherwise replace a 1996-2026 report with a 2021-2026
+one — same file, same shape, quietly different evidence. Regenerating for real
+needs the full reconstructed history back in the database first
+(``scripts/backfill_history.py``). Pass ``--allow-short-window`` when a partial
+report is genuinely what you want, and send it somewhere else with ``--out``.
 """
 
 from __future__ import annotations
@@ -17,6 +26,7 @@ import argparse
 import json
 import logging
 import sys
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -52,7 +62,25 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db", type=Path, default=None)
     parser.add_argument("--out", type=Path, default=OUTPUT)
+    parser.add_argument(
+        "--allow-short-window",
+        action="store_true",
+        help="write even when the data cannot cover the frozen research window",
+    )
     return parser
+
+
+def covers_research_window(first_day: date, strategy: object) -> bool:
+    """Whether the loaded data reaches back to where the research began.
+
+    The report claims to be the frozen strategy measured over its history. Data
+    starting after ``research_start`` measures something else, and nothing in
+    the output's shape would say so — the dashboard would read the narrower
+    window as if it were the whole record.
+    """
+    research_start = getattr(strategy, "dataset_split", None)
+    research_start = getattr(research_start, "research_start", None)
+    return research_start is None or first_day <= research_start
 
 
 def _label(symbol: str, percent: int) -> str:
@@ -76,6 +104,28 @@ def main(argv: list[str] | None = None) -> int:
     nav = run.result.nav
     days = list(nav.index)
     logger.info("%d trading days, %s .. %s", len(days), days[0], days[-1])
+
+    first_day = days[0].date() if hasattr(days[0], "date") else days[0]
+    if not covers_research_window(first_day, strategy):
+        splits = strategy.dataset_split
+        message = (
+            "the loaded data starts %s, after the frozen strategy's research "
+            "window opens (%s). A report built from it would measure a shorter "
+            "history than the one it replaces."
+        )
+        if not args.allow_short_window:
+            logger.error(
+                "refusing to write: " + message + " The operational database is "
+                "pruned to five years every trading day; restore the full history "
+                "with scripts/backfill_history.py, or pass --allow-short-window "
+                "with --out to write a partial report somewhere else.",
+                first_day,
+                splits.research_start,
+            )
+            return 2
+        logger.warning(
+            "--allow-short-window: " + message, first_day, splits.research_start
+        )
 
     cash = cash_curve(data.cash_rates, days)
     navs = {STRATEGY: nav / nav.iloc[0], "현금": cash}
@@ -106,11 +156,21 @@ def main(argv: list[str] | None = None) -> int:
     }
 
     weights = strategy.score.weights or {}
+    mappings = strategy.allocation.mappings or {}
     ladder = {
         label: sum(
             weight * _leverage(asset)
-            for asset, weight in (strategy.allocation.mappings or {}).get(label, {}).items()
+            for asset, weight in mappings.get(label, {}).items()
         )
+        for label in (strategy.regime.labels or ())
+    }
+    # The portfolio behind each rung, not just its leverage. The dashboard shows
+    # the composition beside the number and cannot derive it itself: reaching
+    # for fear_ladder.allocation there would break ARCHITECTURE.md §4.2.
+    ladder_mappings = {
+        label: {
+            _asset_name(asset): weight for asset, weight in mappings.get(label, {}).items()
+        }
         for label in (strategy.regime.labels or ())
     }
 
@@ -131,6 +191,7 @@ def main(argv: list[str] | None = None) -> int:
             "regime_labels": list(strategy.regime.labels or ()),
             "regime_boundaries": list(strategy.regime.boundaries or ()),
             "ladder": ladder,
+            "ladder_mappings": ladder_mappings,
             "trend_filter": {
                 "indicator": strategy.trend_filter.indicator,
                 "threshold": strategy.trend_filter.threshold,
@@ -196,10 +257,19 @@ def _rolling_reference(nav):
 
 
 def _leverage(asset: object) -> float:
+    key = _asset(asset)
     from fear_ladder.constants import ASSET_LEVERAGE
 
-    key = asset if isinstance(asset, Asset) else Asset(str(asset))
     return ASSET_LEVERAGE[key]
+
+
+def _asset(asset: object) -> Asset:
+    return asset if isinstance(asset, Asset) else Asset(str(asset))
+
+
+def _asset_name(asset: object) -> str:
+    """``QQQ`` rather than ``Asset.QQQ``, so the JSON reads as a ticker."""
+    return _asset(asset).value
 
 
 if __name__ == "__main__":

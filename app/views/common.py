@@ -9,6 +9,7 @@ anywhere under ``app/``.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -27,9 +28,11 @@ CACHE_SECONDS = 300
 REGIME_COLOURS = [
     "#b2182b", "#d6604d", "#f4a582", "#d9d9d9", "#a6d96a", "#66bd63", "#1a9850",
 ]
-#: Continuous version for the 0-100 composite score.
-SCORE_SCALE = ["#b2182b", "#d9d9d9", "#1a9850"]
 UNKNOWN_COLOUR = "#9e9e9e"
+#: Everything a transition brake does is shown in this one colour, so a reader
+#: learns it once: amber on the ladder strip means "the score says one rung, the
+#: rules hold you on another".
+LOCK_COLOUR = "#8a6d1f"
 
 PERFORMANCE_REPORT = paths.REPORTS_DIR / "performance.json"
 STRATEGY_LABEL = "전략"
@@ -125,3 +128,304 @@ def percent(value: float | None, digits: int = 1) -> str:
 
 def ratio(value: float | None, digits: int = 2) -> str:
     return "—" if value is None else f"{value:.{digits}f}"
+
+
+# --------------------------------------------------------------- the ladder
+
+#: Leverage order, so a composition always reads from the most aggressive
+#: sleeve to the least — "TQQQ 17 · QLD 83", never the other way round.
+ASSET_ORDER = {"TQQQ": 3, "QLD": 2, "QQQ": 1, "CASH": 0}
+ASSET_LABELS = {"CASH": "현금"}
+
+
+@dataclass(frozen=True, slots=True)
+class Rung:
+    """One step of the ladder, as the frozen strategy defines it."""
+
+    index: int
+    label: str
+    low: float
+    high: float
+    leverage: float | None
+    #: Asset -> weight, the portfolio this rung *proposes*. What is actually
+    #: held can differ: the trend filter and the TQQQ gate both sit downstream.
+    weights: dict[str, float]
+
+    @property
+    def band(self) -> str:
+        return f"{self.low:.0f} – {self.high:.0f}"
+
+    def composition(self) -> str:
+        return " · ".join(
+            f"{ASSET_LABELS.get(asset, asset)} {weight * 100:.0f}"
+            for asset, weight in sorted(
+                self.weights.items(), key=lambda kv: -ASSET_ORDER.get(kv[0], 0)
+            )
+        )
+
+
+def ladder(report: dict[str, Any] | None) -> list[Rung]:
+    """The whole ladder, fear rung first. Empty when no freeze is on disk."""
+    if not report:
+        return []
+    parameters = report["parameters"]
+    labels: list[str] = list(parameters["regime_labels"])
+    edges = [0.0, *parameters["regime_boundaries"], 100.0]
+    leverages = parameters.get("ladder") or {}
+    # A report written before ladder_mappings existed leaves the composition
+    # blank rather than guessed at: deriving a portfolio here would mean doing
+    # the allocation engine's job in the dashboard (ARCHITECTURE.md §4.2).
+    mappings = parameters.get("ladder_mappings") or {}
+    return [
+        Rung(
+            index=index,
+            label=label,
+            low=edges[index],
+            high=edges[index + 1],
+            leverage=leverages.get(label),
+            weights=dict(mappings.get(label) or {}),
+        )
+        for index, label in enumerate(labels)
+    ]
+
+
+def rung_of(rungs: list[Rung], label: str | None) -> Rung | None:
+    return next((rung for rung in rungs if rung.label == label), None)
+
+
+@dataclass(frozen=True, slots=True)
+class Gates:
+    """The two score lines the current rung has to be cleared by.
+
+    The transition engine measures hysteresis from the boundary of the regime
+    being *left*, not the one being entered, so the pair depends only on where
+    the score stands today. ``None`` means there is no rung that way.
+    """
+
+    down: float | None
+    up: float | None
+
+
+def gates(rungs: list[Rung], label: str | None, hysteresis: float) -> Gates:
+    current = rung_of(rungs, label)
+    if current is None:
+        return Gates(None, None)
+    return Gates(
+        down=None if current.index == 0 else current.low - hysteresis,
+        up=None if current.index == len(rungs) - 1 else current.high + hysteresis,
+    )
+
+
+# -------------------------------------------------------------- reason codes
+
+
+@dataclass(frozen=True, slots=True)
+class Reason:
+    """One stored reason code, ready to show."""
+
+    code: str
+    #: ``lock`` / ``trend`` / ``gate`` / ``change`` / ``info``, so a view can
+    #: decide which codes it surfaces and which stay in the raw list.
+    kind: str
+    text: str
+
+
+def _split(code: str) -> tuple[str, str]:
+    name, _, argument = code.partition(":")
+    return name, argument
+
+
+def _progress(argument: str) -> tuple[int, int] | None:
+    done, _, total = argument.partition("/")
+    try:
+        return int(done), int(total)
+    except ValueError:
+        return None
+
+
+def _signed_percent(argument: str) -> str:
+    _, _, value = argument.partition("=")
+    try:
+        return f"{float(value) * 100:+.1f}%"
+    except ValueError:
+        return value
+
+
+#: code name -> (kind, sentence). The sentence is a plain string when the code
+#: carries no argument, and a callable taking the part after the colon when it
+#: does.
+_REASONS: dict[str, tuple[str, Any]] = {
+    "BLOCKED_BY_HYSTERESIS": (
+        "lock",
+        lambda a: f"히스테리시스 {a}점 — 경계선을 스치기만 해서는 바뀌지 않습니다.",
+    ),
+    "BLOCKED_BY_MIN_DURATION": (
+        "lock",
+        lambda a: "최소 유지 기간 "
+        + (f"{p[0]}/{p[1]}거래일" if (p := _progress(a)) else a)
+        + " — 한 번 들어간 단계는 이만큼 지킵니다.",
+    ),
+    "CONFIRMATION_PENDING": (
+        "lock",
+        lambda a: "확인 대기 "
+        + (f"{p[0]}/{p[1]}일" if (p := _progress(a)) else a)
+        + " — 새 단계가 이 기간 유지돼야 인정합니다.",
+    ),
+    "TREND_INTACT": (
+        "trend",
+        lambda a: f"난간 해제 — 200일선 대비 {_signed_percent(a)}. "
+        "사다리 레버리지를 그대로 씁니다.",
+    ),
+    "TREND_BROKEN": (
+        "trend",
+        lambda a: f"난간 작동 — 200일선 대비 {_signed_percent(a)}. 장기 추세가 무너진 구간입니다.",
+    ),
+    "LEVERAGE_CAPPED": (
+        "trend",
+        lambda a: f"난간이 레버리지를 {a.replace('->', 'x 에서 ')}x 로 묶었습니다.",
+    ),
+    "TREND_UNKNOWN": ("trend", lambda a: f"추세 지표({a})를 읽지 못했습니다."),
+    "LEVERAGE_CAPPED_BY_DEFAULT": (
+        "trend",
+        "추세를 확인할 수 없어 방어적으로 레버리지를 묶었습니다.",
+    ),
+    "TREND_FILTER_DISABLED": ("trend", "추세 필터가 꺼져 있습니다."),
+    "TQQQ_GATE_BLOCKED": (
+        "gate",
+        "바닥 확인 게이트 미통과 — 가장 공격적인 칸은 열리지 않았습니다.",
+    ),
+    "REQUIRED_RULE_FAILED": (
+        "gate",
+        lambda a: f"통과하지 못한 필수 조건: {a.replace(',', ', ')}",
+    ),
+    "INSUFFICIENT_CONFIRMATIONS": (
+        "gate",
+        lambda a: f"바닥 확인 신호 {a} — 수가 모자랍니다.",
+    ),
+    "TQQQ_REALLOCATED_TO": ("gate", lambda a: f"TQQQ 몫을 {a} 로 옮겼습니다."),
+    "TQQQ_GATE_PASSED": ("gate", "바닥 확인 게이트 통과 — TQQQ 를 들 수 있습니다."),
+    "TQQQ_GATE_DISABLED": ("gate", "바닥 확인 게이트가 꺼져 있습니다."),
+    "CONFIRMATIONS": ("gate", lambda a: f"바닥 확인 신호 {a}."),
+    "REGIME_CONFIRMED": ("change", "**오늘 단계가 바뀌었습니다.**"),
+    "MOVED_TOWARD_FEAR": ("change", "공포 쪽으로 한 칸 — 레버리지가 올라갑니다."),
+    "MOVED_TOWARD_GREED": ("change", "탐욕 쪽으로 한 칸 — 레버리지가 내려갑니다."),
+    "INITIAL_REGIME": ("change", "첫 판정 — 비교할 이전 단계가 없습니다."),
+    "REGIME_HELD": ("info", "점수가 같은 칸에 머물러 단계를 유지했습니다."),
+    "UNKNOWN_INPUT": ("info", "필수 데이터를 믿을 수 없어 판정하지 않았습니다."),
+    "REGIME_MAPPING": ("info", lambda a: f"{a} 단계의 배분표를 적용했습니다."),
+    "TARGET_LEVERAGE": ("info", lambda a: f"목표 레버리지 {a}x."),
+}
+
+
+def reason(code: str) -> Reason:
+    """Turn one stored code into a sentence a person can read.
+
+    The codes are the engine's own words (``regime.transition.ReasonCode`` and
+    the allocation modules). This is the only place they are translated, so no
+    view has to know their shape — and an unrecognised code still shows, as
+    itself, rather than disappearing.
+    """
+    name, argument = _split(code)
+    kind, phrase = _REASONS.get(name, ("info", None))
+    if phrase is None:
+        return Reason(code, kind, code)
+    return Reason(code, kind, phrase(argument) if callable(phrase) else phrase)
+
+
+def reasons_of(raw: object) -> list[Reason]:
+    """Every stored code for one day, translated. Bad JSON reads as no codes."""
+    try:
+        codes = json.loads(str(raw or "[]"))
+    except json.JSONDecodeError:
+        return []
+    return [reason(str(code)) for code in codes]
+
+
+@dataclass(frozen=True, slots=True)
+class Lock:
+    """Why today's score did not move the ladder."""
+
+    kind: str  # hysteresis | min_duration | confirmation
+    text: str
+    #: ``(elapsed, required)`` for the two brakes that count days.
+    progress: tuple[int, int] | None = None
+
+    @property
+    def is_ready(self) -> bool:
+        """Whether the count is full, so the next day could release the rung."""
+        return self.progress is not None and self.progress[0] >= self.progress[1]
+
+
+LOCK_KINDS = {
+    "BLOCKED_BY_HYSTERESIS": "hysteresis",
+    "BLOCKED_BY_MIN_DURATION": "min_duration",
+    "CONFIRMATION_PENDING": "confirmation",
+}
+
+
+def locks(raw: object) -> list[Lock]:
+    """The brakes that fired on one day, in the order the engine applies them."""
+    found = []
+    for item in reasons_of(raw):
+        name, argument = _split(item.code)
+        if (kind := LOCK_KINDS.get(name)) is None:
+            continue
+        found.append(Lock(kind=kind, text=item.text, progress=_progress(argument)))
+    return found
+
+
+def is_locked(row: object) -> bool:
+    """Whether the score pointed at one rung while another was held."""
+    raw = row["raw_regime"] if row["raw_regime"] else None  # type: ignore[index]
+    return bool(raw) and raw != row["regime"] and raw != UNKNOWN_REGIME  # type: ignore[index]
+
+
+# ------------------------------------------------------------------ streaks
+
+
+@dataclass(frozen=True, slots=True)
+class Streak:
+    """How long the current rung has been held, and what came before it."""
+
+    regime: str
+    days: int
+    since: Any
+    previous: str | None = None
+    previous_days: int | None = None
+
+
+def streak(history: Any) -> Streak | None:
+    """Read the current run of days off the stored history.
+
+    Counting rows rather than calendar days is deliberate: the transition
+    engine's ``minimum_duration_days`` counts the days it actually stepped, and
+    those are trading days.
+    """
+    if history is None or history.empty or "regime" not in history.columns:
+        return None
+    regimes = [str(value) for value in history["regime"].tolist()]
+    moments = list(history.index)
+    current = regimes[-1]
+
+    days = 0
+    for value in reversed(regimes):
+        if value != current:
+            break
+        days += 1
+
+    previous = previous_days = None
+    if days < len(regimes):
+        previous = regimes[-days - 1]
+        previous_days = 0
+        for value in reversed(regimes[: len(regimes) - days]):
+            if value != previous:
+                break
+            previous_days += 1
+
+    return Streak(
+        regime=current,
+        days=days,
+        since=moments[len(moments) - days],
+        previous=previous,
+        previous_days=previous_days,
+    )

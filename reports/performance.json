@@ -738,6 +738,35 @@
       "Optimism": 1.3333333333,
       "Panic": 2.5833333333
     },
+    "ladder_mappings": {
+      "Capitulation": {
+        "TQQQ": 1.0
+      },
+      "Euphoria": {
+        "CASH": 0.5,
+        "QQQ": 0.5
+      },
+      "Fear": {
+        "QLD": 0.8333333333,
+        "TQQQ": 0.1666666667
+      },
+      "Greed": {
+        "CASH": 0.0833333333,
+        "QQQ": 0.9166666667
+      },
+      "Neutral": {
+        "QLD": 0.75,
+        "QQQ": 0.25
+      },
+      "Optimism": {
+        "QLD": 0.3333333333,
+        "QQQ": 0.6666666667
+      },
+      "Panic": {
+        "QLD": 0.4166666667,
+        "TQQQ": 0.5833333333
+      }
+    },
     "regime_boundaries": [
       12.0,
       27.0,

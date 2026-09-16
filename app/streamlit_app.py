@@ -27,7 +27,6 @@ from fear_ladder.pipeline.queries import DashboardDataError  # noqa: E402
 from views import (  # noqa: E402
     events,
     history,
-    indicators,
     operations,
     performance,
     strategy,
@@ -54,7 +53,6 @@ TABS = (
     ("오늘", today, True),
     ("전략 설명", strategy, False),
     ("성과", performance, False),
-    ("지표", indicators, True),
     ("기록", history, True),
     ("이벤트", events, True),
     ("운영", operations, False),

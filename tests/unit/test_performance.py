@@ -200,3 +200,56 @@ def test_the_committed_report_matches_the_frozen_strategy() -> None:
     assert report["strategy_version"] == strategy.strategy_version
     assert report["parameters"]["regime_labels"] == list(strategy.regime.labels or ())
     assert pd.notna(report["overall"]["전략"]["cagr"])
+
+
+def test_the_report_covers_the_window_it_claims_to() -> None:
+    """The committed artifact must reach back to where the research began.
+
+    Guards the same thing the generator refuses to do: a report built from the
+    pruned five-year operational database has the same shape as the real one
+    and measures a different history.
+    """
+    import json
+
+    from fear_ladder import paths
+    from fear_ladder.config.loader import load_config
+
+    path = paths.REPORTS_DIR / "performance.json"
+    if not path.exists():
+        pytest.skip("reports/performance.json has not been generated")
+    report = json.loads(path.read_text(encoding="utf-8"))
+    research_start = load_config().strategy.dataset_split.research_start
+    assert research_start is not None
+    assert date.fromisoformat(report["window"]["start"]) <= research_start
+
+
+def test_the_generator_refuses_a_window_it_cannot_cover() -> None:
+    """``make_performance_report.py`` must not quietly narrow the evidence.
+
+    The operational database is pruned to five years every trading day, so this
+    guard is the only thing between a routine re-run and a report that silently
+    replaces thirty years of measurement with five.
+    """
+    import importlib.util
+    import sys
+
+    from fear_ladder import paths
+    from fear_ladder.config.loader import load_config
+
+    spec = importlib.util.spec_from_file_location(
+        "_make_performance_report", paths.PROJECT_ROOT / "scripts" / "make_performance_report.py"
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+
+    strategy = load_config().strategy
+    research_start = strategy.dataset_split.research_start
+    assert research_start is not None
+
+    assert module.covers_research_window(research_start, strategy)
+    assert module.covers_research_window(research_start - timedelta(days=1), strategy)
+    assert not module.covers_research_window(research_start + timedelta(days=1), strategy)
+    # The pruned database starts far later than this; that is the real case.
+    assert not module.covers_research_window(date(2021, 9, 15), strategy)

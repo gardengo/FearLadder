@@ -9,12 +9,11 @@ system of record (``ARCHITECTURE.md`` §4.2).
 
 from __future__ import annotations
 
-from views import events, history, indicators, operations, performance, strategy, today
+from views import events, history, operations, performance, strategy, today
 
 __all__ = [
     "events",
     "history",
-    "indicators",
     "operations",
     "performance",
     "strategy",

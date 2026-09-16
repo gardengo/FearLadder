@@ -10,7 +10,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from views.common import missing_report_notice, percent, performance_report
+from views.common import ladder, missing_report_notice, percent, performance_report
 
 #: Plain-language description of each indicator family, keyed by the prefix the
 #: indicator names share. The dashboard cannot read indicators.yaml's prose
@@ -118,18 +118,16 @@ def render() -> None:
     st.divider()
     st.subheader("2·3. 점수를 단계로 나눈다")
 
-    labels = parameters["regime_labels"]
-    boundaries = parameters["regime_boundaries"]
-    ladder = parameters["ladder"]
-    edges = [0.0, *boundaries, 100.0]
+    rungs = ladder(report)
     stage_rows = [
         {
-            "단계": label,
-            "점수 구간": f"{edges[index]:.0f} – {edges[index + 1]:.0f}",
-            "사다리 레버리지": ladder.get(label),
-            "뜻": _mood(index, len(labels)),
+            "단계": rung.label,
+            "점수 구간": rung.band,
+            "사다리 레버리지": rung.leverage,
+            "구성": rung.composition(),
+            "뜻": _mood(rung.index, len(rungs)),
         }
-        for index, label in enumerate(labels)
+        for rung in rungs
     ]
     st.dataframe(
         pd.DataFrame(stage_rows).style.format({"사다리 레버리지": "{:.2f}x"}),
