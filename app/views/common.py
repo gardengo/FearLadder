@@ -421,6 +421,56 @@ def is_locked(row: object) -> bool:
     return bool(raw) and raw != row["regime"] and raw != UNKNOWN_REGIME  # type: ignore[index]
 
 
+#: How heavily a regime band is painted behind a chart. The dark ground eats a
+#: light wash, so the same alpha that reads as a tint on white reads as nothing
+#: at all on #0e1117.
+BAND_OPACITY = {"light": 0.22, "dark": 0.42}
+
+
+def band_opacity() -> float:
+    return BAND_OPACITY[theme()]
+
+
+#: Direction of a confirmed regime change, for a log a person reads. The engine
+#: also writes REGIME_CONFIRMED on every one of these rows, which says nothing
+#: a table of confirmed changes has not already said.
+DIRECTIONS = {
+    "MOVED_TOWARD_FEAR": "공포 쪽으로 한 칸",
+    "MOVED_TOWARD_GREED": "탐욕 쪽으로 한 칸",
+}
+
+
+def change_direction(raw: object) -> str:
+    """Which way a stored regime change went, in words."""
+    for item in reasons_of(raw):
+        if (direction := DIRECTIONS.get(item.code)) is not None:
+            return direction
+    return " · ".join(item.text for item in reasons_of(raw)) or "—"
+
+
+def regime_event_table(events: Any) -> Any:
+    """The regime-change log as a person reads it, not as it is stored.
+
+    Column names and a JSON array of reason codes are the storage format; a
+    reader wants dates, stages and a direction.
+    """
+    if events is None or events.empty:
+        return events
+    return (
+        events.assign(사유=lambda frame: frame["reason_codes"].map(change_direction))
+        .drop(columns=["reason_codes"])
+        .rename(
+            columns={
+                "event_date": "날짜",
+                "previous_regime": "이전 단계",
+                "new_regime": "새 단계",
+                "previous_score": "이전 점수",
+                "new_score": "새 점수",
+            }
+        )
+    )
+
+
 # ------------------------------------------------------------------ streaks
 
 

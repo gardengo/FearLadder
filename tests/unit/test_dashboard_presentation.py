@@ -253,6 +253,59 @@ def test_every_regime_colour_gets_a_readable_label() -> None:
     for fill in common.REGIME_COLOURS:
         assert common.readable_on(fill) in {"#111111", "#ffffff"}
 
+
+# ------------------------------------------------------------- event log
+
+
+def test_a_change_reads_as_a_direction_not_a_code() -> None:
+    toward_fear = '["REGIME_CONFIRMED","MOVED_TOWARD_FEAR"]'
+    toward_greed = '["REGIME_CONFIRMED","MOVED_TOWARD_GREED"]'
+    assert common.change_direction(toward_fear) == "공포 쪽으로 한 칸"
+    assert common.change_direction(toward_greed) == "탐욕 쪽으로 한 칸"
+
+
+def test_a_change_with_no_direction_still_says_something() -> None:
+    assert common.change_direction("[]") == "—"
+    assert "바뀌었습니다" in common.change_direction('["REGIME_CONFIRMED"]')
+
+
+def test_the_event_log_is_relabelled_for_a_reader() -> None:
+    import pandas as pd
+
+    events = pd.DataFrame(
+        {
+            "event_date": ["2026-08-21"],
+            "previous_regime": ["Greed"],
+            "new_regime": ["Neutral"],
+            "previous_score": [45.87998541416041],
+            "new_score": [50.235156920515216],
+            "reason_codes": ['["REGIME_CONFIRMED","MOVED_TOWARD_FEAR"]'],
+        }
+    )
+    table = common.regime_event_table(events)
+    assert list(table.columns) == ["날짜", "이전 단계", "새 단계", "이전 점수", "새 점수", "사유"]
+    # The stored JSON array must not survive into the page.
+    assert "reason_codes" not in table.columns
+    assert table["사유"].iloc[0] == "공포 쪽으로 한 칸"
+
+
+def test_an_empty_event_log_passes_through() -> None:
+    import pandas as pd
+
+    empty = pd.DataFrame()
+    assert common.regime_event_table(empty).empty
+    assert common.regime_event_table(None) is None
+
+
+def test_bands_are_painted_harder_on_the_dark_ground(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The same wash that tints white disappears on #0e1117."""
+    monkeypatch.setattr(common, "theme", lambda: "dark")
+    dark = common.band_opacity()
+    monkeypatch.setattr(common, "theme", lambda: "light")
+    assert dark > common.band_opacity()
+
 # ------------------------------------------------------- architecture guard
 
 

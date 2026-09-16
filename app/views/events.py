@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from views.common import load
+from views.common import load, regime_event_table
 
 
 def render(version: str) -> None:
@@ -15,7 +15,13 @@ def render(version: str) -> None:
     if events.empty:
         st.info("기록된 레짐 변경이 없습니다.")
     else:
-        st.dataframe(events, hide_index=True, width="stretch")
+        st.dataframe(
+            regime_event_table(events).style.format(
+                {"이전 점수": "{:.1f}", "새 점수": "{:.1f}"}
+            ),
+            hide_index=True,
+            width="stretch",
+        )
 
     st.subheader("알림")
     alerts = load("alert_events")

@@ -18,12 +18,15 @@ from fear_ladder.constants import UNKNOWN_REGIME
 from fear_ladder.pipeline.queries import regime_spans
 from views.common import (
     UNKNOWN_COLOUR,
+    band_opacity,
     ink,
     ladder,
     load,
     lock_colour,
     locks,
     performance_report,
+    readable_on,
+    regime_event_table,
     regime_palette,
 )
 
@@ -95,23 +98,17 @@ def _charts(version: str, history: pd.DataFrame, days: int) -> None:
     prices = load("price_history", ("QQQ",), days=days)
     figure = go.Figure()
     if not prices.empty:
+        spans = regime_spans(history)
+        _shade(figure, spans, palette)
         figure.add_scatter(
             x=prices.index, y=prices["QQQ"], name="QQQ", line={"color": ink(), "width": 1.6}
         )
-        for start, end, regime in regime_spans(history):
-            figure.add_vrect(
-                x0=start,
-                x1=end,
-                fillcolor=palette.get(regime, UNKNOWN_COLOUR),
-                opacity=0.18,
-                line_width=0,
-                layer="below",
-            )
-    figure.update_layout(height=380, showlegend=False)
+        _name_the_bands(figure, spans, palette, total=history.index[-1] - history.index[0])
+    figure.update_layout(height=400, showlegend=False, margin={"t": 30})
     st.plotly_chart(figure, width="stretch")
     st.caption(
-        "배경색 = 단계. 빨강 = 공포(레버리지를 올리는 구간), 초록 = 탐욕(내리는 구간), "
-        "회색 = 신호 없음. 차트 관례대로 하락이 빨강, 상승이 초록이다."
+        "칩에 적힌 것이 그 구간의 단계입니다. 빨강일수록 공포(레버리지를 올리는 "
+        "구간), 초록일수록 탐욕(내리는 구간) — 차트 관례대로 하락이 빨강입니다."
     )
 
     st.subheader("점수가 가리킨 칸과 실제로 선 칸")
@@ -144,6 +141,48 @@ def _charts(version: str, history: pd.DataFrame, days: int) -> None:
         )
         figure.update_layout(height=320, yaxis_range=[0, 1])
         st.plotly_chart(figure, width="stretch")
+
+
+def _shade(figure: go.Figure, spans: list, palette: dict) -> None:
+    """Paint one band per regime run, behind everything else."""
+    alpha = band_opacity()
+    for start, end, regime in spans:
+        figure.add_vrect(
+            x0=start,
+            x1=end,
+            fillcolor=palette.get(regime, UNKNOWN_COLOUR),
+            opacity=alpha,
+            line_width=0,
+            layer="below",
+        )
+
+
+def _name_the_bands(figure: go.Figure, spans: list, palette: dict, total) -> None:  # type: ignore[no-untyped-def]
+    """Write each band's stage on the band, the way the ladder strip does.
+
+    A legend of colours under the chart makes the reader hold seven hues in
+    their head and look down every time. The name belongs on the band.
+    """
+    for start, end, regime in spans:
+        # A chip needs room; below roughly a twentieth of the window the text
+        # would overlap its neighbours and say less than the colour already does.
+        if total and (end - start) / total < 0.05:
+            continue
+        fill = palette.get(regime, UNKNOWN_COLOUR)
+        # Inside the plot, not above it: above the top edge the chips collide
+        # with plotly's own toolbar and the last one is clipped by the frame.
+        figure.add_annotation(
+            x=start + (end - start) / 2,
+            y=0.97,
+            yref="paper",
+            yanchor="top",
+            text=regime,
+            showarrow=False,
+            font={"size": 10, "color": readable_on(fill)},
+            bgcolor=fill,
+            borderpad=3,
+            opacity=0.95,
+        )
 
 
 def _translucent(colour: str, alpha: float) -> str:
@@ -205,18 +244,22 @@ def _score(history: pd.DataFrame) -> go.Figure:
     rungs = ladder(performance_report())
     palette = regime_palette([rung.label for rung in rungs])
 
+    alpha = band_opacity()
     figure = go.Figure()
     for rung in rungs:
+        fill = palette.get(rung.label, UNKNOWN_COLOUR)
         figure.add_hrect(
             y0=rung.low,
             y1=rung.high,
-            fillcolor=palette.get(rung.label, UNKNOWN_COLOUR),
-            opacity=0.16,
+            fillcolor=fill,
+            opacity=alpha,
             line_width=0,
             layer="below",
             annotation_text=rung.label,
-            annotation_position="right",
-            annotation_font={"size": 9},
+            annotation_position="top left",
+            annotation_font={"size": 9, "color": readable_on(fill)},
+            annotation_bgcolor=fill,
+            annotation_borderpad=2,
         )
     figure.add_scatter(
         x=history.index,
@@ -283,7 +326,13 @@ def _journal(version: str, history: pd.DataFrame) -> None:
     events = load("regime_events", version)
     if not events.empty:
         st.subheader("단계 변경 이벤트")
-        st.dataframe(events, hide_index=True, width="stretch")
+        st.dataframe(
+            regime_event_table(events).style.format(
+                {"이전 점수": "{:.1f}", "새 점수": "{:.1f}"}
+            ),
+            hide_index=True,
+            width="stretch",
+        )
 
 
 def _return(prices: pd.DataFrame, start: object, end: object) -> float | None:
