@@ -260,13 +260,12 @@ def _robustness() -> None:
     if trigger:
         _trigger_chart(trigger)
     if research and validation:
-        _duration_chart(research, validation)
+        _duration_chart(research, validation, sensitivity("real_etf"))
 
     st.caption(
         "전이 장치만 흔든 결과입니다. **성과의 대부분을 만드는 추세 필터와 지표 "
         "가중치는 이 측정의 대상이 아닙니다.** 고정된 v1.0-frozen 을 잰 기록이며 "
-        "설정은 바뀌지 않았고, OOS 구간은 열지 않았습니다 "
-        "(`docs/strategy.md` §2.10)."
+        "설정은 바뀌지 않았습니다 (`docs/strategy.md` §2.10–2.11)."
     )
 
 
@@ -311,24 +310,26 @@ def _trigger_chart(trigger: dict) -> None:
     columns[1].plotly_chart(figure, width="stretch")
 
 
-def _duration_chart(research: dict, validation: dict) -> None:
+def _duration_chart(research: dict, validation: dict, real_etf: dict | None) -> None:
     left = sensitivity_frame(research, "d=")
     right = sensitivity_frame(validation, "d=")
     if left.empty or right.empty:
         return
 
     st.markdown(
-        "**유지 기간 75일에 근거가 있는가** — 소비된 두 창에서 따로 쓸어 봤습니다. "
+        "**유지 기간 75일에 근거가 있는가** — 창을 나눠 따로 쓸어 봤습니다. "
         "아래는 각 창에서 **가장 얕았던 낙폭 대비 얼마나 더 깊은가**입니다 "
-        "(0 = 그 창의 최선). 두 창의 낙폭 규모 자체가 달라 그대로는 겹쳐 볼 수 "
+        "(0 = 그 창의 최선). 창마다 낙폭 규모 자체가 달라 그대로는 겹쳐 볼 수 "
         "없어 이렇게 맞췄습니다."
     )
-    frame = pd.concat(
-        [
-            left.assign(창="탐색 1999–2015"),
-            right.assign(창="검증 2015–2021"),
-        ]
-    )
+    windows = [
+        left.assign(창="탐색 1999–2015 (재구성 가격)"),
+        right.assign(창="검증 2015–2021 (재구성 가격)"),
+    ]
+    real = sensitivity_frame(real_etf or {}, "d=")
+    if not real.empty:
+        windows.append(real.assign(창="실물 2010–2026 (실제 가격)"))
+    frame = pd.concat(windows)
     frame["유지 기간"] = frame["variant"].str.removeprefix("d=").astype(int)
     # Each window against its own best, because the two differ in level by
     # 30 percentage points — on one raw axis the shapes cannot be compared,
@@ -343,7 +344,7 @@ def _duration_chart(research: dict, validation: dict) -> None:
         color="창",
         markers=True,
         labels={"최선 대비": "그 창의 최선보다 깊은 정도"},
-        color_discrete_sequence=["#b2182b", "#1a9850"],
+        color_discrete_sequence=["#b2182b", "#1a9850", "#2166ac"],
     )
     figure.add_vline(
         x=75, line={"color": "#8a6d1f", "width": 1.5, "dash": "dash"},
@@ -354,15 +355,21 @@ def _duration_chart(research: dict, validation: dict) -> None:
     figure.update_layout(height=340, margin={"l": 8, "r": 8, "t": 30, "b": 8})
     st.plotly_chart(figure, width="stretch")
     st.markdown(
-        "**75일은 두 창 모두에서 1위입니다** — 두 선이 모두 0에 닿는 유일한 지점입니다. "
-        "하지만 **그 주변은 두 창이 전혀 합의하지 않습니다.** 검증 창(초록)은 60~90 에 "
-        "매끄러운 바닥을 만들지만, 탐색 창(빨강)은 바닥이 없고 75만 홀로 내려와 "
-        "있습니다 — 20일이 탐색에서는 2위인데 검증에서는 꼴찌입니다."
+        "**소비된 두 창(빨강·초록)에서는 75일이 1위입니다** — 0에 닿는 지점입니다. "
+        "하지만 그 두 창의 낙폭은 **전부 2010-02-11 이전**에 났습니다. QLD·TQQQ 가 "
+        "상장하기 전이라 그 구간의 레버리지 가격은 **재구성된 모델 값**입니다."
     )
+    if not real.empty:
+        st.markdown(
+            "**파랑이 실물 가격만으로 다시 잰 것입니다 — 그리고 뒤집힙니다.** "
+            "75일은 아홉 개 중 낙폭 꼴찌이고, 창 사이의 낙폭 순위 상관은 0 이거나 "
+            "음수입니다. **낙폭 축은 이 값을 지지하지 않습니다.**"
+        )
     st.markdown(
-        "이웃이 받쳐주지 않는 1위는 우연과 구별되지 않습니다. **이 값은 여전히 약한 "
-        "근거 위에 있습니다.** 다만 틀렸을 때 한 칸 차이는 레버리지 0.4x 수준이고, "
-        "추세 필터가 단계와 무관하게 매일 돌아 손해를 제한합니다."
+        "남는 근거는 회전율이고 그것은 단조합니다 — 20일이면 단계가 173번, "
+        "75일이면 53번 바뀝니다. **비용으로 고른 값**으로 읽는 편이 정확합니다. "
+        "틀렸을 때 한 칸 차이는 레버리지 0.4x 수준이고, 추세 필터가 단계와 "
+        "무관하게 매일 돌아 손해를 제한합니다."
     )
 
 

@@ -1,0 +1,405 @@
+{
+  "real_sleeve_start": "2010-02-11",
+  "strategy_version": "v1.0-frozen",
+  "trend_filter": {
+    "max_leverage_below": 0.5,
+    "min_depth_to_engage": 0.2
+  },
+  "windows": [
+    {
+      "end": "2003-12-31",
+      "start": "1999-03-10",
+      "variants": [
+        {
+          "cagr": 0.1652120353882831,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2003-03-31",
+          "max_drawdown": -0.4227987622176004,
+          "sharpe": 0.5910874200521151,
+          "sleeves_reconstructed": true,
+          "variant": "cap=0"
+        },
+        {
+          "cagr": 0.12569534852754427,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2003-02-07",
+          "max_drawdown": -0.5120261650538238,
+          "sharpe": 0.45351153951455614,
+          "sleeves_reconstructed": true,
+          "variant": "cap=0.25"
+        },
+        {
+          "cagr": 0.07450792976831444,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.6238477334432446,
+          "sharpe": 0.28130885267912487,
+          "sleeves_reconstructed": true,
+          "variant": "cap=0.5 *"
+        },
+        {
+          "cagr": -0.05662621577302551,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.8354121537998651,
+          "sharpe": 0.014052480350413477,
+          "sleeves_reconstructed": true,
+          "variant": "cap=1"
+        },
+        {
+          "cagr": 0.07450792976831444,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.6238477334432446,
+          "sharpe": 0.28130885267912487,
+          "sleeves_reconstructed": true,
+          "variant": "depth=0"
+        },
+        {
+          "cagr": 0.07450792976831444,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.6238477334432446,
+          "sharpe": 0.28130885267912487,
+          "sleeves_reconstructed": true,
+          "variant": "depth=0.1"
+        },
+        {
+          "cagr": 0.07450792976831444,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.6238477334432446,
+          "sharpe": 0.28130885267912487,
+          "sleeves_reconstructed": true,
+          "variant": "depth=0.2 *"
+        },
+        {
+          "cagr": 0.011604534136297362,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.7185918975035765,
+          "sharpe": 0.09634760597813871,
+          "sleeves_reconstructed": true,
+          "variant": "depth=0.3"
+        }
+      ],
+      "window": "dotcom 1999-2003"
+    },
+    {
+      "end": "2009-12-31",
+      "start": "2007-01-01",
+      "variants": [
+        {
+          "cagr": -0.0193599699974375,
+          "drawdown_peak": "2007-10-31",
+          "drawdown_trough": "2009-05-22",
+          "max_drawdown": -0.5880060229850287,
+          "sharpe": -0.014227841812272796,
+          "sleeves_reconstructed": true,
+          "variant": "cap=0"
+        },
+        {
+          "cagr": -0.024717198609010005,
+          "drawdown_peak": "2007-10-31",
+          "drawdown_trough": "2009-05-22",
+          "max_drawdown": -0.5947046468264605,
+          "sharpe": -0.029734705558084166,
+          "sleeves_reconstructed": true,
+          "variant": "cap=0.25"
+        },
+        {
+          "cagr": -0.031254579672701066,
+          "drawdown_peak": "2007-10-31",
+          "drawdown_trough": "2009-05-22",
+          "max_drawdown": -0.6027801836296072,
+          "sharpe": -0.036521047789328194,
+          "sleeves_reconstructed": true,
+          "variant": "cap=0.5 *"
+        },
+        {
+          "cagr": -0.0477652478958559,
+          "drawdown_peak": "2007-10-31",
+          "drawdown_trough": "2008-11-20",
+          "max_drawdown": -0.6877078086600303,
+          "sharpe": -0.008721869657336524,
+          "sleeves_reconstructed": true,
+          "variant": "cap=1"
+        },
+        {
+          "cagr": 0.008127995990095283,
+          "drawdown_peak": "2007-10-31",
+          "drawdown_trough": "2009-05-22",
+          "max_drawdown": -0.5524736135789361,
+          "sharpe": 0.08727360546606873,
+          "sleeves_reconstructed": true,
+          "variant": "depth=0"
+        },
+        {
+          "cagr": 0.008127995990095283,
+          "drawdown_peak": "2007-10-31",
+          "drawdown_trough": "2009-05-22",
+          "max_drawdown": -0.5524736135789361,
+          "sharpe": 0.08727360546606873,
+          "sleeves_reconstructed": true,
+          "variant": "depth=0.1"
+        },
+        {
+          "cagr": -0.031254579672701066,
+          "drawdown_peak": "2007-10-31",
+          "drawdown_trough": "2009-05-22",
+          "max_drawdown": -0.6027801836296072,
+          "sharpe": -0.036521047789328194,
+          "sleeves_reconstructed": true,
+          "variant": "depth=0.2 *"
+        },
+        {
+          "cagr": -0.06407860872643811,
+          "drawdown_peak": "2007-10-31",
+          "drawdown_trough": "2008-11-20",
+          "max_drawdown": -0.6417747041100583,
+          "sharpe": -0.06206108706553877,
+          "sleeves_reconstructed": true,
+          "variant": "depth=0.3"
+        }
+      ],
+      "window": "gfc 2007-2009"
+    },
+    {
+      "end": "",
+      "start": "2010-02-11",
+      "variants": [
+        {
+          "cagr": 0.24109269460735394,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2023-03-10",
+          "max_drawdown": -0.44833213562246554,
+          "sharpe": 0.8428703068914994,
+          "sleeves_reconstructed": false,
+          "variant": "cap=0"
+        },
+        {
+          "cagr": 0.2498989298565013,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2023-03-10",
+          "max_drawdown": -0.45740150034129834,
+          "sharpe": 0.8650501462579326,
+          "sleeves_reconstructed": false,
+          "variant": "cap=0.25"
+        },
+        {
+          "cagr": 0.25827880194804864,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2023-03-10",
+          "max_drawdown": -0.46646639381622856,
+          "sharpe": 0.8810183647636535,
+          "sleeves_reconstructed": false,
+          "variant": "cap=0.5 *"
+        },
+        {
+          "cagr": 0.2745537755242795,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2022-12-28",
+          "max_drawdown": -0.5040092889182808,
+          "sharpe": 0.8968702512999382,
+          "sleeves_reconstructed": false,
+          "variant": "cap=1"
+        },
+        {
+          "cagr": 0.20561645524832461,
+          "drawdown_peak": "2015-07-20",
+          "drawdown_trough": "2016-06-27",
+          "max_drawdown": -0.44186251463041615,
+          "sharpe": 0.7941208868346863,
+          "sleeves_reconstructed": false,
+          "variant": "depth=0"
+        },
+        {
+          "cagr": 0.1961331464695284,
+          "drawdown_peak": "2015-07-20",
+          "drawdown_trough": "2016-06-27",
+          "max_drawdown": -0.44143967749783564,
+          "sharpe": 0.7576768935910712,
+          "sleeves_reconstructed": false,
+          "variant": "depth=0.1"
+        },
+        {
+          "cagr": 0.25827880194804864,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2023-03-10",
+          "max_drawdown": -0.46646639381622856,
+          "sharpe": 0.8810183647636535,
+          "sleeves_reconstructed": false,
+          "variant": "depth=0.2 *"
+        },
+        {
+          "cagr": 0.2736212561995295,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2023-03-10",
+          "max_drawdown": -0.5869844903593806,
+          "sharpe": 0.8632785758208468,
+          "sleeves_reconstructed": false,
+          "variant": "depth=0.3"
+        }
+      ],
+      "window": "real 2010-2026"
+    },
+    {
+      "end": "",
+      "start": "2021-02-27",
+      "variants": [
+        {
+          "cagr": 0.16912455405472482,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2023-03-10",
+          "max_drawdown": -0.44833213562246554,
+          "sharpe": 0.5672633376401839,
+          "sleeves_reconstructed": false,
+          "variant": "cap=0"
+        },
+        {
+          "cagr": 0.17798259030997987,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2023-03-10",
+          "max_drawdown": -0.4574015003412992,
+          "sharpe": 0.5912475383122967,
+          "sleeves_reconstructed": false,
+          "variant": "cap=0.25"
+        },
+        {
+          "cagr": 0.18616519623553573,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2023-03-10",
+          "max_drawdown": -0.46646639381622956,
+          "sharpe": 0.6084522882977577,
+          "sleeves_reconstructed": false,
+          "variant": "cap=0.5 *"
+        },
+        {
+          "cagr": 0.20059897591566056,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2022-12-28",
+          "max_drawdown": -0.5040092889182803,
+          "sharpe": 0.6230710748007884,
+          "sleeves_reconstructed": false,
+          "variant": "cap=1"
+        },
+        {
+          "cagr": 0.217783580128333,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2023-03-10",
+          "max_drawdown": -0.39062434386325884,
+          "sharpe": 0.7362428802205825,
+          "sleeves_reconstructed": false,
+          "variant": "depth=0"
+        },
+        {
+          "cagr": 0.21566435290914976,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2023-03-10",
+          "max_drawdown": -0.39062434386325884,
+          "sharpe": 0.7291862704569794,
+          "sleeves_reconstructed": false,
+          "variant": "depth=0.1"
+        },
+        {
+          "cagr": 0.18616519623553573,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2023-03-10",
+          "max_drawdown": -0.46646639381622956,
+          "sharpe": 0.6084522882977577,
+          "sleeves_reconstructed": false,
+          "variant": "depth=0.2 *"
+        },
+        {
+          "cagr": 0.18422758030484299,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2023-03-10",
+          "max_drawdown": -0.5869844903593799,
+          "sharpe": 0.5568309141754454,
+          "sleeves_reconstructed": false,
+          "variant": "depth=0.3"
+        }
+      ],
+      "window": "oos 2021-2026"
+    },
+    {
+      "end": "",
+      "start": "",
+      "variants": [
+        {
+          "cagr": 0.1929011211724787,
+          "drawdown_peak": "2007-10-31",
+          "drawdown_trough": "2009-05-22",
+          "max_drawdown": -0.5880060229850291,
+          "sharpe": 0.6709000922785358,
+          "sleeves_reconstructed": true,
+          "variant": "cap=0"
+        },
+        {
+          "cagr": 0.19166862556358244,
+          "drawdown_peak": "2007-10-31",
+          "drawdown_trough": "2009-05-22",
+          "max_drawdown": -0.5947046468264601,
+          "sharpe": 0.6645088783548875,
+          "sleeves_reconstructed": true,
+          "variant": "cap=0.25"
+        },
+        {
+          "cagr": 0.18775388097496837,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.6238477334432446,
+          "sharpe": 0.6447110388407512,
+          "sleeves_reconstructed": true,
+          "variant": "cap=0.5 *"
+        },
+        {
+          "cagr": 0.17224848123041547,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.8354121537998653,
+          "sharpe": 0.5676785124057594,
+          "sleeves_reconstructed": true,
+          "variant": "cap=1"
+        },
+        {
+          "cagr": 0.15255100974468294,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.6238477334432447,
+          "sharpe": 0.5675466439597758,
+          "sleeves_reconstructed": true,
+          "variant": "depth=0"
+        },
+        {
+          "cagr": 0.147108660963998,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.6238477334432447,
+          "sharpe": 0.5488971535941864,
+          "sleeves_reconstructed": true,
+          "variant": "depth=0.1"
+        },
+        {
+          "cagr": 0.18775388097496837,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.6238477334432446,
+          "sharpe": 0.6447110388407512,
+          "sleeves_reconstructed": true,
+          "variant": "depth=0.2 *"
+        },
+        {
+          "cagr": 0.18765742264807272,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.7185918975035764,
+          "sharpe": 0.6156299204962626,
+          "sleeves_reconstructed": true,
+          "variant": "depth=0.3"
+        }
+      ],
+      "window": "full 1996-2026"
+    }
+  ]
+}

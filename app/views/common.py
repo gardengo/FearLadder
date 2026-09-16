@@ -54,6 +54,10 @@ SENSITIVITY_REPORTS = {
     "sweep": paths.REPORTS_DIR / "transition_parameter_sweep.json",
     "research": paths.REPORTS_DIR / "transition_sweep_research.json",
     "validation": paths.REPORTS_DIR / "transition_sweep_validation.json",
+    # The window whose leveraged sleeves are real prices rather than
+    # reconstructed ones. It reverses the other two (docs/strategy.md 2.11),
+    # which is exactly why it is shown next to them.
+    "real_etf": paths.REPORTS_DIR / "transition_sweep_real_etf.json",
 }
 STRATEGY_LABEL = "전략"
 
