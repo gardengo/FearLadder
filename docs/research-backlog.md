@@ -45,9 +45,28 @@ $env:PYTHONIOENCODING = "utf-8"    # PowerShell
 export PYTHONIOENCODING=utf-8      # bash
 ```
 
-### 0.3 가상환경
+### 0.3 가상환경 · 워크트리
 
-`./.venv/Scripts/python.exe` 를 쓴다. 시스템 `python` 에는 pandas 가 없다.
+시스템 `python` 에는 pandas 가 없다. **메인 저장소의 venv 를 쓴다:**
+
+```bash
+E:/Develop/FearLadder/.venv/Scripts/python.exe
+```
+
+**워크트리에서도 이 venv 를 그대로 쓰면 된다.** 확인해 두었다 — venv 안의
+editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot\src`
+라는 **이름이 바뀌기 전의 죽은 경로**를 가리키고 있어서 아무것도 import 하지
+않는다. 실제로 동작하는 것은 두 가지다:
+
+- `pyproject.toml` 의 `pythonpath = ["src", "."]` — pytest 가 rootdir 기준으로 푼다
+- 각 스크립트 맨 위의 `sys.path.insert(0, <스크립트 위치>/../src)`
+
+둘 다 **상대 경로**라서 워크트리 안에서 실행하면 워크트리 자신의 `src` 가 잡힌다.
+검증됨: 워크트리에서 `fear_ladder.__file__` 이
+`E:\Develop\FearLadder-research\src\...` 로 해석되고 테스트도 통과한다.
+
+`data/fear_ladder.db` 는 워크트리에도 커밋된 5년치 사본이 따로 있다. §0.1 의
+`full.db` 는 저장소 밖에 두므로 워크트리와 메인이 **같은 파일을 공유**해도 된다.
 
 ---
 
