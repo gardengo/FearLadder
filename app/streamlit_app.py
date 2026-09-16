@@ -110,7 +110,13 @@ def main() -> None:
                     "**성과** 탭은 볼 수 있습니다."
                 )
                 continue
-            module.render(version) if needs_version else module.render()
+            # A statement, not an expression: Streamlit's magic renders the
+            # value of a bare expression, and a conditional expression whose
+            # branches both return None printed a stray "None" under every tab.
+            if needs_version:
+                module.render(version)
+            else:
+                module.render()
 
 
 if __name__ == "__main__":

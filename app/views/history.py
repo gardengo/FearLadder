@@ -17,10 +17,11 @@ import streamlit as st
 from fear_ladder.constants import UNKNOWN_REGIME
 from fear_ladder.pipeline.queries import regime_spans
 from views.common import (
-    LOCK_COLOUR,
     UNKNOWN_COLOUR,
+    ink,
     ladder,
     load,
+    lock_colour,
     locks,
     performance_report,
     regime_palette,
@@ -37,6 +38,8 @@ PERIODS: tuple[tuple[str, int], ...] = (
     ("전체", 365 * 40),
 )
 DEFAULT_PERIOD = 2  # 1년
+
+SECTIONS = ("차트", "단계별 일지", "잠금 통계")
 
 LOCK_LABELS = {
     "min_duration": "최소 유지 기간",
@@ -63,13 +66,19 @@ def render(version: str) -> None:
         f"{history.index[0]:%Y-%m-%d} … {history.index[-1]:%Y-%m-%d} · {len(history)}거래일"
     )
 
-    charts, journal, lockdown = st.tabs(["차트", "단계별 일지", "잠금 통계"])
-    with charts:
-        _charts(version, history, days)
-    with journal:
+    # Deliberately not st.tabs: a dataframe first painted inside a *nested*
+    # tab is laid out while its panel is hidden and comes back collapsed to a
+    # single column until something forces a re-layout. A segmented control
+    # reads the same and renders one section at a time for real.
+    section = st.segmented_control(
+        "구역", SECTIONS, default=SECTIONS[0], label_visibility="collapsed"
+    )
+    if section == SECTIONS[1]:
         _journal(version, history)
-    with lockdown:
+    elif section == SECTIONS[2]:
         _locks(history)
+    else:
+        _charts(version, history, days)
 
     unknown_days = int((history["regime"] == UNKNOWN_REGIME).sum())
     if unknown_days:
@@ -87,7 +96,7 @@ def _charts(version: str, history: pd.DataFrame, days: int) -> None:
     figure = go.Figure()
     if not prices.empty:
         figure.add_scatter(
-            x=prices.index, y=prices["QQQ"], name="QQQ", line={"color": "#222", "width": 1.4}
+            x=prices.index, y=prices["QQQ"], name="QQQ", line={"color": ink(), "width": 1.6}
         )
         for start, end, regime in regime_spans(history):
             figure.add_vrect(
@@ -137,6 +146,12 @@ def _charts(version: str, history: pd.DataFrame, days: int) -> None:
         st.plotly_chart(figure, width="stretch")
 
 
+def _translucent(colour: str, alpha: float) -> str:
+    """``#rrggbb`` as an ``rgba()`` string, so a fill can sit over gridlines."""
+    red, green, blue = (int(colour[index : index + 2], 16) for index in (1, 3, 5))
+    return f"rgba({red},{green},{blue},{alpha})"
+
+
 def _rungs() -> list[str]:
     return [rung.label for rung in ladder(performance_report())]
 
@@ -149,24 +164,27 @@ def _steps(history: pd.DataFrame) -> go.Figure:
     actual = history["regime"].map(rank)
     raw = history["raw_regime"].map(rank)
 
+    amber = lock_colour()
     figure = go.Figure()
-    for start, end in _divergences(history, rank):
-        figure.add_vrect(
-            x0=start, x1=end, fillcolor=LOCK_COLOUR, opacity=0.15, line_width=0, layer="below"
-        )
+    # Filled between the two lines rather than shaded behind them. The score
+    # points elsewhere on most days, so a band per divergence covered almost
+    # the whole chart and said nothing; the gap's *height* is the information —
+    # how many rungs apart the score and the ladder are.
     figure.add_scatter(
         x=history.index,
         y=raw,
         name="점수가 가리킨 단계",
-        line={"color": LOCK_COLOUR, "width": 1.4, "dash": "dash"},
+        line={"color": amber, "width": 1.4, "dash": "dash"},
         line_shape="hv",
     )
     figure.add_scatter(
         x=history.index,
         y=actual,
         name="실제 단계",
-        line={"color": "#222", "width": 2.2},
+        line={"color": ink(), "width": 2.4},
         line_shape="hv",
+        fill="tonexty",
+        fillcolor=_translucent(amber, 0.22),
     )
     figure.update_yaxes(
         tickmode="array",
@@ -180,25 +198,6 @@ def _steps(history: pd.DataFrame) -> go.Figure:
         margin={"l": 8, "r": 8, "t": 30, "b": 8},
     )
     return figure
-
-
-def _divergences(history: pd.DataFrame, rank: dict[str, int]) -> list[tuple[object, object]]:
-    """Contiguous stretches where the score pointed somewhere else."""
-    apart = [
-        bool(raw in rank and actual in rank and raw != actual)
-        for raw, actual in zip(history["raw_regime"], history["regime"], strict=True)
-    ]
-    spans: list[tuple[object, object]] = []
-    start = None
-    for moment, differs in zip(history.index, apart, strict=True):
-        if differs and start is None:
-            start = moment
-        elif not differs and start is not None:
-            spans.append((start, moment))
-            start = None
-    if start is not None:
-        spans.append((start, history.index[-1]))
-    return spans
 
 
 def _score(history: pd.DataFrame) -> go.Figure:
@@ -223,7 +222,7 @@ def _score(history: pd.DataFrame) -> go.Figure:
         x=history.index,
         y=history["composite_score"],
         name="score",
-        line={"color": "#222", "width": 1.4},
+        line={"color": ink(), "width": 1.6},
     )
     figure.update_layout(
         height=320, yaxis_title="score", yaxis_range=[0, 100], xaxis_title="", showlegend=False
@@ -321,19 +320,15 @@ def _locks(history: pd.DataFrame) -> None:
     changes = int((history["regime"] != history["regime"].shift()).sum()) - 1
 
     columns = st.columns(4)
-    columns[0].metric(
-        "점수와 단계가 어긋난 날",
-        f"{locked / total * 100:.1f}%" if total else "—",
-        delta=f"{locked} / {total}일",
-        delta_color="off",
-    )
+    columns[0].metric("점수와 단계가 어긋난 날", f"{locked / total * 100:.1f}%" if total else "—")
+    columns[0].caption(f"{locked} / {total}거래일")
     columns[1].metric("최소 유지 기간에 막힌 날", counts.get("min_duration", 0))
+    columns[1].caption("한 단계를 최소 기간만큼 지키느라")
     columns[2].metric("히스테리시스에 막힌 날", counts.get("hysteresis", 0))
-    columns[3].metric(
-        "실제 단계 변경",
-        max(changes, 0),
-        delta=f"평균 {total // changes}거래일에 1회" if changes > 0 else None,
-        delta_color="off",
+    columns[2].caption("경계를 충분히 넘지 못해서")
+    columns[3].metric("실제 단계 변경", max(changes, 0))
+    columns[3].caption(
+        f"평균 {total // changes}거래일에 1회" if changes > 0 else "이 기간에는 없음"
     )
 
     reported = {LOCK_LABELS[kind]: value for kind, value in counts.items() if value}
@@ -344,7 +339,7 @@ def _locks(history: pd.DataFrame) -> None:
             orientation="h",
             labels={"x": "일수", "y": ""},
         )
-        figure.update_traces(marker_color=LOCK_COLOUR)
+        figure.update_traces(marker_color=lock_colour())
         figure.update_layout(height=180, margin={"l": 8, "r": 8, "t": 10, "b": 30})
         st.plotly_chart(figure, width="stretch")
     else:

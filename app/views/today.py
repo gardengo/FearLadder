@@ -19,14 +19,16 @@ import streamlit as st
 from fear_ladder.constants import UNKNOWN_REGIME
 from fear_ladder.pipeline.queries import is_signal_stale
 from views.common import (
-    LOCK_COLOUR,
     REGIME_COLOURS,
     Rung,
     gates,
+    ink,
     ladder,
     load,
+    lock_colour,
     locks,
     performance_report,
+    readable_on,
     reasons_of,
     regime_palette,
     rung_of,
@@ -164,7 +166,7 @@ def _ladder(state: dict, rungs: list[Rung], report: dict | None) -> None:
         ),
         hide_index=True,
         width="stretch",
-        height=38 * (len(rungs) + 1),
+        height=35 * (len(rungs) + 1) + 3,
     )
     st.caption(
         "**구성은 사다리가 제안하는 비중입니다.** 실제 목표 비중은 추세 필터와 "
@@ -175,16 +177,18 @@ def _ladder(state: dict, rungs: list[Rung], report: dict | None) -> None:
 def _scale(rungs: list[Rung], score: float | None, lines) -> go.Figure:  # type: ignore[no-untyped-def]
     """The 0-100 score line, its bands, and the two lines it has to clear."""
     palette = regime_palette([rung.label for rung in rungs])
+    amber, foreground = lock_colour(), ink()
     figure = go.Figure()
     for index, rung in enumerate(rungs):
+        fill = palette.get(rung.label, REGIME_COLOURS[index % len(REGIME_COLOURS)])
         figure.add_shape(
             type="rect",
             x0=rung.low,
             x1=rung.high,
             y0=0,
             y1=1,
-            fillcolor=palette.get(rung.label, REGIME_COLOURS[index % len(REGIME_COLOURS)]),
-            opacity=0.75,
+            fillcolor=fill,
+            opacity=0.9,
             line_width=0,
             layer="below",
         )
@@ -193,7 +197,7 @@ def _scale(rungs: list[Rung], score: float | None, lines) -> go.Figure:  # type:
             y=0.5,
             text=rung.label,
             showarrow=False,
-            font={"size": 10, "color": "#222"},
+            font={"size": 10, "color": readable_on(fill)},
         )
 
     for value, label in ((lines.down, "이 아래로"), (lines.up, "이 위로")):
@@ -201,21 +205,21 @@ def _scale(rungs: list[Rung], score: float | None, lines) -> go.Figure:  # type:
             continue
         figure.add_vline(
             x=value,
-            line={"color": LOCK_COLOUR, "width": 1.5, "dash": "dash"},
+            line={"color": amber, "width": 1.5, "dash": "dash"},
             annotation_text=f"{label} {value:.0f}",
             annotation_position="bottom",
-            annotation_font={"size": 10, "color": LOCK_COLOUR},
+            annotation_font={"size": 10, "color": amber},
         )
 
     if score is not None:
-        figure.add_vline(x=score, line={"color": "#111", "width": 2})
+        figure.add_vline(x=score, line={"color": foreground, "width": 2.5})
         figure.add_annotation(
             x=score,
             y=1.0,
             yanchor="bottom",
             text=f"<b>{score:.1f}</b>",
             showarrow=False,
-            font={"size": 13},
+            font={"size": 13, "color": foreground},
         )
 
     figure.update_xaxes(range=[0, 100], tickvals=[0, *(_edges(rungs)), 100])
@@ -262,6 +266,13 @@ def _lock(state: dict, rungs: list[Rung], report: dict | None, run) -> None:  # 
         else:
             _countdown(brake)
 
+    # The engine stops at the first brake that fires, so a day blocked by
+    # hysteresis never records how the minimum-duration count is doing — and a
+    # reader is left thinking the score line is the only thing in the way. It
+    # usually is not: clearing the line only makes the move a *candidate*.
+    if brakes and not any(brake.kind == "min_duration" for brake in brakes):
+        _minimum_duration_outlook(regime, report, run)
+
     if not brakes:
         st.caption(
             "오늘 기록된 제동 사유가 없습니다 — 저장된 `reason_codes` 를 확인하세요."
@@ -276,6 +287,36 @@ def _lock(state: dict, rungs: list[Rung], report: dict | None, run) -> None:  # 
             f"`{regime}` 진입 {run.since:%Y-%m-%d}"
             + (f" · 직전 `{run.previous}`" if run.previous else "")
         )
+
+
+def _minimum_duration_outlook(regime: str, report: dict | None, run) -> None:  # type: ignore[no-untyped-def]
+    """What still stands between "the line is cleared" and "the rung changes"."""
+    required = (report or {}).get("parameters", {}).get("transition", {}).get(
+        "minimum_duration_days"
+    )
+    if not required or run is None or run.regime != regime:
+        return
+
+    held = run.days
+    if held > required:
+        st.markdown(
+            f"- 최소 유지 {required}거래일은 이미 채웠습니다 "
+            f"(현재 {held}거래일째) — **선만 넘으면 단계가 바뀝니다.**"
+        )
+        return
+
+    st.markdown(
+        f"- **선을 넘어도 그날 바로 바뀌지는 않습니다.** 최소 유지 "
+        f"{required}거래일을 채워야 하는데, `{regime}` 은 {run.since:%Y-%m-%d} "
+        f"진입 후 {held}거래일째입니다."
+    )
+    st.progress(min(held / required, 1.0))
+    st.caption(
+        f"{held} / {required} — 약 {required - held}거래일 더. "
+        "그때까지는 점수가 더 내려가도 단계는 그대로이고, 사유만 "
+        "`BLOCKED_BY_MIN_DURATION` 으로 바뀝니다. "
+        "급락에 먼저 반응하는 것은 사다리가 아니라 추세 필터(난간)입니다."
+    )
 
 
 def _hysteresis(  # type: ignore[no-untyped-def]

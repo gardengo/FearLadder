@@ -221,6 +221,38 @@ def test_an_empty_history_has_no_streak() -> None:
     assert common.streak(None) is None
 
 
+
+# ------------------------------------------------------------------- theme
+
+
+def test_the_foreground_differs_between_themes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A single hex would vanish into one ground or the other."""
+    for name in ("light", "dark"):
+        monkeypatch.setattr(common, "theme", lambda name=name: name)
+        assert common.INK[name] == common.ink()
+        assert common.LOCK[name] == common.lock_colour()
+    assert common.INK["light"] != common.INK["dark"]
+    assert common.LOCK["light"] != common.LOCK["dark"]
+
+
+def test_an_unknown_theme_falls_back_to_light() -> None:
+    """Outside a live session there is no browser theme to read."""
+    assert common.theme() in {"light", "dark"}
+    assert common.ink() in set(common.INK.values())
+
+
+def test_band_labels_flip_against_the_band_they_sit_on() -> None:
+    """The regime scale runs dark-red to dark-green; one label colour fails."""
+    assert common.readable_on("#b2182b") == "#ffffff"  # Capitulation
+    assert common.readable_on("#1a9850") == "#ffffff"  # Euphoria
+    assert common.readable_on("#d9d9d9") == "#111111"  # Neutral
+    assert common.readable_on("#f4a582") == "#111111"  # Fear
+
+
+def test_every_regime_colour_gets_a_readable_label() -> None:
+    for fill in common.REGIME_COLOURS:
+        assert common.readable_on(fill) in {"#111111", "#ffffff"}
+
 # ------------------------------------------------------- architecture guard
 
 

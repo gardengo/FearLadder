@@ -29,13 +29,54 @@ REGIME_COLOURS = [
     "#b2182b", "#d6604d", "#f4a582", "#d9d9d9", "#a6d96a", "#66bd63", "#1a9850",
 ]
 UNKNOWN_COLOUR = "#9e9e9e"
+
+#: Colours that have to survive both themes. The regime palette above does not:
+#: those fills are the fear-greed scale itself and read the same on either
+#: ground. These two are drawn *against* the ground, so a single hex would
+#: disappear into one theme or the other — a near-black QQQ line on Streamlit's
+#: dark background is invisible, which is exactly what happened.
+INK = {"light": "#222222", "dark": "#e6e8ea"}
 #: Everything a transition brake does is shown in this one colour, so a reader
-#: learns it once: amber on the ladder strip means "the score says one rung, the
-#: rules hold you on another".
-LOCK_COLOUR = "#8a6d1f"
+#: learns it once: amber means "the score says one rung, the rules hold you on
+#: another". Lifted in dark mode, where the darker amber turns to mud.
+LOCK = {"light": "#8a6d1f", "dark": "#d9b04a"}
 
 PERFORMANCE_REPORT = paths.REPORTS_DIR / "performance.json"
 STRATEGY_LABEL = "전략"
+
+
+def theme() -> str:
+    """``"dark"`` or ``"light"``, as the browser is currently rendering.
+
+    Streamlit themes its own chrome and the plotly frame automatically; what it
+    cannot do is recolour a hex this code hands to a trace. Anything outside a
+    live session (a test, a bare import) reads as light.
+    """
+    try:
+        return st.context.theme.type or "light"
+    except Exception:  # no session, or an older Streamlit without the field
+        return "light"
+
+
+def ink() -> str:
+    """The foreground colour for lines and text drawn on the chart ground."""
+    return INK[theme()]
+
+
+def lock_colour() -> str:
+    """The one colour that means "a transition brake is holding this"."""
+    return LOCK[theme()]
+
+
+def readable_on(fill: str) -> str:
+    """Black or white text, whichever can be read on ``fill``.
+
+    The regime bands run from a dark red through pale grey to a dark green, so
+    one label colour cannot serve all seven — the ends were unreadable.
+    """
+    red, green, blue = (int(fill[index : index + 2], 16) for index in (1, 3, 5))
+    luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255
+    return "#111111" if luminance > 0.55 else "#ffffff"
 
 
 @st.cache_resource
