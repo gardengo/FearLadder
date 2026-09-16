@@ -28,6 +28,13 @@ Both intervene only where the rung is chosen. Prices, indicators, the score
 itself, the trend filter and the TQQQ gate are untouched, so any difference is
 attributable to the trigger and nothing else.
 
+``--sweep`` asks the neighbouring question: not *which day* the rung changes on,
+but whether the three transition constants sit anywhere defensible. The
+walk-forward folds picked d = 30/60/45/45/60 and never the frozen 75
+(``docs/strategy.md`` §2.6), so the shape of that curve over the full history is
+worth seeing rather than inferring. The frozen configuration is copied, never
+written: ``config/`` is untouched.
+
 **This measures the frozen strategy; it does not propose a new one.** The OOS
 split is already consumed (``docs/strategy.md`` §2.8), so acting on anything
 here means a new freeze, labelled as such.
@@ -41,6 +48,7 @@ import logging
 import sys
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -59,13 +67,14 @@ from fear_ladder.research.performance import cash_curve, window_stats
 logger = logging.getLogger("sensitivity")
 
 OUTPUT = paths.REPORTS_DIR / "transition_sensitivity.json"
+SWEEP_OUTPUT = paths.REPORTS_DIR / "transition_parameter_sweep.json"
 ETFS = ("QQQ", "QLD", "TQQQ")
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db", type=Path, default=None)
-    parser.add_argument("--out", type=Path, default=OUTPUT)
+    parser.add_argument("--out", type=Path, default=None)
     parser.add_argument(
         "--lags", type=int, nargs="*", default=[1, 2, 3, 5],
         help="trading days to delay the score the rung is chosen from",
@@ -74,7 +83,59 @@ def build_parser() -> argparse.ArgumentParser:
         "--windows", type=int, nargs="*", default=[3, 5, 10, 20],
         help="trailing-mean lengths to choose the rung from",
     )
+    parser.add_argument("--start", type=date.fromisoformat, default=None)
+    parser.add_argument("--end", type=date.fromisoformat, default=None)
+    parser.add_argument(
+        "--sweep", action="store_true",
+        help="sweep the transition constants instead of the trigger",
+    )
+    parser.add_argument(
+        "--durations", type=int, nargs="*",
+        default=[20, 30, 45, 60, 75, 90, 105, 120, 150],
+        help="minimum_duration_days values to try under --sweep",
+    )
+    parser.add_argument(
+        "--confirmations", type=int, nargs="*", default=[1, 2, 3, 5],
+        help="confirmation_days values to try under --sweep",
+    )
+    parser.add_argument(
+        "--hystereses", type=float, nargs="*", default=[0.0, 2.0, 5.0, 8.0, 12.0],
+        help="hysteresis values to try under --sweep",
+    )
     return parser
+
+
+def _with_transition(config: object, **changes: object) -> object:
+    """The frozen config with some transition constants replaced.
+
+    Copied, not mutated: the models are frozen and ``config/`` is the freeze's
+    evidence. Nothing here writes to disk.
+    """
+    strategy = config.strategy  # type: ignore[attr-defined]
+    transition = strategy.transition.model_copy(update=changes)
+    return config.model_copy(  # type: ignore[attr-defined]
+        update={"strategy": strategy.model_copy(update={"transition": transition})}
+    )
+
+
+def _sweeps(
+    config: object, durations: list[int], confirmations: list[int], hystereses: list[float]
+) -> list[tuple[str, None, object]]:
+    """One variant per constant value, the frozen value included in each family."""
+    spec = config.strategy.transition  # type: ignore[attr-defined]
+    rows: list[tuple[str, None, object]] = []
+    for value in durations:
+        mark = " *" if value == spec.minimum_duration_days else ""
+        rows.append(
+            (f"d={value}{mark}", None, _with_transition(config, minimum_duration_days=value))
+        )
+    for value in confirmations:
+        mark = " *" if value == spec.confirmation_days else ""
+        rows.append((f"c={value}{mark}", None, _with_transition(config, confirmation_days=value)))
+    for value in hystereses:
+        mark = " *" if value == spec.hysteresis else ""
+        rows.append((f"h={value:g}{mark}", None, _with_transition(config, hysteresis=value)))
+    return rows
 
 
 @contextmanager
@@ -121,6 +182,8 @@ def _variants(lags: list[int], windows: list[int]) -> list[tuple[str, object]]:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.out is None:
+        args.out = SWEEP_OUTPUT if args.sweep else OUTPUT
     configure_logging(logging.INFO)
 
     config = load_config()
@@ -138,11 +201,23 @@ def main(argv: list[str] | None = None) -> int:
 
     closes = data.closes
     first = max(closes[symbol].dropna().index[0] for symbol in ETFS)
+    if args.start:
+        first = max(first, args.start)
+    last = args.end
+
+    if args.sweep:
+        plan = _sweeps(config, args.durations, args.confirmations, args.hystereses)
+    else:
+        plan = [
+            (label, transform, config) for label, transform in _variants(args.lags, args.windows)
+        ]
 
     results = []
-    for label, transform in _variants(args.lags, args.windows):
+    for label, transform, variant_config in plan:
         with _trigger(transform):
-            run = StrategyBacktest(config).run(data, start=first, include_benchmarks=False)
+            run = StrategyBacktest(variant_config).run(
+                data, start=first, end=last, include_benchmarks=False
+            )
         nav = run.result.nav
         days = list(nav.index)
         stats = window_stats(nav / nav.iloc[0], cash_curve(data.cash_rates, days))
@@ -172,7 +247,7 @@ def main(argv: list[str] | None = None) -> int:
 
     report = {
         "strategy_version": config.strategy.strategy_version,
-        "window": {"start": str(first), "end": str(closes.index.max())},
+        "window": {"start": str(first), "end": str(last or closes.index.max())},
         "transition": {
             "confirmation_days": config.strategy.transition.confirmation_days,
             "hysteresis": config.strategy.transition.hysteresis,
