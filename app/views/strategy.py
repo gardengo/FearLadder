@@ -10,7 +10,14 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from views.common import ladder, missing_report_notice, percent, performance_report
+from views.common import (
+    ladder,
+    missing_report_notice,
+    percent,
+    performance_report,
+    sensitivity,
+    sensitivity_frame,
+)
 
 #: Plain-language description of each indicator family, keyed by the prefix the
 #: indicator names share. The dashboard cannot read indicators.yaml's prose
@@ -150,6 +157,8 @@ def render() -> None:
 """
     )
 
+    _transition_evidence()
+
     st.divider()
     st.subheader("4. 추세 필터 — 실제로 일을 하는 장치")
 
@@ -229,6 +238,107 @@ def render() -> None:
 자세한 경위는 `docs/strategy.md` 에 있습니다. 실패한 시도와 기각한 이유까지
 남겨두었습니다.
 """
+    )
+
+
+def _transition_evidence() -> None:
+    """Whether the three brakes' numbers survive being pushed around.
+
+    The honest worry about this step is that one day's score picks the rung for
+    the next three months, and that 75 is a number the search happened to land
+    on. Both were measured after the freeze; this shows the answer rather than
+    asking the reader to take the parameters on faith.
+    """
+    trigger = sensitivity("trigger")
+    research = sensitivity("research")
+    validation = sensitivity("validation")
+    if not (trigger and research and validation):
+        return
+
+    with st.expander("이 숫자들은 흔들어도 버티는가 (사후 측정)"):
+        lags = sensitivity_frame(trigger, "lag")
+        baseline = sensitivity_frame(trigger, "baseline")
+        family = pd.concat([baseline, lags]) if not lags.empty else baseline
+
+        st.markdown("**걱정 1 — 하루짜리 점수가 석 달 반의 레버리지를 정한다**")
+        if not family.empty:
+            spread = (family["cagr"].max() - family["cagr"].min()) * 100
+            depth = (family["max_drawdown"].min() - family["max_drawdown"].max()) * 100
+            st.markdown(
+                f"""
+최소 유지 기간이 풀린 뒤 단계는 점수가 칸을 벗어난 **첫 날**에 바뀌고, 옮겨가는
+곳은 그 하루의 점수가 속한 칸입니다. 확인이 1일이라 지속성 검사도 없습니다.
+
+그래서 신호를 1~10거래일 늦춰 **76일차에 다른 날이 오도록** 흔들어 봤습니다
+(30년 전 구간, 변경 93회).
+
+- CAGR 폭 **{spread:.2f}%p**, 최대낙폭 폭 **{abs(depth):.1f}%p**
+- 고정된 설정은 그 분포의 **아래쪽 절반**에 있습니다 — 트리거 운을 잘 타서
+  좋아 보이는 값이 아닙니다.
+- 점수를 3·5·10·20일 평균으로 **부드럽게 하면 오히려 낙폭이 나빠집니다.**
+  공포에 먼저 올라타는 것이 이 사다리가 하는 일이라, 지속성을 요구하면 진입이
+  늦어지고 늦은 진입은 바닥에서 손해입니다.
+"""
+            )
+
+        st.divider()
+        st.markdown("**걱정 2 — 75일이라는 숫자에 근거가 있는가**")
+        table = _duration_table(research, validation)
+        if not table.empty:
+            st.dataframe(
+                table.style.format(
+                    {
+                        "탐색 CAGR": "{:.1%}",
+                        "탐색 최대낙폭": "{:.1%}",
+                        "검증 CAGR": "{:.1%}",
+                        "검증 최대낙폭": "{:.1%}",
+                    }
+                ),
+                hide_index=True,
+                width="stretch",
+            )
+        st.markdown(
+            """
+**수익률로는 근거가 없습니다.** 탐색 구간은 120일을, 검증 구간은 90일을
+가리킵니다 — 두 창이 다른 값을 가리키니 이 축은 아무것도 구분하지 못합니다.
+
+**낙폭에서는 75일이 두 창 모두 1위입니다.** 두 창의 낙폭은 서로 다른 사건에서
+났습니다 — 탐색은 닷컴·금융위기, 검증은 2020년 3월.
+
+**그래도 아직 지지받는 값이라고는 못 합니다.** 두 창이 합의하는 것은 75 하나뿐이고
+주변은 전혀 합의하지 않습니다 — 20일은 탐색에서 2위인데 검증에서는 꼴찌입니다.
+이웃이 받쳐주지 않는 1위는 우연과 구별되지 않습니다.
+
+다만 틀렸을 때의 대가는 제한적입니다. 한 칸 어긋나도 레버리지 차이는 0.4x
+수준이고, **추세 필터는 단계와 무관하게 매일 돌아** 추세가 무너지면 몇 칸에
+있든 0.5x 로 묶습니다.
+"""
+        )
+        st.caption(
+            "전부 고정된 v1.0-frozen 을 **잰 기록**이며 설정은 바뀌지 않았습니다. "
+            "OOS 구간은 이 측정에서 열지 않았습니다. 전이 장치만 흔든 것이고, "
+            "추세 필터와 지표 가중치는 이 측정의 대상이 아닙니다 "
+            "(`docs/strategy.md` §2.10)."
+        )
+
+
+def _duration_table(research: dict, validation: dict) -> pd.DataFrame:
+    """Minimum-duration sweep, the two consumed windows side by side."""
+    left = sensitivity_frame(research, "d=").set_index("variant")
+    right = sensitivity_frame(validation, "d=").set_index("variant")
+    if left.empty or right.empty:
+        return pd.DataFrame()
+    return pd.DataFrame(
+        {
+            "유지 기간": [
+                f"{name.removeprefix('d=')}일" + ("  ← 현재" if left.loc[name, "frozen"] else "")
+                for name in left.index
+            ],
+            "탐색 CAGR": left["cagr"].to_numpy(),
+            "탐색 최대낙폭": left["max_drawdown"].to_numpy(),
+            "검증 CAGR": right["cagr"].to_numpy(),
+            "검증 최대낙폭": right["max_drawdown"].to_numpy(),
+        }
     )
 
 

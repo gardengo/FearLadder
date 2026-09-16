@@ -47,6 +47,14 @@ CORE = "#111111"
 LOCK = {"light": "#8a6d1f", "dark": "#d9b04a"}
 
 PERFORMANCE_REPORT = paths.REPORTS_DIR / "performance.json"
+#: Written by scripts/transition_sensitivity.py. Optional: the dashboard shows
+#: the evidence when it exists and simply omits the section when it does not.
+SENSITIVITY_REPORTS = {
+    "trigger": paths.REPORTS_DIR / "transition_sensitivity.json",
+    "sweep": paths.REPORTS_DIR / "transition_parameter_sweep.json",
+    "research": paths.REPORTS_DIR / "transition_sweep_research.json",
+    "validation": paths.REPORTS_DIR / "transition_sweep_validation.json",
+}
 STRATEGY_LABEL = "전략"
 
 
@@ -140,6 +148,40 @@ def performance_report(path: str | None = None) -> dict[str, Any] | None:
     if not target.is_file():
         return None
     return json.loads(target.read_text(encoding="utf-8"))
+
+
+@st.cache_data(ttl=CACHE_SECONDS)
+def sensitivity(name: str) -> dict[str, Any] | None:
+    """One of the robustness measurements, or ``None`` if it was never run.
+
+    Like the performance report, these are read rather than recomputed: the
+    dashboard can only show what a measurement actually produced.
+    """
+    target = SENSITIVITY_REPORTS.get(name)
+    if target is None or not target.is_file():
+        return None
+    return json.loads(target.read_text(encoding="utf-8"))
+
+
+def sensitivity_frame(report: dict[str, Any] | None, prefix: str) -> Any:
+    """The variants of one family (``d=``/``c=``/``h=``/``lag``/``mean``)."""
+    import pandas as pd
+
+    if not report:
+        return pd.DataFrame()
+    rows = [
+        {
+            "variant": item["variant"].replace(" *", ""),
+            "frozen": item["variant"].endswith(" *"),
+            "cagr": item["cagr"],
+            "max_drawdown": item["max_drawdown"],
+            "sharpe": item["sharpe"],
+            "regime_changes": item["regime_changes"],
+        }
+        for item in report["variants"]
+        if item["variant"].startswith(prefix)
+    ]
+    return pd.DataFrame(rows)
 
 
 @st.cache_data(ttl=CACHE_SECONDS)
