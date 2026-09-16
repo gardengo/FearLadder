@@ -102,6 +102,20 @@ python scripts/prune_observations.py --keep-years 1
 30년 전체 성과는 `reports/performance.json` 에 이미 계산돼 있으므로 '성과' 탭은
 이 정리에 영향받지 않는다.
 
+**대신 그 리포트를 이 체크아웃에서 다시 만들 수는 없다.** 5년으로 잘린 DB 로
+`make_performance_report.py` 를 돌리면 1996–2026 리포트가 2021–2026 리포트로
+바뀐다 — 파일 이름도 모양도 같고 숫자만 다르다. 그래서 스크립트가 거부한다:
+
+```bash
+python scripts/make_performance_report.py
+# refusing to write: the loaded data starts 2021-09-15, after the frozen
+# strategy's research window opens (1999-01-01) ...
+```
+
+진짜로 다시 만들려면 `scripts/backfill_history.py` 로 전체 이력을 DB 에 되돌린
+뒤에 실행한다. 5년치 리포트가 정말 필요하면 `--allow-short-window --out` 으로
+다른 경로에 쓴다. 커밋된 리포트는 건드리지 않는다.
+
 ---
 
 ## 2. Telegram 설정

@@ -127,6 +127,7 @@ nasdaq-leverage-fear-ladder/
 │   ├── streamlit_app.py     # 탭 배선만
 │   ├── assets/favicon.png
 │   └── views/               # 탭 하나당 모듈. 엔진을 import 하지 않는다
+│                            # (reason_codes 를 문장으로 옮기는 일은 views/common.py)
 │
 ├── data/
 │   ├── fear_ladder.db

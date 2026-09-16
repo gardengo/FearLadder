@@ -122,7 +122,7 @@ class DashboardQueries:
         start = (date.today() - timedelta(days=days)).isoformat()
         sql = (
             "SELECT observation_date, composite_score, regime, raw_regime, "
-            "target_leverage, data_quality_status, strategy_version "
+            "target_leverage, data_quality_status, reason_codes, strategy_version "
             "FROM market_states WHERE observation_date >= ?"
         )
         params: list[object] = [start]
@@ -154,33 +154,6 @@ class DashboardQueries:
         wide.index = pd.to_datetime(wide.index)
         wide.columns.name = None
         return wide
-
-    def indicator_history(
-        self,
-        indicator_name: str,
-        strategy_version: str,
-        *,
-        days: int = DEFAULT_HISTORY_DAYS,
-    ) -> DataFrame:
-        start = (date.today() - timedelta(days=days)).isoformat()
-        with read_only(self.db_path) as connection:
-            frame = pd.read_sql_query(
-                "SELECT observation_date, score, raw_value FROM indicator_scores "
-                "WHERE indicator_name = ? AND strategy_version = ? "
-                "AND observation_date >= ? ORDER BY observation_date",
-                connection,
-                params=(indicator_name, strategy_version, start),
-            )
-        return _with_dates(frame)
-
-    def available_indicators(self, strategy_version: str) -> list[str]:
-        with read_only(self.db_path) as connection:
-            rows = connection.execute(
-                "SELECT DISTINCT indicator_name FROM indicator_scores "
-                "WHERE strategy_version = ? ORDER BY indicator_name",
-                (strategy_version,),
-            ).fetchall()
-        return [str(row["indicator_name"]) for row in rows]
 
     def allocation_history(
         self, strategy_version: str, *, days: int = DEFAULT_HISTORY_DAYS
