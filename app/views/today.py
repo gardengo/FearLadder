@@ -19,10 +19,11 @@ import streamlit as st
 from fear_ladder.constants import UNKNOWN_REGIME
 from fear_ladder.pipeline.queries import is_signal_stale
 from views.common import (
+    CORE,
     REGIME_COLOURS,
     Rung,
     gates,
-    ink,
+    halo,
     ladder,
     load,
     lock_colour,
@@ -177,7 +178,7 @@ def _ladder(state: dict, rungs: list[Rung], report: dict | None) -> None:
 def _scale(rungs: list[Rung], score: float | None, lines) -> go.Figure:  # type: ignore[no-untyped-def]
     """The 0-100 score line, its bands, and the two lines it has to clear."""
     palette = regime_palette([rung.label for rung in rungs])
-    amber, foreground = lock_colour(), ink()
+    amber = lock_colour()
     figure = go.Figure()
     for index, rung in enumerate(rungs):
         fill = palette.get(rung.label, REGIME_COLOURS[index % len(REGIME_COLOURS)])
@@ -212,14 +213,20 @@ def _scale(rungs: list[Rung], score: float | None, lines) -> go.Figure:  # type:
         )
 
     if score is not None:
-        figure.add_vline(x=score, line={"color": foreground, "width": 2.5})
+        # Two lines, not one: today's score is the single mark on this strip a
+        # reader must never lose, so it does not depend on getting the theme
+        # right. The light layer shows on a dark ground, the dark one on light.
+        for layer in halo():
+            figure.add_vline(x=score, line=layer)
         figure.add_annotation(
             x=score,
             y=1.0,
             yanchor="bottom",
             text=f"<b>{score:.1f}</b>",
             showarrow=False,
-            font={"size": 13, "color": foreground},
+            font={"size": 13, "color": "#ffffff"},
+            bgcolor=CORE,
+            borderpad=3,
         )
 
     figure.update_xaxes(range=[0, 100], tickvals=[0, *(_edges(rungs)), 100])

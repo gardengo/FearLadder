@@ -36,6 +36,11 @@ UNKNOWN_COLOUR = "#9e9e9e"
 #: disappear into one theme or the other — a near-black QQQ line on Streamlit's
 #: dark background is invisible, which is exactly what happened.
 INK = {"light": "#222222", "dark": "#e6e8ea"}
+#: Drawn under a dark mark, and over a light one. A two-layer line reads on any
+#: ground without asking which ground it is — the pair always contains one mark
+#: the background cannot swallow.
+HALO = "#f5f5f5"
+CORE = "#111111"
 #: Everything a transition brake does is shown in this one colour, so a reader
 #: learns it once: amber means "the score says one rung, the rules hold you on
 #: another". Lifted in dark mode, where the darker amber turns to mud.
@@ -46,12 +51,23 @@ STRATEGY_LABEL = "전략"
 
 
 def theme() -> str:
-    """``"dark"`` or ``"light"``, as the browser is currently rendering.
+    """``"dark"`` or ``"light"``, as the app is actually being rendered.
 
-    Streamlit themes its own chrome and the plotly frame automatically; what it
-    cannot do is recolour a hex this code hands to a trace. Anything outside a
-    live session (a test, a bare import) reads as light.
+    Order matters. ``st.context.theme.type`` reports the *browser's* preference,
+    not the theme Streamlit resolved: with ``--theme.base light`` it still says
+    "dark" on a dark-mode machine, which is how the light page ended up drawing
+    near-white lines on white. A configured base wins; only when there is none
+    does Streamlit follow the browser, and then the browser is the right answer.
+
+    Nothing legibility-critical should depend on this — see ``halo()``. It picks
+    between two readable options, never between readable and invisible.
     """
+    try:
+        base = st.get_option("theme.base")
+    except Exception:
+        base = None
+    if base in {"light", "dark"}:
+        return str(base)
     try:
         return st.context.theme.type or "light"
     except Exception:  # no session, or an older Streamlit without the field
@@ -68,6 +84,19 @@ def lock_colour() -> str:
     return LOCK[theme()]
 
 
+def halo() -> tuple[dict[str, object], dict[str, object]]:
+    """A light line and a dark line to draw on top of it, in that order.
+
+    Theme-proof by construction: on white the dark core carries the mark and
+    the halo is invisible; on near-black the halo carries it. Used for marks
+    that must never disappear, whatever the theme detection thinks.
+    """
+    return (
+        {"color": HALO, "width": 5},
+        {"color": CORE, "width": 2},
+    )
+
+
 def readable_on(fill: str) -> str:
     """Black or white text, whichever can be read on ``fill``.
 
@@ -79,8 +108,17 @@ def readable_on(fill: str) -> str:
     return "#111111" if luminance > 0.55 else "#ffffff"
 
 
-@st.cache_resource
 def queries() -> DashboardQueries:
+    """A fresh reader every call. Deliberately not cached.
+
+    ``DashboardQueries`` holds one optional path and opens a connection per
+    query, so there is nothing here worth keeping. Caching it was actively
+    harmful: ``st.cache_resource`` survives a hot reload and hands back an
+    instance of the *previous* class object, so freshly deployed view code went
+    on calling the previous release's SQL — which is how the record tab started
+    asking a DataFrame for a ``reason_codes`` column the old query never
+    selected.
+    """
     return DashboardQueries()
 
 

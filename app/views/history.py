@@ -13,13 +13,14 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from plotly.subplots import make_subplots
 
 from fear_ladder.constants import UNKNOWN_REGIME
 from fear_ladder.pipeline.queries import regime_spans
 from views.common import (
     UNKNOWN_COLOUR,
     band_opacity,
-    ink,
+    halo,
     ladder,
     load,
     lock_colour,
@@ -43,6 +44,17 @@ PERIODS: tuple[tuple[str, int], ...] = (
 DEFAULT_PERIOD = 2  # 1년
 
 SECTIONS = ("차트", "단계별 일지", "잠금 통계")
+
+#: Sleeves from the most aggressive down, so the stack reads the way the
+#: ladder table does. Shaded by leverage rather than by an arbitrary palette:
+#: denser means more exposure.
+ASSET_ROWS = {"TQQQ": "TQQQ 3x", "QLD": "QLD 2x", "QQQ": "QQQ 1x", "CASH": "현금"}
+SLEEVE_COLOURS = {
+    "TQQQ": "#7b3294",
+    "QLD": "#c2a5cf",
+    "QQQ": "#a6dba0",
+    "CASH": "#cfcfcf",
+}
 
 LOCK_LABELS = {
     "min_duration": "최소 유지 기간",
@@ -92,72 +104,223 @@ def render(version: str) -> None:
 
 
 def _charts(version: str, history: pd.DataFrame, days: int) -> None:
-    palette = regime_palette(history["regime"].dropna().unique().tolist())
+    """One figure, one timeline.
 
-    st.subheader("QQQ 와 단계")
+    These four series only mean anything against each other — the score falls,
+    the ladder eventually follows, the sleeves change, the leverage steps down.
+    As four charts with four independent x-axes that story had to be assembled
+    by eye. Stacked rows on a shared axis tell it directly: a vertical line
+    through the figure is one day, everywhere.
+    """
+    palette = regime_palette(history["regime"].dropna().unique().tolist())
     prices = load("price_history", ("QQQ",), days=days)
-    figure = go.Figure()
-    if not prices.empty:
-        spans = regime_spans(history)
-        _shade(figure, spans, palette)
-        figure.add_scatter(
-            x=prices.index, y=prices["QQQ"], name="QQQ", line={"color": ink(), "width": 1.6}
-        )
-        _name_the_bands(figure, spans, palette, total=history.index[-1] - history.index[0])
-    figure.update_layout(height=400, showlegend=False, margin={"t": 30})
+    allocations = load("allocation_history", version, days=days)
+    spans = regime_spans(history)
+
+    figure = make_subplots(
+        rows=3,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.05,
+        row_heights=[0.40, 0.28, 0.32],
+        specs=[[{"secondary_y": True}], [{}], [{"secondary_y": True}]],
+        subplot_titles=(
+            "QQQ 와 종합점수",
+            "점수가 가리킨 칸과 실제로 선 칸",
+            "목표 비중과 레버리지",
+        ),
+    )
+
+    _price_and_score(figure, history, prices, palette, spans)
+    _step_rows(figure, history)
+    _sleeves(figure, history, allocations)
+
+    figure.update_layout(
+        height=920,
+        hovermode="x unified",
+        legend={"orientation": "h", "y": -0.06, "x": 0},
+        margin={"l": 8, "r": 8, "t": 40, "b": 8},
+        # The regime bands are drawn on the "below" layer, which sits under the
+        # panel fill as well as under the traces — on an opaque panel they are
+        # painted and then covered up.
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
     st.plotly_chart(figure, width="stretch")
     st.caption(
-        "칩에 적힌 것이 그 구간의 단계입니다. 빨강일수록 공포(레버리지를 올리는 "
-        "구간), 초록일수록 탐욕(내리는 구간) — 차트 관례대로 하락이 빨강입니다."
+        "세 칸 모두 같은 날짜 축입니다 — 세로로 읽으면 그날의 점수·단계·보유가 "
+        "한 줄로 보입니다. 위 칸의 칩이 그 구간의 단계이고, 가운데 칸에서 두 선이 "
+        "벌어진 구간이 **잠금 구간**입니다. 아래 칸의 계단선이 그 결과로 실제 든 "
+        "레버리지입니다."
     )
 
-    st.subheader("점수가 가리킨 칸과 실제로 선 칸")
-    st.plotly_chart(_steps(history), width="stretch")
-    st.caption(
-        "실선 = 실제 단계, 점선 = 점수가 그날 가리킨 단계. **두 선이 벌어진 구간이 "
-        "잠금 구간**입니다 — 점수는 옮겨갔는데 확인·히스테리시스·최소 유지 규칙이 "
-        "아직 단계를 옮겨주지 않은 날들입니다."
-    )
 
-    left, right = st.columns(2)
-    with left:
-        st.subheader("종합점수")
-        st.plotly_chart(_score(history), width="stretch")
-    with right:
-        st.subheader("목표 레버리지")
-        figure = px.line(history, y="target_leverage", line_shape="hv")
-        figure.update_layout(height=320, yaxis_title="leverage (x)", xaxis_title="")
-        st.plotly_chart(figure, width="stretch")
-
-    st.subheader("목표 비중")
-    allocations = load("allocation_history", version, days=days)
-    if allocations.empty:
-        st.info("배분 이력이 없습니다.")
-    else:
-        figure = px.area(
-            allocations,
-            color_discrete_sequence=px.colors.qualitative.Set2,
-            labels={"value": "weight", "observation_date": ""},
+def _price_and_score(
+    figure: go.Figure,
+    history: pd.DataFrame,
+    prices: pd.DataFrame,
+    palette: dict,
+    spans: list,
+) -> None:
+    """Price against the score that is judging it, on one pair of axes."""
+    if not prices.empty:
+        figure.add_trace(
+            go.Scatter(x=prices.index, y=prices["QQQ"], name="QQQ", line={"width": 1.6}),
+            row=1,
+            col=1,
         )
-        figure.update_layout(height=320, yaxis_range=[0, 1])
-        st.plotly_chart(figure, width="stretch")
+    figure.add_trace(
+        go.Scatter(
+            x=history.index,
+            y=history["composite_score"],
+            name="종합점수",
+            line={"width": 1.3, "dash": "dot"},
+            opacity=0.85,
+        ),
+        row=1,
+        col=1,
+        secondary_y=True,
+    )
+    # After the traces, never before: a shape resolves ``row``/``col`` against
+    # the axes the subplot already has, and on an empty panel it matches
+    # nothing and is silently dropped.
+    bounds = _price_bounds(prices)
+    _shade(figure, spans, palette, bounds, row=1)
+    if spans:
+        _name_the_bands(
+            figure, spans, palette, total=history.index[-1] - history.index[0], row=1
+        )
+    # Pinned, so the bands drawn in these coordinates fill the panel exactly.
+    figure.update_yaxes(title_text="QQQ", range=list(bounds), row=1, col=1, secondary_y=False)
+    figure.update_yaxes(
+        title_text="점수", range=[0, 100], row=1, col=1, secondary_y=True, showgrid=False
+    )
 
 
-def _shade(figure: go.Figure, spans: list, palette: dict) -> None:
-    """Paint one band per regime run, behind everything else."""
+def _step_rows(figure: go.Figure, history: pd.DataFrame) -> None:
+    """The ladder the score asked for, against the one actually held."""
+    order = _rungs() or sorted(set(history["regime"].dropna()) - {UNKNOWN_REGIME})
+    rank = {label: index for index, label in enumerate(order)}
+    amber = lock_colour()
+
+    # Filled between the two lines rather than shaded behind them. The score
+    # points elsewhere on most days, so a band per divergence covered almost
+    # the whole chart and said nothing; the gap's *height* is the information —
+    # how many rungs apart the score and the ladder are.
+    figure.add_trace(
+        go.Scatter(
+            x=history.index,
+            y=history["raw_regime"].map(rank),
+            name="점수가 가리킨 단계",
+            line={"color": amber, "width": 1.4, "dash": "dash"},
+            line_shape="hv",
+        ),
+        row=2,
+        col=1,
+    )
+    figure.add_trace(
+        go.Scatter(
+            x=history.index,
+            y=history["regime"].map(rank),
+            name="실제 단계",
+            line={"width": 2.4},
+            line_shape="hv",
+            fill="tonexty",
+            fillcolor=_translucent(amber, 0.22),
+        ),
+        row=2,
+        col=1,
+    )
+    figure.update_yaxes(
+        tickmode="array",
+        tickvals=list(range(len(order))),
+        ticktext=order,
+        range=[-0.5, len(order) - 0.5],
+        row=2,
+        col=1,
+    )
+
+
+def _sleeves(figure: go.Figure, history: pd.DataFrame, allocations: pd.DataFrame) -> None:
+    """What is held, and the leverage that comes out of holding it.
+
+    The same fact twice — leverage is 1·QQQ + 2·QLD + 3·TQQQ of these weights —
+    so they belong on one pair of axes rather than side by side, where the eye
+    has to carry a shape across the gap to see they agree.
+    """
+    if not allocations.empty:
+        for asset in [name for name in ASSET_ROWS if name in allocations.columns]:
+            figure.add_trace(
+                go.Scatter(
+                    x=allocations.index,
+                    y=allocations[asset],
+                    name=ASSET_ROWS[asset],
+                    stackgroup="sleeves",
+                    line={"width": 0},
+                    fillcolor=SLEEVE_COLOURS[asset],
+                    hovertemplate="%{y:.0%}<extra>" + ASSET_ROWS[asset] + "</extra>",
+                ),
+                row=3,
+                col=1,
+            )
+    # Two layers again: this line has to stay legible over the sleeve fills in
+    # either theme, and the fills are the same colours in both.
+    for index, layer in enumerate(halo()):
+        figure.add_trace(
+            go.Scatter(
+                x=history.index,
+                y=history["target_leverage"],
+                name="목표 레버리지",
+                line={**layer, "shape": "hv"},
+                # Neither layer takes a legend slot: the dark core's swatch is
+                # invisible on a dark legend and the light one on a light legend,
+                # and the right-hand axis already names this line.
+                showlegend=False,
+                hoverinfo="skip" if index == 0 else None,
+            ),
+            row=3,
+            col=1,
+            secondary_y=True,
+        )
+    figure.update_yaxes(
+        title_text="비중", range=[0, 1], tickformat=".0%", row=3, col=1, secondary_y=False
+    )
+    figure.update_yaxes(
+        title_text="레버리지 (x)", row=3, col=1, secondary_y=True, showgrid=False
+    )
+
+
+def _shade(
+    figure: go.Figure, spans: list, palette: dict, bounds: tuple[float, float], *, row: int = 1
+) -> None:
+    """Paint one band per regime run, behind the traces.
+
+    Drawn in the panel's own data coordinates rather than against its domain,
+    and on the "below" layer. Both matter: Streamlit ships its own plotly.js,
+    which is older than the ``layer="between"`` this wants and silently drops a
+    shape that asks for it — the bands were built every run and never appeared.
+    """
     alpha = band_opacity()
+    low, high = bounds
     for start, end, regime in spans:
-        figure.add_vrect(
+        figure.add_shape(
+            type="rect",
             x0=start,
             x1=end,
+            y0=low,
+            y1=high,
             fillcolor=palette.get(regime, UNKNOWN_COLOUR),
             opacity=alpha,
             line_width=0,
             layer="below",
+            row=row,
+            col=1,
+            secondary_y=False,
         )
 
 
-def _name_the_bands(figure: go.Figure, spans: list, palette: dict, total) -> None:  # type: ignore[no-untyped-def]
+def _name_the_bands(  # type: ignore[no-untyped-def]
+    figure: go.Figure, spans: list, palette: dict, total, *, row: int = 1
+) -> None:
     """Write each band's stage on the band, the way the ladder strip does.
 
     A legend of colours under the chart makes the reader hold seven hues in
@@ -174,7 +337,10 @@ def _name_the_bands(figure: go.Figure, spans: list, palette: dict, total) -> Non
         figure.add_annotation(
             x=start + (end - start) / 2,
             y=0.97,
-            yref="paper",
+            # "y domain", not "paper": inside a subplot, paper coordinates are
+            # the whole figure, and a plain number is read as a *data* value —
+            # which dragged the price axis down to include 1.
+            yref="y domain",
             yanchor="top",
             text=regime,
             showarrow=False,
@@ -182,7 +348,21 @@ def _name_the_bands(figure: go.Figure, spans: list, palette: dict, total) -> Non
             bgcolor=fill,
             borderpad=3,
             opacity=0.95,
+            row=row,
+            col=1,
         )
+
+
+def _price_bounds(prices: pd.DataFrame) -> tuple[float, float]:
+    """The price panel's y range, with a little air above and below."""
+    if prices.empty or "QQQ" not in prices:
+        return (0.0, 1.0)
+    series = prices["QQQ"].dropna()
+    if series.empty:
+        return (0.0, 1.0)
+    low, high = float(series.min()), float(series.max())
+    margin = (high - low) * 0.06 or 1.0
+    return (low - margin, high + margin)
 
 
 def _translucent(colour: str, alpha: float) -> str:
@@ -193,87 +373,6 @@ def _translucent(colour: str, alpha: float) -> str:
 
 def _rungs() -> list[str]:
     return [rung.label for rung in ladder(performance_report())]
-
-
-def _steps(history: pd.DataFrame) -> go.Figure:
-    """Actual rung and the rung the score pointed at, on one fear-to-greed axis."""
-    order = _rungs() or sorted(set(history["regime"].dropna()) - {UNKNOWN_REGIME})
-    rank = {label: index for index, label in enumerate(order)}
-
-    actual = history["regime"].map(rank)
-    raw = history["raw_regime"].map(rank)
-
-    amber = lock_colour()
-    figure = go.Figure()
-    # Filled between the two lines rather than shaded behind them. The score
-    # points elsewhere on most days, so a band per divergence covered almost
-    # the whole chart and said nothing; the gap's *height* is the information —
-    # how many rungs apart the score and the ladder are.
-    figure.add_scatter(
-        x=history.index,
-        y=raw,
-        name="점수가 가리킨 단계",
-        line={"color": amber, "width": 1.4, "dash": "dash"},
-        line_shape="hv",
-    )
-    figure.add_scatter(
-        x=history.index,
-        y=actual,
-        name="실제 단계",
-        line={"color": ink(), "width": 2.4},
-        line_shape="hv",
-        fill="tonexty",
-        fillcolor=_translucent(amber, 0.22),
-    )
-    figure.update_yaxes(
-        tickmode="array",
-        tickvals=list(range(len(order))),
-        ticktext=order,
-        range=[-0.5, len(order) - 0.5],
-    )
-    figure.update_layout(
-        height=360,
-        legend={"orientation": "h", "y": 1.12},
-        margin={"l": 8, "r": 8, "t": 30, "b": 8},
-    )
-    return figure
-
-
-def _score(history: pd.DataFrame) -> go.Figure:
-    """The composite score against the bands it is being classified into."""
-    rungs = ladder(performance_report())
-    palette = regime_palette([rung.label for rung in rungs])
-
-    alpha = band_opacity()
-    figure = go.Figure()
-    for rung in rungs:
-        fill = palette.get(rung.label, UNKNOWN_COLOUR)
-        figure.add_hrect(
-            y0=rung.low,
-            y1=rung.high,
-            fillcolor=fill,
-            opacity=alpha,
-            line_width=0,
-            layer="below",
-            annotation_text=rung.label,
-            annotation_position="top left",
-            annotation_font={"size": 9, "color": readable_on(fill)},
-            annotation_bgcolor=fill,
-            annotation_borderpad=2,
-        )
-    figure.add_scatter(
-        x=history.index,
-        y=history["composite_score"],
-        name="score",
-        line={"color": ink(), "width": 1.6},
-    )
-    figure.update_layout(
-        height=320, yaxis_title="score", yaxis_range=[0, 100], xaxis_title="", showlegend=False
-    )
-    return figure
-
-
-# ------------------------------------------------------------------- journal
 
 
 def _journal(version: str, history: pd.DataFrame) -> None:
@@ -362,7 +461,11 @@ def _locks(history: pd.DataFrame) -> None:
     locked = int(sum(apart))
 
     counts: dict[str, int] = dict.fromkeys(LOCK_LABELS, 0)
-    for codes in history["reason_codes"]:
+    # ``st.cache_data`` outlives a hot reload too, so for up to its TTL after a
+    # deploy this frame can still be the previous release's column set. The
+    # headline number is derivable without the codes; the breakdown is not.
+    stored_codes = history.get("reason_codes")
+    for codes in [] if stored_codes is None else stored_codes:
         for brake in locks(codes):
             counts[brake.kind] = counts.get(brake.kind, 0) + 1
 
@@ -391,6 +494,11 @@ def _locks(history: pd.DataFrame) -> None:
         figure.update_traces(marker_color=lock_colour())
         figure.update_layout(height=180, margin={"l": 8, "r": 8, "t": 10, "b": 30})
         st.plotly_chart(figure, width="stretch")
+    elif stored_codes is None:
+        st.info(
+            "원인별 내역은 방금 배포된 코드가 아직 이전 응답을 캐시하고 있어 "
+            "비어 있습니다. 사이드바의 **새로고침** 을 누르면 채워집니다."
+        )
     else:
         st.info("이 기간에는 제동이 걸린 날이 없습니다.")
 
