@@ -64,8 +64,6 @@ from fear_ladder.data.collectors.synthetic import (
     TRADING_DAYS_PER_YEAR,
     SyntheticLeveragedProvider,
     daily_financing,
-    leveraged_returns,
-    rebase,
 )
 from fear_ladder.data.interfaces import MarketObservationRepository
 from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
@@ -73,6 +71,7 @@ from fear_ladder.monitoring.logging import configure_logging
 from fear_ladder.research.backtest_runner import MarketData, StrategyBacktest
 from fear_ladder.research.data_loader import load_market_data
 from fear_ladder.research.performance import cash_curve, window_stats
+from fear_ladder.research.reconstruction import implied_drag, model_path
 
 logger = logging.getLogger("reconstruction_accuracy")
 
@@ -188,56 +187,9 @@ def closes(
     return series
 
 
-def model_path(
-    underlying: Series, real: Series, *, leverage: float, financing: Series, drag: float
-) -> Series:
-    """The reconstruction of ``real``, anchored on the window's first real price.
-
-    Anchoring at the *window* start rather than at the fund's inception is the
-    whole point: it isolates the error the model accumulates inside the window
-    from the error it inherited before entering it.
-    """
-    returns = leveraged_returns(underlying, leverage=leverage, financing=financing, drag=drag)
-    anchor = real.index[0]
-    path = rebase(returns, anchor_value=float(real.iloc[0]), anchor_date=anchor)
-    return path.loc[anchor : real.index[-1]]
-
-
 def worst_drawdown(prices: Series) -> tuple[date, float]:
     drawdown = prices / prices.cummax() - 1.0
     return drawdown.idxmin(), float(drawdown.min())
-
-
-def implied_drag(
-    underlying: Series, real: Series, *, leverage: float, financing: Series
-) -> float | None:
-    """The constant annual drag that would have made the model end where the fund did.
-
-    ``MEASURED_DRAG`` is one number fitted over a fund's whole life, and a whole
-    life is mostly calm. This solves for the drag the window *by itself* implies,
-    so a divergence stops being an unexplained tracking error and becomes a
-    statement about what the fund's carry actually cost during it — the swap
-    spread a leveraged fund pays is exactly what widens when funding freezes.
-
-    ``None`` when the answer lies outside a plausible −50%…+150%/yr bracket,
-    which means the divergence is not a carry story at all.
-    """
-    target = float(real.iloc[-1] / real.iloc[0])
-
-    def growth(drag: float) -> float:
-        path = model_path(underlying, real, leverage=leverage, financing=financing, drag=drag)
-        return float(path.iloc[-1] / path.iloc[0])
-
-    low, high = -0.50, 1.50  # growth falls as drag rises, so low brackets above
-    if growth(low) < target or growth(high) > target:
-        return None
-    for _ in range(60):
-        middle = (low + high) / 2.0
-        if growth(middle) > target:
-            low = middle
-        else:
-            high = middle
-    return (low + high) / 2.0
 
 
 def compare(real: Series, model: Series) -> dict[str, object]:
@@ -285,7 +237,7 @@ def measure_window(
     provider: SyntheticLeveragedProvider,
 ) -> dict[str, object] | None:
     """One fund over one window, or ``None`` when its real prices do not cover it."""
-    inception = INCEPTION[symbol]
+    inception = provider.inceptions[symbol]
     start = window.start or inception
     if start < inception:
         logger.info(

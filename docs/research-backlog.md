@@ -112,7 +112,7 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 
 ## 2. 이미 아는 것 (다시 재지 말 것)
 
-§2.10–§2.11 의 결론 요약. 재현 명령은 각 절에 있다.
+§2.10–§2.16 의 결론 요약. 재현 명령은 각 절에 있다.
 
 - **`minimum_duration_days = 75`** — 성과 축에서는 어떤 값도 구별되지 않는다.
   탐색창의 "낙폭 최소" 는 **전부 2010-02-11 이전**, 즉 재구성 가격 구간에서 나온
@@ -125,7 +125,8 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
   악화**시킨다. 이 사다리는 공포에 먼저 들어가는 장치라 지속성 요구가 손해다.
 - **`trend_filter.max_leverage_below = 0.5x`** — `d`·`h` 와 달리 **단조**이고
   실제 효과다. 대폭락에서 0.25 칸당 낙폭 약 10%p, 잔잔한 실물 구간에서는 1%p.
-  **현재 전략의 최대 미검증 노출.**
+  **미검증인 것은 효과가 아니라 0.5 라는 수준의 선택이다** — 효과 자체는 다른
+  시장에서 재현되고(§2.13) 재구성 오차에도 둔감하다(§2.12).
 - 전략 전체 최대낙폭 −62.4% 는 2000-03-27 → 2002-10-09, **재구성 가격 구간**.
   실물 구간 최대낙폭은 −46.6%, 2021-11-19 → 2023-03-10 이고 회복에 2.3년.
 - 2020년 3월은 이 전략에서 −25% 국면조차 만들지 못했다(추세 필터가 작동).
@@ -135,6 +136,16 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 - **그래도 −62.4% 는 그 오차에 둔감하다** — 재구성 구간 전체에 위기 수준
   조달비용을 물려도 −62.6%. 닷컴 낙폭 구간 평균 보유가 현금 54.8% / QQQ 37.8% /
   QLD 7.4% / TQQQ 0% 라서다. `max_leverage_below` 가 1.5 일 때만 민감해진다(§2.12).
+- **`max_leverage_below` 는 S&P 500 에서 재현된다** — 두 시장 네 창 모두 단조,
+  8개 조합 중 7개가 순위상관 +1.00. `d`·`h` 는 양쪽 다 톱니다(§2.13).
+- **지표는 하나씩 빼서 판단할 수 없다** — 하나씩 빼면 아홉 개가 나아 보이는데
+  전부 창을 바꾸면 부호가 뒤집힌다. 계열째 빼면 여섯 계열 전부 손해(§2.14).
+- **평균 0.45점의 점수 이동이 68% 의 날에 단계를 바꾼다.** 이것은 `score` 가
+  아니라 `transition` 에 대한 사실이다(§2.14).
+- **이벤트 93개로 나누면 `d`·`h` 의 어떤 후보도 고정값과 구별되지 않는다**
+  (|t| 최대 1.42). `cap` 만 총합이 단조이고 그 효과는 한 구간에 몰려 있다(§2.15).
+- **비용: 마찰 = 연간회전율 × bps × (1 + CAGR).** 회전율 3.26회/년이므로
+  현실적인 +10bps 가 연 0.39%p 다. 낙폭은 무감각(§2.16).
 
 ### 기준 수치 (무언가 어긋나면 이걸로 확인한다)
 
@@ -143,9 +154,14 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 
 ---
 
-## 3. 후보 과제
+## 3. 후보 과제 — **전부 완료 (2026-09-18)**
 
-권장 순서대로. 각 항목은 독립적이므로 골라 해도 된다.
+다섯 항목이 모두 측정됐고 결과는 `docs/strategy.md` §2.12–§2.16 에 있다.
+**`config/` 는 한 글자도 바뀌지 않았다.** 각 항목의 요약과 착수 당시의 기록을
+아래에 남긴다 — 나중에 같은 질문이 다시 떠오를 때 무엇을 이미 재 봤는지
+알 수 있도록.
+
+새 과제가 생기면 여기 같은 형식으로 덧붙인다.
 
 ### ~~TASK-181 재구성 모델을 2008년 실물 QLD 로 검증한다~~ — **완료 (2026-09-18)**
 
@@ -190,7 +206,18 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 
 ---
 
-### TASK-182 S&P 500 에서 재현되는가 — 유일하게 독립인 데이터
+### ~~TASK-182 S&P 500 에서 재현되는가~~ — **완료 (2026-09-18)**
+
+`docs/strategy.md` §2.13 · `reports/cross_market.json` ·
+`python scripts/cross_market.py --db <full.db>`
+
+**`max_leverage_below` 는 재현되고 `d`·`h` 는 재현되지 않는다.** cap 은 두 시장
+네 창 모두에서 단조이고 8개 조합 중 7개가 순위상관 +1.00 이며, 부호가 뒤집히는
+자리(잔잔한 구간에서는 올릴수록 유리)까지 같다. `d`·`h` 는 양쪽 다 톱니이고
+시장 간 상관은 −0.60…+0.70 을 떠돈다.
+
+아래는 착수 당시의 기록이다.
+
 
 **질문.** 시간 창은 전부 소진됐다(§2.8). 독립성이 남아 있는 축은 **다른 시장**뿐이다.
 
@@ -218,7 +245,18 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 
 ---
 
-### TASK-183 `score.weights` — 지표를 하나씩 빼 본다
+### ~~TASK-183 `score.weights` — 지표를 하나씩 빼 본다~~ — **완료 (2026-09-18)**
+
+`docs/strategy.md` §2.14 · `reports/indicator_ablation.json` ·
+`python scripts/indicator_ablation.py --db <full.db>`
+
+**집합은 3~4개로 줄지 않는다.** 하나씩 빼면 아홉 개가 빼는 쪽이 나아 보이는데
+**아홉 개 전부 창을 바꾸면 부호가 뒤집히고 전부 검증창에서 음수**다. 계열째
+빼면 여섯 계열 전부 손해다 — 상관된 지표에서 하나씩 빼기는 중요도를 체계적으로
+과소평가한다. 덤으로 얻은 것: 평균 0.45점 이동이 68% 의 날에 단계를 바꾼다.
+
+아래는 착수 당시의 기록이다.
+
 
 **질문.** 20개 지표 가중치는 파라미터 개수로는 가장 큰 미검증 표면인데 아무도
 흔들어본 적이 없다. 지지도 '보통'.
@@ -235,7 +273,19 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 
 ---
 
-### TASK-184 이벤트 단위 분석 — 표본이 1인 문제
+### ~~TASK-184 이벤트 단위 분석~~ — **완료 (2026-09-18)**
+
+`docs/strategy.md` §2.15 · `reports/event_analysis.json` ·
+`python scripts/event_analysis.py --db <full.db>`
+
+**사다리의 edge 는 공포 쪽에 있다** — 93개 이벤트 평균 +2.33%, 공포로 내려가는
+44번은 +3.52%(68% 양수), 탐욕으로 올라가는 49번은 +1.26%(55%). 짝지은 비교
+16개 중 |t|>1.5 가 하나도 없고, `d`=90·120 은 75 와 **구별되지 않는다**.
+`cap` 만 총합이 단조인데 그 효과는 평균이 아니라 **한 구간에 몰려 있다**
+(cap=1.5 손실의 55% 가 단일 구간).
+
+아래는 착수 당시의 기록이다.
+
 
 **질문.** 지금까지의 모든 비교는 30년을 CAGR 하나로 압축했다. **관측이 사실상
 1개**다. 창을 나눠도 3개다.
@@ -253,7 +303,19 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 
 ---
 
-### TASK-185 비용 모델 — 가장 싼 확인
+### ~~TASK-185 비용 모델~~ — **완료 (2026-09-18)**
+
+`docs/strategy.md` §2.16 · `reports/cost_model.json` ·
+`python scripts/cost_model.py --db <full.db>`
+
+**마찰 = 연간회전율 × bps × (1 + CAGR)**, 25칸 전부 0.01%p 안쪽으로 맞는다.
+그래서 새 비용 가정이 생겨도 표를 다시 만들 필요가 없다. 현실적인 +10bps 는
+연 **0.39%p** — 무시할 값은 아니지만 어떤 결론도 뒤집지 않는다(낙폭은 +50bps
+에서도 −62.4% → −63.8%). 회전의 51.6% 가 지수 −20% 아래에서 일어나는데
+그런 날이 49.2% 이므로, 폭락기에 몰려 있지 않다.
+
+아래는 착수 당시의 기록이다.
+
 
 **질문.** `config/strategy.yaml` 에 `commission_bps: 10.0`, `spread_bps: 0.0`,
 `slippage_bps: 0.0`. 코드는 스프레드와 슬리피지를 지원하는데 **둘 다 0**이고
@@ -293,10 +355,15 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 
 | | |
 | --- | --- |
-| 전략 명세·측정 기록 | `docs/strategy.md` (§2.5 지지도 표, §2.10–§2.12 최근 측정) |
+| 전략 명세·측정 기록 | `docs/strategy.md` (§2.5 지지도 표, §2.10–§2.16 최근 측정) |
 | 재구성 모델 | `src/fear_ladder/data/collectors/synthetic.py` |
 | 재구성 정확도 측정 | `scripts/reconstruction_accuracy.py` |
+| 재구성 측정 도구 (공용) | `src/fear_ladder/research/reconstruction.py` |
+| 교차시장 재현 | `scripts/cross_market.py` |
+| 지표 제거 실험 | `scripts/indicator_ablation.py` |
+| 이벤트 단위 분석 | `scripts/event_analysis.py` |
+| 비용 모델 측정 | `scripts/cost_model.py` |
 | 전이 장치 측정 | `scripts/transition_sensitivity.py` |
 | 꼬리위험 측정 | `scripts/tail_risk.py` |
 | 전체 이력 DB 생성 | `scripts/collect_full_history.py` |
-| 기존 리포트 | `reports/transition_sweep_{research,validation,pre2010,real_etf,oos}.json`, `reports/tail_risk.json`, `reports/reconstruction_accuracy.json` |
+| 기존 리포트 | `reports/transition_sweep_{research,validation,pre2010,real_etf,oos}.json`, `reports/tail_risk.json`, `reports/reconstruction_accuracy.json`, `reports/cross_market.json`, `reports/indicator_ablation.json`, `reports/event_analysis.json`, `reports/cost_model.json` |

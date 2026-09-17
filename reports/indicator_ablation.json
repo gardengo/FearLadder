@@ -1,0 +1,1260 @@
+{
+  "ablations": [
+    {
+      "dropped": [
+        "aaii_bull_bear_spread"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.33118473636715223,
+      "remaining": 19,
+      "score_correlation": 0.9994555831057657,
+      "score_mean_abs_shift": 0.24407603645508513,
+      "variant": "drop:aaii_bull_bear_spread",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.18097041315279805,
+          "cagr_change_pp": -0.7830485032791046,
+          "drawdown_change_pp": -3.788784875271012,
+          "max_drawdown": -0.6617355821959547,
+          "regime_changes": 93.0,
+          "sharpe": 0.6152575159163758
+        },
+        "oos 2021-2026": {
+          "cagr": 0.15358419227578657,
+          "cagr_change_pp": -3.8477487480952366,
+          "drawdown_change_pp": -0.2507530299833083,
+          "max_drawdown": -0.46897392411606265,
+          "regime_changes": 18.0,
+          "sharpe": 0.5104181671598712
+        },
+        "research 1999-2015": {
+          "cagr": 0.12745507927982191,
+          "cagr_change_pp": -0.031424919516553906,
+          "drawdown_change_pp": -3.7887848752710673,
+          "max_drawdown": -0.6617355821959551,
+          "regime_changes": 53.0,
+          "sharpe": 0.4833449635541385
+        },
+        "validation 2015-2021": {
+          "cagr": 0.29172560173394535,
+          "cagr_change_pp": 0.8862844275092208,
+          "drawdown_change_pp": -2.72904476130843,
+          "max_drawdown": -0.3060492883017245,
+          "regime_changes": 17.0,
+          "sharpe": 0.9802807422574726
+        }
+      }
+    },
+    {
+      "dropped": [
+        "cnn_fear_greed"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.6864330637915543,
+      "remaining": 19,
+      "score_correlation": 0.999362772592325,
+      "score_mean_abs_shift": 0.454154914218926,
+      "variant": "drop:cnn_fear_greed",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.21263155012132162,
+          "cagr_change_pp": 2.3830651935732527,
+          "drawdown_change_pp": -7.531578650120685,
+          "max_drawdown": -0.6991635199444515,
+          "regime_changes": 95.0,
+          "sharpe": 0.6903445283807725
+        },
+        "oos 2021-2026": {
+          "cagr": 0.21177831087670373,
+          "cagr_change_pp": 1.97166311199648,
+          "drawdown_change_pp": 0.39687821792878664,
+          "max_drawdown": -0.4624976116369417,
+          "regime_changes": 18.0,
+          "sharpe": 0.6696766722004347
+        },
+        "research 1999-2015": {
+          "cagr": 0.13614023439914913,
+          "cagr_change_pp": 0.8370905924161676,
+          "drawdown_change_pp": -7.531578650120752,
+          "max_drawdown": -0.6991635199444519,
+          "regime_changes": 54.0,
+          "sharpe": 0.49947806115739224
+        },
+        "validation 2015-2021": {
+          "cagr": 0.25603930419016363,
+          "cagr_change_pp": -2.682345326868951,
+          "drawdown_change_pp": -4.686731901263652,
+          "max_drawdown": -0.32562615970127673,
+          "regime_changes": 18.0,
+          "sharpe": 0.8606048561489223
+        }
+      }
+    },
+    {
+      "dropped": [
+        "drawdown_30d"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.4407649852393788,
+      "remaining": 19,
+      "score_correlation": 0.9996552942465224,
+      "score_mean_abs_shift": 0.436245535246029,
+      "variant": "drop:drawdown_30d",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.18769811440369355,
+          "cagr_change_pp": -0.11027837818955444,
+          "drawdown_change_pp": -1.0565376234411672,
+          "max_drawdown": -0.6344131096776563,
+          "regime_changes": 93.0,
+          "sharpe": 0.6338539886148694
+        },
+        "oos 2021-2026": {
+          "cagr": 0.21177831087670373,
+          "cagr_change_pp": 1.97166311199648,
+          "drawdown_change_pp": 0.39687821792878664,
+          "max_drawdown": -0.4624976116369417,
+          "regime_changes": 18.0,
+          "sharpe": 0.6696766722004347
+        },
+        "research 1999-2015": {
+          "cagr": 0.13424015973944692,
+          "cagr_change_pp": 0.6470831264459465,
+          "drawdown_change_pp": -1.0565376234411783,
+          "max_drawdown": -0.6344131096776562,
+          "regime_changes": 52.0,
+          "sharpe": 0.503497111486619
+        },
+        "validation 2015-2021": {
+          "cagr": 0.2732795764258815,
+          "cagr_change_pp": -0.9583181032971622,
+          "drawdown_change_pp": -2.901692445366133,
+          "max_drawdown": -0.30777576514230154,
+          "regime_changes": 18.0,
+          "sharpe": 0.9245730823435572
+        }
+      }
+    },
+    {
+      "dropped": [
+        "drawdown_52w"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.21486330381209087,
+      "remaining": 19,
+      "score_correlation": 0.9997599709347867,
+      "score_mean_abs_shift": 0.4257597447862961,
+      "variant": "drop:drawdown_52w",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.18875150267856156,
+          "cagr_change_pp": -0.00493955070275387,
+          "drawdown_change_pp": 1.1102230246251565e-13,
+          "max_drawdown": -0.6238477334432435,
+          "regime_changes": 93.0,
+          "sharpe": 0.6393804189428707
+        },
+        "oos 2021-2026": {
+          "cagr": 0.21559915262735263,
+          "cagr_change_pp": 2.3537472870613696,
+          "drawdown_change_pp": 0.8250009026145255,
+          "max_drawdown": -0.4582163847900843,
+          "regime_changes": 17.0,
+          "sharpe": 0.6812217260562177
+        },
+        "research 1999-2015": {
+          "cagr": 0.128546067838468,
+          "cagr_change_pp": 0.07767393634805497,
+          "drawdown_change_pp": 1.1102230246251565e-13,
+          "max_drawdown": -0.6238477334432433,
+          "regime_changes": 53.0,
+          "sharpe": 0.4961740490602839
+        },
+        "validation 2015-2021": {
+          "cagr": 0.25522255615183664,
+          "cagr_change_pp": -2.76402013070165,
+          "drawdown_change_pp": -3.8600687188262484,
+          "max_drawdown": -0.3173595278769027,
+          "regime_changes": 18.0,
+          "sharpe": 0.8388409908131814
+        }
+      }
+    },
+    {
+      "dropped": [
+        "drawdown_90d"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.4262610704659222,
+      "remaining": 19,
+      "score_correlation": 0.9997781905007125,
+      "score_mean_abs_shift": 0.3964650628504039,
+      "variant": "drop:drawdown_90d",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.19546015808358952,
+          "cagr_change_pp": 0.6659259898000425,
+          "drawdown_change_pp": -0.0645476394503075,
+          "max_drawdown": -0.6244932098377477,
+          "regime_changes": 94.0,
+          "sharpe": 0.6413912703726916
+        },
+        "oos 2021-2026": {
+          "cagr": 0.20159184814323283,
+          "cagr_change_pp": 0.9530168386493898,
+          "drawdown_change_pp": 1.1102230246251565e-14,
+          "max_drawdown": -0.46646639381622945,
+          "regime_changes": 18.0,
+          "sharpe": 0.6463594345150349
+        },
+        "research 1999-2015": {
+          "cagr": 0.15099103272179115,
+          "cagr_change_pp": 2.32217042468037,
+          "drawdown_change_pp": -0.06454763945040742,
+          "max_drawdown": -0.6244932098377485,
+          "regime_changes": 53.0,
+          "sharpe": 0.5356274227350741
+        },
+        "validation 2015-2021": {
+          "cagr": 0.27337952559215806,
+          "cagr_change_pp": -0.9483231866695085,
+          "drawdown_change_pp": -2.901692445366133,
+          "max_drawdown": -0.30777576514230154,
+          "regime_changes": 18.0,
+          "sharpe": 0.9223382661530382
+        }
+      }
+    },
+    {
+      "dropped": [
+        "drawdown_current"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.2323193428314722,
+      "remaining": 19,
+      "score_correlation": 0.9991391754428187,
+      "score_mean_abs_shift": 0.7707026308457218,
+      "variant": "drop:drawdown_current",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.19280509928218836,
+          "cagr_change_pp": 0.4004201096599269,
+          "drawdown_change_pp": 1.0214945301253664,
+          "max_drawdown": -0.613632788141991,
+          "regime_changes": 94.0,
+          "sharpe": 0.6368625161391333
+        },
+        "oos 2021-2026": {
+          "cagr": 0.18120415806235557,
+          "cagr_change_pp": -1.0857521694383365,
+          "drawdown_change_pp": 0.0,
+          "max_drawdown": -0.46646639381622956,
+          "regime_changes": 17.0,
+          "sharpe": 0.6124686390954497
+        },
+        "research 1999-2015": {
+          "cagr": 0.15356202082860637,
+          "cagr_change_pp": 2.579269235361892,
+          "drawdown_change_pp": 1.0214945301253775,
+          "max_drawdown": -0.6136327881419906,
+          "regime_changes": 53.0,
+          "sharpe": 0.5432563763544356
+        },
+        "validation 2015-2021": {
+          "cagr": 0.2681360593409434,
+          "cagr_change_pp": -1.472669811790972,
+          "drawdown_change_pp": -13.501140624974306,
+          "max_drawdown": -0.41377024693838327,
+          "regime_changes": 18.0,
+          "sharpe": 0.8880462363939641
+        }
+      }
+    },
+    {
+      "dropped": [
+        "ma_200_slope"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.45385701450391475,
+      "remaining": 19,
+      "score_correlation": 0.9959718538941871,
+      "score_mean_abs_shift": 1.5241190603916575,
+      "variant": "drop:ma_200_slope",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.2045258464314399,
+          "cagr_change_pp": 1.57249482458508,
+          "drawdown_change_pp": -4.967347430307434,
+          "max_drawdown": -0.673521207746319,
+          "regime_changes": 95.0,
+          "sharpe": 0.6670186117089658
+        },
+        "oos 2021-2026": {
+          "cagr": 0.1801110086321196,
+          "cagr_change_pp": -1.1950671124619339,
+          "drawdown_change_pp": 2.932453725068096,
+          "max_drawdown": -0.4371418565655486,
+          "regime_changes": 18.0,
+          "sharpe": 0.5829512887330184
+        },
+        "research 1999-2015": {
+          "cagr": 0.12595279307847296,
+          "cagr_change_pp": -0.1816535396514496,
+          "drawdown_change_pp": -4.967347430307423,
+          "max_drawdown": -0.6735212077463186,
+          "regime_changes": 54.0,
+          "sharpe": 0.4664796669499235
+        },
+        "validation 2015-2021": {
+          "cagr": 0.2761897458690814,
+          "cagr_change_pp": -0.6673011589771738,
+          "drawdown_change_pp": -0.7880069707853932,
+          "max_drawdown": -0.28663891039649414,
+          "regime_changes": 18.0,
+          "sharpe": 0.9633118200045703
+        }
+      }
+    },
+    {
+      "dropped": [
+        "ma_50_200_ratio"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.6045437042741625,
+      "remaining": 19,
+      "score_correlation": 0.9958432678589358,
+      "score_mean_abs_shift": 1.5208463319920489,
+      "variant": "drop:ma_50_200_ratio",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.19692621357826479,
+          "cagr_change_pp": 0.8125315392675692,
+          "drawdown_change_pp": -7.789054233490733,
+          "max_drawdown": -0.701738275778152,
+          "regime_changes": 96.0,
+          "sharpe": 0.6528482502372546
+        },
+        "oos 2021-2026": {
+          "cagr": 0.18092385526266774,
+          "cagr_change_pp": -1.1137824494071191,
+          "drawdown_change_pp": 3.0744618375760924,
+          "max_drawdown": -0.43572177544046864,
+          "regime_changes": 18.0,
+          "sharpe": 0.5839551107580825
+        },
+        "research 1999-2015": {
+          "cagr": 0.13155894836502835,
+          "cagr_change_pp": 0.3789619890040896,
+          "drawdown_change_pp": -7.789054233490744,
+          "max_drawdown": -0.7017382757781518,
+          "regime_changes": 55.0,
+          "sharpe": 0.4914402041188896
+        },
+        "validation 2015-2021": {
+          "cagr": 0.21883183909106663,
+          "cagr_change_pp": -6.403091836778652,
+          "drawdown_change_pp": -10.13062831451268,
+          "max_drawdown": -0.380065123833767,
+          "regime_changes": 18.0,
+          "sharpe": 0.7553227420383701
+        }
+      }
+    },
+    {
+      "dropped": [
+        "momentum_12m"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.4217687074829932,
+      "remaining": 19,
+      "score_correlation": 0.9977524578711754,
+      "score_mean_abs_shift": 1.1651323698743261,
+      "variant": "drop:momentum_12m",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.21015461378146516,
+          "cagr_change_pp": 2.1353715595876066,
+          "drawdown_change_pp": -4.967347430307434,
+          "max_drawdown": -0.673521207746319,
+          "regime_changes": 94.0,
+          "sharpe": 0.6789503684895749
+        },
+        "oos 2021-2026": {
+          "cagr": 0.20555377085741977,
+          "cagr_change_pp": 1.3492091100680836,
+          "drawdown_change_pp": 2.785659089162995,
+          "max_drawdown": -0.4386098029245996,
+          "regime_changes": 18.0,
+          "sharpe": 0.6614441284036715
+        },
+        "research 1999-2015": {
+          "cagr": 0.1267116036442697,
+          "cagr_change_pp": -0.10577248307177545,
+          "drawdown_change_pp": -4.967347430307423,
+          "max_drawdown": -0.6735212077463186,
+          "regime_changes": 54.0,
+          "sharpe": 0.46749691088026857
+        },
+        "validation 2015-2021": {
+          "cagr": 0.2766805967255863,
+          "cagr_change_pp": -0.6182160733266828,
+          "drawdown_change_pp": -3.1140690693526096,
+          "max_drawdown": -0.3098995313821663,
+          "regime_changes": 17.0,
+          "sharpe": 0.9336609603872985
+        }
+      }
+    },
+    {
+      "dropped": [
+        "momentum_1m"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.3428314722115261,
+      "remaining": 19,
+      "score_correlation": 0.9979532433083876,
+      "score_mean_abs_shift": 1.0445680248122122,
+      "variant": "drop:momentum_1m",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.1827759581812629,
+          "cagr_change_pp": -0.6024940004326185,
+          "drawdown_change_pp": -7.245668485047895,
+          "max_drawdown": -0.6963044182937236,
+          "regime_changes": 93.0,
+          "sharpe": 0.6162650954115156
+        },
+        "oos 2021-2026": {
+          "cagr": 0.20832566845717215,
+          "cagr_change_pp": 1.6263988700433218,
+          "drawdown_change_pp": 0.39687821792875333,
+          "max_drawdown": -0.46249761163694203,
+          "regime_changes": 17.0,
+          "sharpe": 0.6584469504711822
+        },
+        "research 1999-2015": {
+          "cagr": 0.11177942721499168,
+          "cagr_change_pp": -1.5989901259995776,
+          "drawdown_change_pp": -7.245668485047974,
+          "max_drawdown": -0.6963044182937241,
+          "regime_changes": 53.0,
+          "sharpe": 0.43489846020864936
+        },
+        "validation 2015-2021": {
+          "cagr": 0.2843255177744566,
+          "cagr_change_pp": 0.14627603156034397,
+          "drawdown_change_pp": -3.114069069352543,
+          "max_drawdown": -0.30989953138216564,
+          "regime_changes": 18.0,
+          "sharpe": 0.9639940406666305
+        }
+      }
+    },
+    {
+      "dropped": [
+        "momentum_3m"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.3437299448081119,
+      "remaining": 19,
+      "score_correlation": 0.9983719601544945,
+      "score_mean_abs_shift": 0.9679817793413188,
+      "variant": "drop:momentum_3m",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.1813171190306444,
+          "cagr_change_pp": -0.7483779154944692,
+          "drawdown_change_pp": -2.407821153313683,
+          "max_drawdown": -0.6479259449763815,
+          "regime_changes": 94.0,
+          "sharpe": 0.6191387595945747
+        },
+        "oos 2021-2026": {
+          "cagr": 0.20832566845717215,
+          "cagr_change_pp": 1.6263988700433218,
+          "drawdown_change_pp": 0.39687821792875333,
+          "max_drawdown": -0.46249761163694203,
+          "regime_changes": 18.0,
+          "sharpe": 0.6584469504711822
+        },
+        "research 1999-2015": {
+          "cagr": 0.10941797294971245,
+          "cagr_change_pp": -1.8351355525275004,
+          "drawdown_change_pp": -2.407821153313594,
+          "max_drawdown": -0.6479259449763803,
+          "regime_changes": 54.0,
+          "sharpe": 0.4349207060095801
+        },
+        "validation 2015-2021": {
+          "cagr": 0.28668923111300315,
+          "cagr_change_pp": 0.3826473654150009,
+          "drawdown_change_pp": -1.2135553597105053,
+          "max_drawdown": -0.29089439428574526,
+          "regime_changes": 17.0,
+          "sharpe": 0.9490211952123734
+        }
+      }
+    },
+    {
+      "dropped": [
+        "momentum_6m"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.4913361571043512,
+      "remaining": 19,
+      "score_correlation": 0.9981711761067151,
+      "score_mean_abs_shift": 1.0524482485083988,
+      "variant": "drop:momentum_6m",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.19719844110451534,
+          "cagr_change_pp": 0.8397542918926248,
+          "drawdown_change_pp": -9.400445169817683,
+          "max_drawdown": -0.7178521851414215,
+          "regime_changes": 94.0,
+          "sharpe": 0.6531447763933014
+        },
+        "oos 2021-2026": {
+          "cagr": 0.18450030613211377,
+          "cagr_change_pp": -0.7561373624625167,
+          "drawdown_change_pp": 8.881784197001252e-14,
+          "max_drawdown": -0.4664663938162287,
+          "regime_changes": 17.0,
+          "sharpe": 0.5991210979852214
+        },
+        "research 1999-2015": {
+          "cagr": 0.11743449037642639,
+          "cagr_change_pp": -1.033483809856106,
+          "drawdown_change_pp": -9.40044516981775,
+          "max_drawdown": -0.7178521851414219,
+          "regime_changes": 53.0,
+          "sharpe": 0.4498671446571151
+        },
+        "validation 2015-2021": {
+          "cagr": 0.25485393691200975,
+          "cagr_change_pp": -2.8008820546843394,
+          "drawdown_change_pp": -13.501140624974317,
+          "max_drawdown": -0.4137702469383834,
+          "regime_changes": 19.0,
+          "sharpe": 0.8492818124442768
+        }
+      }
+    },
+    {
+      "dropped": [
+        "price_vs_200dma"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.6643563085611603,
+      "remaining": 19,
+      "score_correlation": 0.9988640933198599,
+      "score_mean_abs_shift": 0.9757850669763011,
+      "variant": "drop:price_vs_200dma",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.21365022656474708,
+          "cagr_change_pp": 2.4849328379157987,
+          "drawdown_change_pp": -7.740426136925005,
+          "max_drawdown": -0.7012519948124947,
+          "regime_changes": 95.0,
+          "sharpe": 0.6929166041956946
+        },
+        "oos 2021-2026": {
+          "cagr": 0.19660062745036422,
+          "cagr_change_pp": 0.45389476936252837,
+          "drawdown_change_pp": 0.39687821792878664,
+          "max_drawdown": -0.4624976116369417,
+          "regime_changes": 18.0,
+          "sharpe": 0.6309795954479522
+        },
+        "research 1999-2015": {
+          "cagr": 0.1406271240681125,
+          "cagr_change_pp": 1.2857795593125054,
+          "drawdown_change_pp": -7.740426136924949,
+          "max_drawdown": -0.7012519948124939,
+          "regime_changes": 54.0,
+          "sharpe": 0.5114814833347793
+        },
+        "validation 2015-2021": {
+          "cagr": 0.26287146801839945,
+          "cagr_change_pp": -1.9991289440453697,
+          "drawdown_change_pp": -4.6867319012636415,
+          "max_drawdown": -0.3256261597012766,
+          "regime_changes": 18.0,
+          "sharpe": 0.8770927452126904
+        }
+      }
+    },
+    {
+      "dropped": [
+        "price_vs_20dma"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.4968553459119497,
+      "remaining": 19,
+      "score_correlation": 0.9966534242758581,
+      "score_mean_abs_shift": 1.33707919171379,
+      "variant": "drop:price_vs_20dma",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.17396680131993825,
+          "cagr_change_pp": -1.4834096865650848,
+          "drawdown_change_pp": -4.729645510715419,
+          "max_drawdown": -0.6711441885503988,
+          "regime_changes": 91.0,
+          "sharpe": 0.5827937890260757
+        },
+        "oos 2021-2026": {
+          "cagr": 0.1577165537958083,
+          "cagr_change_pp": -3.4345125960930645,
+          "drawdown_change_pp": 0.3968782179287089,
+          "max_drawdown": -0.4624976116369425,
+          "regime_changes": 18.0,
+          "sharpe": 0.5177498509978838
+        },
+        "research 1999-2015": {
+          "cagr": 0.1332440517020086,
+          "cagr_change_pp": 0.5474723227021139,
+          "drawdown_change_pp": -4.729645510715352,
+          "max_drawdown": -0.6711441885503979,
+          "regime_changes": 52.0,
+          "sharpe": 0.48242007352883814
+        },
+        "validation 2015-2021": {
+          "cagr": 0.28106183228111803,
+          "cagr_change_pp": -0.18009251777351132,
+          "drawdown_change_pp": 0.06049131809792163,
+          "max_drawdown": -0.278153927507661,
+          "regime_changes": 17.0,
+          "sharpe": 0.9501768120699686
+        }
+      }
+    },
+    {
+      "dropped": [
+        "price_vs_50dma"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.5899114362726222,
+      "remaining": 19,
+      "score_correlation": 0.9978347150324541,
+      "score_mean_abs_shift": 1.0907365729508185,
+      "variant": "drop:price_vs_50dma",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.17955214784359885,
+          "cagr_change_pp": -0.9248750341990242,
+          "drawdown_change_pp": -1.8909805370765476,
+          "max_drawdown": -0.6427575388140101,
+          "regime_changes": 94.0,
+          "sharpe": 0.6043343816403345
+        },
+        "oos 2021-2026": {
+          "cagr": 0.19548325917838816,
+          "cagr_change_pp": 0.34215794216492235,
+          "drawdown_change_pp": 0.3968782179287089,
+          "max_drawdown": -0.4624976116369425,
+          "regime_changes": 18.0,
+          "sharpe": 0.6521996480167958
+        },
+        "research 1999-2015": {
+          "cagr": 0.13237503961705266,
+          "cagr_change_pp": 0.4605711142065205,
+          "drawdown_change_pp": -1.8909805370766586,
+          "max_drawdown": -0.642757538814011,
+          "regime_changes": 53.0,
+          "sharpe": 0.48278373579957584
+        },
+        "validation 2015-2021": {
+          "cagr": 0.2776969362787405,
+          "cagr_change_pp": -0.5165821180112662,
+          "drawdown_change_pp": -2.901692445366133,
+          "max_drawdown": -0.30777576514230154,
+          "regime_changes": 18.0,
+          "sharpe": 0.9420374135341057
+        }
+      }
+    },
+    {
+      "dropped": [
+        "rsi_14"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.30753433448851236,
+      "remaining": 19,
+      "score_correlation": 0.9997604630117914,
+      "score_mean_abs_shift": 0.724909807091383,
+      "variant": "drop:rsi_14",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.19639020064023538,
+          "cagr_change_pp": 0.7589302454646285,
+          "drawdown_change_pp": 1.0214945301253664,
+          "max_drawdown": -0.613632788141991,
+          "regime_changes": 93.0,
+          "sharpe": 0.6481433605287868
+        },
+        "oos 2021-2026": {
+          "cagr": 0.2071979032511746,
+          "cagr_change_pp": 1.5136223494435663,
+          "drawdown_change_pp": 0.39687821792878664,
+          "max_drawdown": -0.4624976116369417,
+          "regime_changes": 17.0,
+          "sharpe": 0.6649162397566626
+        },
+        "research 1999-2015": {
+          "cagr": 0.14943476153112,
+          "cagr_change_pp": 2.1665433056132555,
+          "drawdown_change_pp": 1.0214945301253775,
+          "max_drawdown": -0.6136327881419906,
+          "regime_changes": 53.0,
+          "sharpe": 0.5332887535506516
+        },
+        "validation 2015-2021": {
+          "cagr": 0.28067838238802034,
+          "cagr_change_pp": -0.21843750708328002,
+          "drawdown_change_pp": -3.1140690693524875,
+          "max_drawdown": -0.3098995313821651,
+          "regime_changes": 18.0,
+          "sharpe": 0.9723812502460522
+        }
+      }
+    },
+    {
+      "dropped": [
+        "rsi_30"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.2210242587601078,
+      "remaining": 19,
+      "score_correlation": 0.9999279047057943,
+      "score_mean_abs_shift": 0.7633863352800981,
+      "variant": "drop:rsi_30",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.18271942609809,
+          "cagr_change_pp": -0.6081472087499096,
+          "drawdown_change_pp": -1.3322676295501878e-13,
+          "max_drawdown": -0.623847733443246,
+          "regime_changes": 93.0,
+          "sharpe": 0.6305444268586055
+        },
+        "oos 2021-2026": {
+          "cagr": 0.199240139943192,
+          "cagr_change_pp": 0.7178460186453073,
+          "drawdown_change_pp": -0.6703750024149469,
+          "max_drawdown": -0.47317014384037903,
+          "regime_changes": 17.0,
+          "sharpe": 0.6448760302295364
+        },
+        "research 1999-2015": {
+          "cagr": 0.11731038703051477,
+          "cagr_change_pp": -1.045894144447268,
+          "drawdown_change_pp": -7.771561172376096e-14,
+          "max_drawdown": -0.6238477334432452,
+          "regime_changes": 53.0,
+          "sharpe": 0.46150494236765205
+        },
+        "validation 2015-2021": {
+          "cagr": 0.28067838238802034,
+          "cagr_change_pp": -0.21843750708328002,
+          "drawdown_change_pp": -3.1140690693524875,
+          "max_drawdown": -0.3098995313821651,
+          "regime_changes": 18.0,
+          "sharpe": 0.9723812502460522
+        }
+      }
+    },
+    {
+      "dropped": [
+        "vix_change_5d"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.40996021049929404,
+      "remaining": 19,
+      "score_correlation": 0.9984225433604541,
+      "score_mean_abs_shift": 1.084145586998968,
+      "variant": "drop:vix_change_5d",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.17437706256549523,
+          "cagr_change_pp": -1.442383562009386,
+          "drawdown_change_pp": 0.0,
+          "max_drawdown": -0.6238477334432446,
+          "regime_changes": 92.0,
+          "sharpe": 0.6083012398202351
+        },
+        "oos 2021-2026": {
+          "cagr": 0.1454569821555134,
+          "cagr_change_pp": -4.660469760122554,
+          "drawdown_change_pp": -0.250753029983386,
+          "max_drawdown": -0.4689739241160634,
+          "regime_changes": 18.0,
+          "sharpe": 0.4890720672965526
+        },
+        "research 1999-2015": {
+          "cagr": 0.13025737863332987,
+          "cagr_change_pp": 0.24880501583424142,
+          "drawdown_change_pp": 0.0,
+          "max_drawdown": -0.6238477334432444,
+          "regime_changes": 51.0,
+          "sharpe": 0.5122307236483479
+        },
+        "validation 2015-2021": {
+          "cagr": 0.2425408704248475,
+          "cagr_change_pp": -4.032188703400563,
+          "drawdown_change_pp": -11.749736034474068,
+          "max_drawdown": -0.3962562010333809,
+          "regime_changes": 18.0,
+          "sharpe": 0.8155261822062805
+        }
+      }
+    },
+    {
+      "dropped": [
+        "vix_level"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.33256321396483124,
+      "remaining": 19,
+      "score_correlation": 0.9985928549704243,
+      "score_mean_abs_shift": 0.8782747394169154,
+      "variant": "drop:vix_level",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.17749409619560108,
+          "cagr_change_pp": -1.1306801989988013,
+          "drawdown_change_pp": -2.2492911316072783,
+          "max_drawdown": -0.6463406447593174,
+          "regime_changes": 94.0,
+          "sharpe": 0.6070867266506478
+        },
+        "oos 2021-2026": {
+          "cagr": 0.18120415806235557,
+          "cagr_change_pp": -1.0857521694383365,
+          "drawdown_change_pp": 0.0,
+          "max_drawdown": -0.46646639381622956,
+          "regime_changes": 17.0,
+          "sharpe": 0.6124686390954497
+        },
+        "research 1999-2015": {
+          "cagr": 0.12545288637110952,
+          "cagr_change_pp": -0.2316442103877936,
+          "drawdown_change_pp": -2.2492911316071673,
+          "max_drawdown": -0.6463406447593161,
+          "regime_changes": 53.0,
+          "sharpe": 0.4771001424402889
+        },
+        "validation 2015-2021": {
+          "cagr": 0.27178028801408227,
+          "cagr_change_pp": -1.108246944477087,
+          "drawdown_change_pp": -13.501140624974328,
+          "max_drawdown": -0.4137702469383835,
+          "regime_changes": 18.0,
+          "sharpe": 0.891684564878436
+        }
+      }
+    },
+    {
+      "dropped": [
+        "vix_percentile"
+      ],
+      "kind": "single",
+      "regime_disagreement": 0.2950840713643948,
+      "remaining": 19,
+      "score_correlation": 0.99864157835479,
+      "score_mean_abs_shift": 0.8615917019863616,
+      "variant": "drop:vix_percentile",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.18253062894810257,
+          "cagr_change_pp": -0.6270269237486525,
+          "drawdown_change_pp": -2.2492911316071673,
+          "max_drawdown": -0.6463406447593163,
+          "regime_changes": 94.0,
+          "sharpe": 0.620274124957038
+        },
+        "oos 2021-2026": {
+          "cagr": 0.18120415806235557,
+          "cagr_change_pp": -1.0857521694383365,
+          "drawdown_change_pp": 0.0,
+          "max_drawdown": -0.46646639381622956,
+          "regime_changes": 17.0,
+          "sharpe": 0.6124686390954497
+        },
+        "research 1999-2015": {
+          "cagr": 0.12649466046728253,
+          "cagr_change_pp": -0.12746680077049266,
+          "drawdown_change_pp": -2.2492911316072783,
+          "max_drawdown": -0.6463406447593172,
+          "regime_changes": 53.0,
+          "sharpe": 0.48030640723673884
+        },
+        "validation 2015-2021": {
+          "cagr": 0.27178028801408227,
+          "cagr_change_pp": -1.108246944477087,
+          "drawdown_change_pp": -13.501140624974328,
+          "max_drawdown": -0.4137702469383835,
+          "regime_changes": 18.0,
+          "sharpe": 0.891684564878436
+        }
+      }
+    },
+    {
+      "dropped": [
+        "drawdown_30d",
+        "drawdown_52w",
+        "drawdown_90d",
+        "drawdown_current"
+      ],
+      "kind": "family",
+      "regime_disagreement": 0.31279681683994354,
+      "remaining": 16,
+      "score_correlation": 0.9964849662876184,
+      "score_mean_abs_shift": 1.4235697547892552,
+      "variant": "family:drawdown",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.18729523104123658,
+          "cagr_change_pp": -0.15056671443525182,
+          "drawdown_change_pp": -1.0565376234411672,
+          "max_drawdown": -0.6344131096776563,
+          "regime_changes": 91.0,
+          "sharpe": 0.633654748151928
+        },
+        "oos 2021-2026": {
+          "cagr": 0.2109738192161399,
+          "cagr_change_pp": 1.8912139459400956,
+          "drawdown_change_pp": 0.3968782179286756,
+          "max_drawdown": -0.4624976116369428,
+          "regime_changes": 16.0,
+          "sharpe": 0.6659396860033476
+        },
+        "research 1999-2015": {
+          "cagr": 0.133232238831392,
+          "cagr_change_pp": 0.546291035640456,
+          "drawdown_change_pp": -1.0565376234411783,
+          "max_drawdown": -0.6344131096776562,
+          "regime_changes": 52.0,
+          "sharpe": 0.5053275102615262
+        },
+        "validation 2015-2021": {
+          "cagr": 0.27178028801408227,
+          "cagr_change_pp": -1.108246944477087,
+          "drawdown_change_pp": -13.501140624974328,
+          "max_drawdown": -0.4137702469383835,
+          "regime_changes": 18.0,
+          "sharpe": 0.891684564878436
+        }
+      }
+    },
+    {
+      "dropped": [
+        "momentum_12m",
+        "momentum_1m",
+        "momentum_3m",
+        "momentum_6m"
+      ],
+      "kind": "family",
+      "regime_disagreement": 0.6164805544859453,
+      "remaining": 16,
+      "score_correlation": 0.9932161948309989,
+      "score_mean_abs_shift": 2.0606110936543787,
+      "variant": "family:momentum",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.16066406135752387,
+          "cagr_change_pp": -2.8136836828065226,
+          "drawdown_change_pp": -1.6206205444618371,
+          "max_drawdown": -0.640053938887863,
+          "regime_changes": 93.0,
+          "sharpe": 0.5542187507177805
+        },
+        "oos 2021-2026": {
+          "cagr": 0.1688838175956111,
+          "cagr_change_pp": -2.3177862161127827,
+          "drawdown_change_pp": 3.074461837576137,
+          "max_drawdown": -0.4357217754404682,
+          "regime_changes": 18.0,
+          "sharpe": 0.5817506979167857
+        },
+        "research 1999-2015": {
+          "cagr": 0.12307945841189016,
+          "cagr_change_pp": -0.468987006309729,
+          "drawdown_change_pp": -1.6206205444619481,
+          "max_drawdown": -0.6400539388878639,
+          "regime_changes": 54.0,
+          "sharpe": 0.4595030433549004
+        },
+        "validation 2015-2021": {
+          "cagr": 0.2264834917321379,
+          "cagr_change_pp": -5.6379265726715255,
+          "drawdown_change_pp": -12.205486317979176,
+          "max_drawdown": -0.40081370386843196,
+          "regime_changes": 17.0,
+          "sharpe": 0.77527044690034
+        }
+      }
+    },
+    {
+      "dropped": [
+        "rsi_14",
+        "rsi_30"
+      ],
+      "kind": "family",
+      "regime_disagreement": 0.6045437042741625,
+      "remaining": 18,
+      "score_correlation": 0.9994479697679122,
+      "score_mean_abs_shift": 1.562640148922052,
+      "variant": "family:rsi",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.17954104798238535,
+          "cagr_change_pp": -0.9259850203203746,
+          "drawdown_change_pp": -0.7549807240515238,
+          "max_drawdown": -0.6313975406837599,
+          "regime_changes": 93.0,
+          "sharpe": 0.6147077763133382
+        },
+        "oos 2021-2026": {
+          "cagr": 0.11675089610906775,
+          "cagr_change_pp": -7.531078364767119,
+          "drawdown_change_pp": -0.6703750024149469,
+          "max_drawdown": -0.47317014384037903,
+          "regime_changes": 17.0,
+          "sharpe": 0.413970477436099
+        },
+        "research 1999-2015": {
+          "cagr": 0.1586709490670788,
+          "cagr_change_pp": 3.090162059209134,
+          "drawdown_change_pp": -0.7549807240516015,
+          "max_drawdown": -0.6313975406837604,
+          "regime_changes": 54.0,
+          "sharpe": 0.5636753390191376
+        },
+        "validation 2015-2021": {
+          "cagr": 0.2784362582063922,
+          "cagr_change_pp": -0.4426499252460969,
+          "drawdown_change_pp": -3.1140690693525097,
+          "max_drawdown": -0.3098995313821653,
+          "regime_changes": 18.0,
+          "sharpe": 0.9663439858008476
+        }
+      }
+    },
+    {
+      "dropped": [
+        "aaii_bull_bear_spread",
+        "cnn_fear_greed"
+      ],
+      "kind": "family",
+      "regime_disagreement": 0.2561557303081088,
+      "remaining": 18,
+      "score_correlation": 0.9987420675901441,
+      "score_mean_abs_shift": 0.6533336023059454,
+      "variant": "family:sentiment",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.18211739239963376,
+          "cagr_change_pp": -0.6683505785955335,
+          "drawdown_change_pp": -3.788784875271012,
+          "max_drawdown": -0.6617355821959547,
+          "regime_changes": 93.0,
+          "sharpe": 0.6193006561218867
+        },
+        "oos 2021-2026": {
+          "cagr": 0.17828734072839159,
+          "cagr_change_pp": -1.3774339028347349,
+          "drawdown_change_pp": 0.39687821792875333,
+          "max_drawdown": -0.46249761163694203,
+          "regime_changes": 17.0,
+          "sharpe": 0.570376324637379
+        },
+        "research 1999-2015": {
+          "cagr": 0.1255598446397974,
+          "cagr_change_pp": -0.22094838351900403,
+          "drawdown_change_pp": -3.7887848752710673,
+          "max_drawdown": -0.6617355821959551,
+          "regime_changes": 53.0,
+          "sharpe": 0.47869159318470444
+        },
+        "validation 2015-2021": {
+          "cagr": 0.27501526567765144,
+          "cagr_change_pp": -0.7847491781201699,
+          "drawdown_change_pp": -3.3306690738754696e-14,
+          "max_drawdown": -0.27875884068864054,
+          "regime_changes": 18.0,
+          "sharpe": 0.9656847557098717
+        }
+      }
+    },
+    {
+      "dropped": [
+        "ma_200_slope",
+        "ma_50_200_ratio",
+        "price_vs_200dma",
+        "price_vs_20dma",
+        "price_vs_50dma"
+      ],
+      "kind": "family",
+      "regime_disagreement": 0.6381722500320883,
+      "remaining": 15,
+      "score_correlation": 0.981809539934783,
+      "score_mean_abs_shift": 3.321751255290631,
+      "variant": "family:trend",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.17972651804711037,
+          "cagr_change_pp": -0.9074380138478721,
+          "drawdown_change_pp": -7.958578045572473,
+          "max_drawdown": -0.7034335138989694,
+          "regime_changes": 93.0,
+          "sharpe": 0.6127227511703569
+        },
+        "oos 2021-2026": {
+          "cagr": 0.1364473604031009,
+          "cagr_change_pp": -5.561431935363803,
+          "drawdown_change_pp": 0.8250009026145255,
+          "max_drawdown": -0.4582163847900843,
+          "regime_changes": 17.0,
+          "sharpe": 0.4741158312642036
+        },
+        "research 1999-2015": {
+          "cagr": 0.11784006661362323,
+          "cagr_change_pp": -0.9929261861364225,
+          "drawdown_change_pp": -7.958578045572606,
+          "max_drawdown": -0.7034335138989705,
+          "regime_changes": 54.0,
+          "sharpe": 0.4587366904731312
+        },
+        "validation 2015-2021": {
+          "cagr": 0.26779091473833727,
+          "cagr_change_pp": -1.5071842720515871,
+          "drawdown_change_pp": -2.0546553363617215,
+          "max_drawdown": -0.2993053940522574,
+          "regime_changes": 17.0,
+          "sharpe": 0.8999877063724093
+        }
+      }
+    },
+    {
+      "dropped": [
+        "vix_change_5d",
+        "vix_level",
+        "vix_percentile"
+      ],
+      "kind": "family",
+      "regime_disagreement": 0.49082038772628067,
+      "remaining": 17,
+      "score_correlation": 0.9914736830119883,
+      "score_mean_abs_shift": 2.248713183567495,
+      "variant": "family:volatility",
+      "windows": {
+        "full 1996-2026": {
+          "cagr": 0.1737202881520803,
+          "cagr_change_pp": -1.5080610033508801,
+          "drawdown_change_pp": -2.8231887136947575,
+          "max_drawdown": -0.6520796205801922,
+          "regime_changes": 95.0,
+          "sharpe": 0.6007612947685022
+        },
+        "oos 2021-2026": {
+          "cagr": 0.17102268797171072,
+          "cagr_change_pp": -2.1038991785028216,
+          "drawdown_change_pp": 1.4250036760515838,
+          "max_drawdown": -0.4522163570557137,
+          "regime_changes": 19.0,
+          "sharpe": 0.5666172655022365
+        },
+        "research 1999-2015": {
+          "cagr": 0.12333017011802117,
+          "cagr_change_pp": -0.44391583569662885,
+          "drawdown_change_pp": -2.8231887136947798,
+          "max_drawdown": -0.6520796205801922,
+          "regime_changes": 53.0,
+          "sharpe": 0.47582654192102
+        },
+        "validation 2015-2021": {
+          "cagr": 0.24333898206753424,
+          "cagr_change_pp": -3.9523775391318905,
+          "drawdown_change_pp": -3.1140690693526207,
+          "max_drawdown": -0.3098995313821664,
+          "regime_changes": 18.0,
+          "sharpe": 0.8508335283725422
+        }
+      }
+    }
+  ],
+  "baseline": {
+    "full 1996-2026": {
+      "cagr": 0.1888008981855891,
+      "max_drawdown": -0.6238477334432446,
+      "regime_changes": 93.0,
+      "sharpe": 0.6475910942531811
+    },
+    "oos 2021-2026": {
+      "cagr": 0.19206167975673893,
+      "max_drawdown": -0.46646639381622956,
+      "regime_changes": 17.0,
+      "sharpe": 0.624712314870699
+    },
+    "research 1999-2015": {
+      "cagr": 0.12776932847498745,
+      "max_drawdown": -0.6238477334432444,
+      "regime_changes": 53.0,
+      "sharpe": 0.4937645663061475
+    },
+    "validation 2015-2021": {
+      "cagr": 0.28286275745885314,
+      "max_drawdown": -0.2787588406886402,
+      "regime_changes": 18.0,
+      "sharpe": 0.9789748710601659
+    }
+  },
+  "strategy_version": "v1.0-frozen",
+  "task": "TASK-183",
+  "weights": {
+    "aaii_bull_bear_spread": 0.05555555555555555,
+    "cnn_fear_greed": 0.05555555555555555,
+    "drawdown_30d": 0.027777777777777776,
+    "drawdown_52w": 0.027777777777777776,
+    "drawdown_90d": 0.027777777777777776,
+    "drawdown_current": 0.027777777777777776,
+    "ma_200_slope": 0.06666666666666667,
+    "ma_50_200_ratio": 0.06666666666666667,
+    "momentum_12m": 0.05555555555555555,
+    "momentum_1m": 0.05555555555555555,
+    "momentum_3m": 0.05555555555555555,
+    "momentum_6m": 0.05555555555555555,
+    "price_vs_200dma": 0.06666666666666667,
+    "price_vs_20dma": 0.06666666666666667,
+    "price_vs_50dma": 0.06666666666666667,
+    "rsi_14": 0.05555555555555555,
+    "rsi_30": 0.05555555555555555,
+    "vix_change_5d": 0.037037037037037035,
+    "vix_level": 0.037037037037037035,
+    "vix_percentile": 0.037037037037037035
+  },
+  "windows": [
+    {
+      "end": "",
+      "start": "",
+      "window": "full 1996-2026"
+    },
+    {
+      "end": "2015-08-14",
+      "start": "1999-01-01",
+      "window": "research 1999-2015"
+    },
+    {
+      "end": "2021-02-26",
+      "start": "2015-08-15",
+      "window": "validation 2015-2021"
+    },
+    {
+      "end": "2026-09-11",
+      "start": "2021-02-27",
+      "window": "oos 2021-2026"
+    }
+  ]
+}

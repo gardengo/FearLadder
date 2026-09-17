@@ -774,7 +774,7 @@ Telegram 이고 그 어디에도 컨테이너가 쓰이지 않는다. 유지할 
 
 ---
 
-# Phase 9 — 사후 검증 (research backlog)
+# Phase 9 — 사후 검증 (research backlog) — **전부 완료 (2026-09-18)**
 
 전부 **사후 측정**이다. `config/` 는 v1.0-frozen 이고 아래 어떤 항목도 설정을
 바꾸지 않는다. 바꿀 근거가 나오면 새 freeze 절차(TASK-100)를 밟는다.
@@ -829,29 +829,60 @@ python scripts/reconstruction_accuracy.py --db /path/outside/repo/full.db
 
 ---
 
-## TASK-182 S&P 500 교차시장 재현
+## TASK-182 S&P 500 교차시장 재현 — 완료 (2026-09-18)
 
-SPY/SSO/UPRO 로 같은 전략을 돌린다. 시간 창이 모두 소진된 상태에서 **유일하게
-독립인 데이터**다. `trend_filter.max_leverage_below` 의 단조성이 재현되는지가
-핵심 질문. (UPRO 는 2009-06-25 상장이라 2008년을 겪지 않았다.)
+```bash
+python scripts/cross_market.py --db /path/outside/repo/full.db
+```
 
----
+`docs/strategy.md` §2.13, `reports/cross_market.json`.
 
-## TASK-183 `score.weights` 지표 제거 실험
-
-20개 지표를 하나씩 빼면서(가중치 재정규화 포함) 성과를 잰다. 살아남는 지표가
-소수라면 나머지는 복잡도와 데이터 의존성만 더하는 것이다.
-
----
-
-## TASK-184 이벤트 단위 분석
-
-93번의 단계 변경 각각의 손익을 귀속시켜, 경로 하나를 93개 관측의 분포로 만든다.
-파라미터 비교에 처음으로 분산을 붙일 수 있다.
+**`max_leverage_below` 는 재현되고 `d`·`h` 는 재현되지 않는다.** cap 은 두 시장
+네 창 모두 단조이고 8개 조합 중 7개가 순위상관 +1.00 이며, 잔잔한 구간에서
+부호가 뒤집히는 함정까지 같은 모양으로 나타난다. `d`·`h` 는 양쪽 다 톱니이고
+시장 간 순위 상관이 −0.60…+0.70 을 떠돈다.
 
 ---
 
-## TASK-185 비용 모델 측정
+## TASK-183 `score.weights` 지표 제거 실험 — 완료 (2026-09-18)
 
-`spread_bps` 와 `slippage_bps` 가 둘 다 0이고 지지도 표에 없다. 현실적인 값으로
-다시 돌린다. 영향은 작을 것으로 보지만 한 번도 재본 적이 없다.
+```bash
+python scripts/indicator_ablation.py --db /path/outside/repo/full.db
+```
+
+`docs/strategy.md` §2.14, `reports/indicator_ablation.json`.
+
+**집합은 줄지 않는다.** 하나씩 빼면 아홉 개가 빼는 쪽이 나아 보이지만 아홉 개
+전부 창을 바꾸면 부호가 뒤집히고 전부 검증창에서 음수다. 계열째 빼면 여섯 계열
+전부 손해 — 상관된 지표에서 하나씩 빼기는 중요도를 체계적으로 과소평가한다.
+덤: 평균 0.45점의 점수 이동이 68% 의 날에 단계를 바꾼다.
+
+---
+
+## TASK-184 이벤트 단위 분석 — 완료 (2026-09-18)
+
+```bash
+python scripts/event_analysis.py --db /path/outside/repo/full.db
+```
+
+`docs/strategy.md` §2.15, `reports/event_analysis.json`.
+
+**사다리의 edge 는 공포 쪽에 있다** — 93개 이벤트 평균 +2.33%, 공포로 내려가는
+44번은 +3.52%(68% 양수), 탐욕 쪽 49번은 +1.26%(55%). 짝지은 비교 16개 중
+|t|>1.5 가 없고 `d`=90·120 은 75 와 구별되지 않는다. `cap` 만 총합이 단조인데
+그 효과는 평균이 아니라 한 구간에 몰려 있다.
+
+---
+
+## TASK-185 비용 모델 측정 — 완료 (2026-09-18)
+
+```bash
+python scripts/cost_model.py --db /path/outside/repo/full.db
+```
+
+`docs/strategy.md` §2.16, `reports/cost_model.json`.
+
+**마찰 = 연간회전율 × bps × (1 + CAGR)** — 25칸 전부 0.01%p 안쪽으로 맞으므로
+새 비용 가정에 표를 다시 만들 필요가 없다. 회전율 3.26회/년이라 현실적인
++10bps 가 연 0.39%p 다. 무시할 값은 아니지만 어떤 결론도 뒤집지 않는다
+(낙폭은 +50bps 에서도 −62.4% → −63.8%).

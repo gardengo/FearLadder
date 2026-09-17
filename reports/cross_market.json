@@ -1,0 +1,1990 @@
+{
+  "agreement": [
+    {
+      "direction": {
+        "nasdaq100": "decreasing",
+        "sp500": "decreasing"
+      },
+      "family": "max_leverage_below",
+      "metric": "cagr",
+      "spearman": 0.9999999999999999,
+      "window": "full 1996-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "decreasing",
+        "sp500": "decreasing"
+      },
+      "family": "max_leverage_below",
+      "metric": "max_drawdown",
+      "spearman": 0.9999999999999999,
+      "window": "full 1996-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "decreasing",
+        "sp500": "decreasing"
+      },
+      "family": "max_leverage_below",
+      "metric": "sharpe",
+      "spearman": 0.9999999999999999,
+      "window": "full 1996-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "decreasing",
+        "sp500": "decreasing"
+      },
+      "family": "max_leverage_below",
+      "metric": "cagr",
+      "spearman": 0.9999999999999999,
+      "window": "dotcom 1999-2003"
+    },
+    {
+      "direction": {
+        "nasdaq100": "decreasing",
+        "sp500": "decreasing"
+      },
+      "family": "max_leverage_below",
+      "metric": "max_drawdown",
+      "spearman": 0.9999999999999999,
+      "window": "dotcom 1999-2003"
+    },
+    {
+      "direction": {
+        "nasdaq100": "decreasing",
+        "sp500": "decreasing"
+      },
+      "family": "max_leverage_below",
+      "metric": "sharpe",
+      "spearman": 0.9999999999999999,
+      "window": "dotcom 1999-2003"
+    },
+    {
+      "direction": {
+        "nasdaq100": "decreasing",
+        "sp500": "decreasing"
+      },
+      "family": "max_leverage_below",
+      "metric": "cagr",
+      "spearman": 0.9999999999999999,
+      "window": "gfc 2007-2009"
+    },
+    {
+      "direction": {
+        "nasdaq100": "decreasing",
+        "sp500": "decreasing"
+      },
+      "family": "max_leverage_below",
+      "metric": "max_drawdown",
+      "spearman": 0.9999999999999999,
+      "window": "gfc 2007-2009"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "max_leverage_below",
+      "metric": "sharpe",
+      "spearman": 0.7999999999999999,
+      "window": "gfc 2007-2009"
+    },
+    {
+      "direction": {
+        "nasdaq100": "increasing",
+        "sp500": "increasing"
+      },
+      "family": "max_leverage_below",
+      "metric": "cagr",
+      "spearman": 0.9999999999999999,
+      "window": "real 2010-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "decreasing",
+        "sp500": "none"
+      },
+      "family": "max_leverage_below",
+      "metric": "max_drawdown",
+      "spearman": 0.09999999999999999,
+      "window": "real 2010-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "increasing",
+        "sp500": "increasing"
+      },
+      "family": "max_leverage_below",
+      "metric": "sharpe",
+      "spearman": 0.9999999999999999,
+      "window": "real 2010-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "minimum_duration_days",
+      "metric": "cagr",
+      "spearman": 0.21666666666666667,
+      "window": "full 1996-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "minimum_duration_days",
+      "metric": "max_drawdown",
+      "spearman": -0.3666666666666667,
+      "window": "full 1996-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "minimum_duration_days",
+      "metric": "sharpe",
+      "spearman": 0.25,
+      "window": "full 1996-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "minimum_duration_days",
+      "metric": "cagr",
+      "spearman": 0.06666666666666667,
+      "window": "dotcom 1999-2003"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "minimum_duration_days",
+      "metric": "max_drawdown",
+      "spearman": 0.18333333333333335,
+      "window": "dotcom 1999-2003"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "minimum_duration_days",
+      "metric": "sharpe",
+      "spearman": 0.21666666666666667,
+      "window": "dotcom 1999-2003"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "minimum_duration_days",
+      "metric": "cagr",
+      "spearman": 0.5166666666666667,
+      "window": "gfc 2007-2009"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "minimum_duration_days",
+      "metric": "max_drawdown",
+      "spearman": 0.05020964452534338,
+      "window": "gfc 2007-2009"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "minimum_duration_days",
+      "metric": "sharpe",
+      "spearman": 0.43333333333333335,
+      "window": "gfc 2007-2009"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "minimum_duration_days",
+      "metric": "cagr",
+      "spearman": 0.19999999999999998,
+      "window": "real 2010-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "minimum_duration_days",
+      "metric": "max_drawdown",
+      "spearman": -0.31666666666666665,
+      "window": "real 2010-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "minimum_duration_days",
+      "metric": "sharpe",
+      "spearman": 0.2833333333333333,
+      "window": "real 2010-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "hysteresis",
+      "metric": "cagr",
+      "spearman": -0.6,
+      "window": "full 1996-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "decreasing",
+        "sp500": "none"
+      },
+      "family": "hysteresis",
+      "metric": "max_drawdown",
+      "spearman": -0.09999999999999999,
+      "window": "full 1996-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "hysteresis",
+      "metric": "sharpe",
+      "spearman": -0.6,
+      "window": "full 1996-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "hysteresis",
+      "metric": "cagr",
+      "spearman": 0.0,
+      "window": "dotcom 1999-2003"
+    },
+    {
+      "direction": {
+        "nasdaq100": "decreasing",
+        "sp500": "none"
+      },
+      "family": "hysteresis",
+      "metric": "max_drawdown",
+      "spearman": -0.3,
+      "window": "dotcom 1999-2003"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "hysteresis",
+      "metric": "sharpe",
+      "spearman": 0.19999999999999998,
+      "window": "dotcom 1999-2003"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "hysteresis",
+      "metric": "cagr",
+      "spearman": 0.6,
+      "window": "gfc 2007-2009"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "hysteresis",
+      "metric": "max_drawdown",
+      "spearman": 0.7,
+      "window": "gfc 2007-2009"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "hysteresis",
+      "metric": "sharpe",
+      "spearman": 0.7,
+      "window": "gfc 2007-2009"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "hysteresis",
+      "metric": "cagr",
+      "spearman": -0.19999999999999998,
+      "window": "real 2010-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "hysteresis",
+      "metric": "max_drawdown",
+      "spearman": 0.09999999999999999,
+      "window": "real 2010-2026"
+    },
+    {
+      "direction": {
+        "nasdaq100": "none",
+        "sp500": "none"
+      },
+      "family": "hysteresis",
+      "metric": "sharpe",
+      "spearman": -0.49999999999999994,
+      "window": "real 2010-2026"
+    }
+  ],
+  "markets": {
+    "nasdaq100": {
+      "fitted_drag": {
+        "QLD": 0.0068,
+        "TQQQ": 0.0016
+      },
+      "inceptions": {
+        "QLD": "2006-06-21",
+        "QQQ": "1999-03-10",
+        "TQQQ": "2010-02-11"
+      },
+      "symbols": {
+        "QLD": "QLD",
+        "QQQ": "QQQ",
+        "TQQQ": "TQQQ"
+      }
+    },
+    "sp500": {
+      "fitted_drag": {
+        "SSO": -0.011891285722681638,
+        "UPRO": -0.02915864548656165
+      },
+      "inceptions": {
+        "SPY": "1993-01-29",
+        "SSO": "2006-06-21",
+        "UPRO": "2009-06-25"
+      },
+      "symbols": {
+        "QLD": "SSO",
+        "QQQ": "SPY",
+        "TQQQ": "UPRO"
+      }
+    }
+  },
+  "strategy_version": "v1.0-frozen",
+  "sweeps": [
+    {
+      "expectation": "monotone in drawdown (§2.11 calls this the one real effect)",
+      "family": "max_leverage_below",
+      "frozen_value": 0.5,
+      "rows": [
+        {
+          "cagr": 0.19395175509283002,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5880060229850291,
+          "regime_changes": 93.0,
+          "sharpe": 0.6738666261768321,
+          "value": 0.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.1927183938320729,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5947046468264601,
+          "regime_changes": 93.0,
+          "sharpe": 0.6674547114183093,
+          "value": 0.25,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.1888008981855891,
+          "frozen": true,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6238477334432446,
+          "regime_changes": 93.0,
+          "sharpe": 0.6475910942531811,
+          "value": 0.5,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.17328457944253284,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.8354121537998653,
+          "regime_changes": 93.0,
+          "sharpe": 0.5702335454328104,
+          "value": 1.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.15261404780588572,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.9242748414835833,
+          "regime_changes": 93.0,
+          "sharpe": 0.5024393897703135,
+          "value": 1.5,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.10376852670010739,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.518664844714456,
+          "regime_changes": 95.0,
+          "sharpe": 0.43384119260332865,
+          "value": 0.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.10176312431597045,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5431283190008711,
+          "regime_changes": 95.0,
+          "sharpe": 0.4251837788174208,
+          "value": 0.25,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.0992865020642606,
+          "frozen": true,
+          "market": "sp500",
+          "max_drawdown": -0.577496532088999,
+          "regime_changes": 95.0,
+          "sharpe": 0.41266457872035717,
+          "value": 0.5,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.09267353521380661,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.6957431825165488,
+          "regime_changes": 95.0,
+          "sharpe": 0.3777448488875914,
+          "value": 1.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.08131557999145977,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.8191557731966248,
+          "regime_changes": 95.0,
+          "sharpe": 0.3347599855663627,
+          "value": 1.5,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.1652120353882831,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.4227987622176004,
+          "regime_changes": 14.0,
+          "sharpe": 0.5910874200521151,
+          "value": 0.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.12569534852754427,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5120261650538238,
+          "regime_changes": 14.0,
+          "sharpe": 0.45351153951455614,
+          "value": 0.25,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.07450792976831444,
+          "frozen": true,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6238477334432446,
+          "regime_changes": 14.0,
+          "sharpe": 0.28130885267912487,
+          "value": 0.5,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.05662621577302551,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.8354121537998651,
+          "regime_changes": 14.0,
+          "sharpe": 0.014052480350413477,
+          "value": 1.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.1789282451487253,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.9242748414835835,
+          "regime_changes": 14.0,
+          "sharpe": -0.16065389453679474,
+          "value": 1.5,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.03745769468609983,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.3380640794656219,
+          "regime_changes": 15.0,
+          "sharpe": 0.13827927932598805,
+          "value": 0.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.019090608041754997,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.37285962307199727,
+          "regime_changes": 15.0,
+          "sharpe": 0.06649611833611418,
+          "value": 0.25,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -3.077526743533454e-05,
+          "frozen": true,
+          "market": "sp500",
+          "max_drawdown": -0.4473578902157903,
+          "regime_changes": 15.0,
+          "sharpe": -0.0015168179497698617,
+          "value": 0.5,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.0399574160651508,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5828949783176971,
+          "regime_changes": 15.0,
+          "sharpe": -0.10139249509143482,
+          "value": 1.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.08691346628494523,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.6913797331121638,
+          "regime_changes": 15.0,
+          "sharpe": -0.18958887955400602,
+          "value": 1.5,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.0193599699974375,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5880060229850287,
+          "regime_changes": 10.0,
+          "sharpe": -0.014227841812272796,
+          "value": 0.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.024717198609010005,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5947046468264605,
+          "regime_changes": 10.0,
+          "sharpe": -0.029734705558084166,
+          "value": 0.25,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.031254579672701066,
+          "frozen": true,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6027801836296072,
+          "regime_changes": 10.0,
+          "sharpe": -0.036521047789328194,
+          "value": 0.5,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.0477652478958559,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6877078086600303,
+          "regime_changes": 10.0,
+          "sharpe": -0.008721869657336524,
+          "value": 1.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.0870695882392708,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.7548428133370257,
+          "regime_changes": 10.0,
+          "sharpe": -0.036016730060394866,
+          "value": 1.5,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.09130014157178346,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.518664844714456,
+          "regime_changes": 10.0,
+          "sharpe": -0.3578781891977396,
+          "value": 0.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.10700228556553526,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.543128319000871,
+          "regime_changes": 10.0,
+          "sharpe": -0.41536721826422823,
+          "value": 0.25,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.12377639376132099,
+          "frozen": true,
+          "market": "sp500",
+          "max_drawdown": -0.5774965320889991,
+          "regime_changes": 10.0,
+          "sharpe": -0.43924324520718866,
+          "value": 0.5,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.16102673606532525,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.6957431825165485,
+          "regime_changes": 10.0,
+          "sharpe": -0.3693298698191718,
+          "value": 1.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.21178215676670376,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.773188471412171,
+          "regime_changes": 10.0,
+          "sharpe": -0.3878470007336673,
+          "value": 1.5,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": 0.2430996378599719,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.44833213562246554,
+          "regime_changes": 53.0,
+          "sharpe": 0.8483494264698448,
+          "value": 0.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.2519171930910531,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.45740150034129834,
+          "regime_changes": 53.0,
+          "sharpe": 0.8704962408505538,
+          "value": 0.25,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.26030781806149617,
+          "frozen": true,
+          "market": "nasdaq100",
+          "max_drawdown": -0.46646639381622856,
+          "regime_changes": 53.0,
+          "sharpe": 0.8863922087167327,
+          "value": 0.5,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.2766036227842126,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5040092889182808,
+          "regime_changes": 53.0,
+          "sharpe": 0.9019974307487365,
+          "value": 1.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.29065979724800717,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5708915074139199,
+          "regime_changes": 53.0,
+          "sharpe": 0.902135153396167,
+          "value": 1.5,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.15344113759616973,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.3930453241058274,
+          "regime_changes": 54.0,
+          "sharpe": 0.6468136716626243,
+          "value": 0.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.15917112137182743,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.38558925153608925,
+          "regime_changes": 54.0,
+          "sharpe": 0.6655468527413083,
+          "value": 0.25,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.1646847763938677,
+          "frozen": true,
+          "market": "sp500",
+          "max_drawdown": -0.37844061678530705,
+          "regime_changes": 54.0,
+          "sharpe": 0.68030548841034,
+          "value": 0.5,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.1746020120012004,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.384587289828918,
+          "regime_changes": 54.0,
+          "sharpe": 0.6981397223687211,
+          "value": 1.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.18220653627733574,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.40470360580053233,
+          "regime_changes": 54.0,
+          "sharpe": 0.7074672618219268,
+          "value": 1.5,
+          "window": "real 2010-2026"
+        }
+      ],
+      "values": [
+        0.0,
+        0.25,
+        0.5,
+        1.0,
+        1.5
+      ]
+    },
+    {
+      "expectation": "sawtooth in performance, monotone in turnover only",
+      "family": "minimum_duration_days",
+      "frozen_value": 75.0,
+      "rows": [
+        {
+          "cagr": 0.16875402647471405,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.633824943352818,
+          "regime_changes": 296.0,
+          "sharpe": 0.5714451877654042,
+          "value": 20.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.16572122145271417,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.705980625771782,
+          "regime_changes": 217.0,
+          "sharpe": 0.566023863586188,
+          "value": 30.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.16486785809373283,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.7253085471338139,
+          "regime_changes": 147.0,
+          "sharpe": 0.5646470245416161,
+          "value": 45.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.17390624453103487,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6858937174804159,
+          "regime_changes": 117.0,
+          "sharpe": 0.5893143603203133,
+          "value": 60.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.1888008981855891,
+          "frozen": true,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6238477334432446,
+          "regime_changes": 93.0,
+          "sharpe": 0.6475910942531811,
+          "value": 75.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.18785900638290598,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6961209744519781,
+          "regime_changes": 79.0,
+          "sharpe": 0.6313931840056383,
+          "value": 90.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.17270347497057847,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6462739622680094,
+          "regime_changes": 68.0,
+          "sharpe": 0.5811262778842016,
+          "value": 105.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.19020874390808373,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.7578037764047147,
+          "regime_changes": 60.0,
+          "sharpe": 0.6096970238318832,
+          "value": 120.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.16169196950140408,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.7314931145151551,
+          "regime_changes": 48.0,
+          "sharpe": 0.5444171168274395,
+          "value": 150.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.10523259129666074,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5715605388674966,
+          "regime_changes": 304.0,
+          "sharpe": 0.4274769571799995,
+          "value": 20.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.09843348804850693,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5726927510608035,
+          "regime_changes": 220.0,
+          "sharpe": 0.4078698740441657,
+          "value": 30.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.09554708528889,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5382248808828547,
+          "regime_changes": 148.0,
+          "sharpe": 0.3977131957124009,
+          "value": 45.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.10654069558670498,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5774965320889982,
+          "regime_changes": 117.0,
+          "sharpe": 0.4426455328285455,
+          "value": 60.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.0992865020642606,
+          "frozen": true,
+          "market": "sp500",
+          "max_drawdown": -0.577496532088999,
+          "regime_changes": 95.0,
+          "sharpe": 0.41266457872035717,
+          "value": 75.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.10682546623484268,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5457549408686174,
+          "regime_changes": 78.0,
+          "sharpe": 0.4375797641293482,
+          "value": 90.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.10574022738365985,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5341681577631348,
+          "regime_changes": 67.0,
+          "sharpe": 0.43987955818049895,
+          "value": 105.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.09472015795124422,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5476101498154181,
+          "regime_changes": 58.0,
+          "sharpe": 0.39795378014165783,
+          "value": 120.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.09677604494241487,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.553651825280921,
+          "regime_changes": 48.0,
+          "sharpe": 0.41619914392218504,
+          "value": 150.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.10953037561410683,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6338249433528182,
+          "regime_changes": 46.0,
+          "sharpe": 0.3788101108585426,
+          "value": 20.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.06013737579226741,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.7059806257717814,
+          "regime_changes": 33.0,
+          "sharpe": 0.2679504845041674,
+          "value": 30.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.01679300923034166,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.7253085471338128,
+          "regime_changes": 24.0,
+          "sharpe": 0.16240753857337428,
+          "value": 45.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.0644054187899028,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6858937174804152,
+          "regime_changes": 17.0,
+          "sharpe": 0.2762640241348424,
+          "value": 60.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.07450792976831444,
+          "frozen": true,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6238477334432446,
+          "regime_changes": 14.0,
+          "sharpe": 0.28130885267912487,
+          "value": 75.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.11715509647362743,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6961209744519783,
+          "regime_changes": 13.0,
+          "sharpe": 0.3961639225068561,
+          "value": 90.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.05585341185852455,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6462739622680087,
+          "regime_changes": 11.0,
+          "sharpe": 0.2500037731355057,
+          "value": 105.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.0892609354581837,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.7578037764047152,
+          "regime_changes": 10.0,
+          "sharpe": 0.35566295109318424,
+          "value": 120.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.04394271172941466,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.7314931145151563,
+          "regime_changes": 8.0,
+          "sharpe": 0.2420559187252665,
+          "value": 150.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.024279724668709646,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.3890104161039881,
+          "regime_changes": 51.0,
+          "sharpe": 0.0866665009624663,
+          "value": 20.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.0072371058080118456,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.4144062689141922,
+          "regime_changes": 36.0,
+          "sharpe": 0.01634040040079968,
+          "value": 30.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.01188568251421862,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.4362134032407028,
+          "regime_changes": 24.0,
+          "sharpe": -0.05613695583500547,
+          "value": 45.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.0017294424912519535,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.4126984954837978,
+          "regime_changes": 20.0,
+          "sharpe": -0.0018257320363691616,
+          "value": 60.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -3.077526743533454e-05,
+          "frozen": true,
+          "market": "sp500",
+          "max_drawdown": -0.4473578902157903,
+          "regime_changes": 15.0,
+          "sharpe": -0.0015168179497698617,
+          "value": 75.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.015952974816854426,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.4539845424055714,
+          "regime_changes": 13.0,
+          "sharpe": -0.04864307411021841,
+          "value": 90.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.00924758466346054,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.42003653348931513,
+          "regime_changes": 12.0,
+          "sharpe": 0.031870837273794264,
+          "value": 105.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.000303895361599249,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.4213269183672066,
+          "regime_changes": 9.0,
+          "sharpe": -0.0166787373771752,
+          "value": 120.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.007206239032447881,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.439070258026217,
+          "regime_changes": 8.0,
+          "sharpe": -0.03148510901038414,
+          "value": 150.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.015570060372264716,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5811746779677218,
+          "regime_changes": 28.0,
+          "sharpe": -0.004887423708929843,
+          "value": 20.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.008100589335911734,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5512396380580724,
+          "regime_changes": 23.0,
+          "sharpe": 0.01617987109829756,
+          "value": 30.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.010984295815981038,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5579141219502,
+          "regime_changes": 15.0,
+          "sharpe": 0.0007011774404508688,
+          "value": 45.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.019578661651934892,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5889603125989635,
+          "regime_changes": 12.0,
+          "sharpe": -0.0032123872157739848,
+          "value": 60.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.031254579672701066,
+          "frozen": true,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6027801836296072,
+          "regime_changes": 10.0,
+          "sharpe": -0.036521047789328194,
+          "value": 75.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.042996368320906364,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5529779203917697,
+          "regime_changes": 8.0,
+          "sharpe": -0.12775874993293693,
+          "value": 90.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.033346196810125295,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6209877080856736,
+          "regime_changes": 7.0,
+          "sharpe": -0.028217259510258257,
+          "value": 105.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": 0.007057945733184301,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5409860040849115,
+          "regime_changes": 6.0,
+          "sharpe": 0.09343626401778803,
+          "value": 120.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.029997476027878167,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5953066068116926,
+          "regime_changes": 5.0,
+          "sharpe": -0.0356103229751695,
+          "value": 150.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.09657705734155553,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5715605388674956,
+          "regime_changes": 34.0,
+          "sharpe": -0.3011318024714351,
+          "value": 20.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.12319011328441931,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5726927510608044,
+          "regime_changes": 22.0,
+          "sharpe": -0.4303597024582603,
+          "value": 30.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.09437094183958417,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5382248808828545,
+          "regime_changes": 14.0,
+          "sharpe": -0.3249991553645698,
+          "value": 45.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.10252134915566136,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5774965320889991,
+          "regime_changes": 11.0,
+          "sharpe": -0.34398273351258396,
+          "value": 60.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.12377639376132099,
+          "frozen": true,
+          "market": "sp500",
+          "max_drawdown": -0.5774965320889991,
+          "regime_changes": 10.0,
+          "sharpe": -0.43924324520718866,
+          "value": 75.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.10971295823127603,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5457549408686179,
+          "regime_changes": 8.0,
+          "sharpe": -0.412975032604788,
+          "value": 90.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.11332960981249951,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5341681577631352,
+          "regime_changes": 7.0,
+          "sharpe": -0.46537269777068063,
+          "value": 105.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.09563660686292685,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5476101498154189,
+          "regime_changes": 6.0,
+          "sharpe": -0.3271117734435829,
+          "value": 120.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.10382085207887615,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5536518252809209,
+          "regime_changes": 5.0,
+          "sharpe": -0.385373321987217,
+          "value": 150.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": 0.22453285243652266,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.43982158750924083,
+          "regime_changes": 173.0,
+          "sharpe": 0.765951290977579,
+          "value": 20.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.2288078851893378,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.45821638479008486,
+          "regime_changes": 124.0,
+          "sharpe": 0.7878074661290401,
+          "value": 30.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.2325105569493151,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.46189895389707936,
+          "regime_changes": 85.0,
+          "sharpe": 0.8013551546512284,
+          "value": 45.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.23572902172953247,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.4624976116369416,
+          "regime_changes": 67.0,
+          "sharpe": 0.8269881112369615,
+          "value": 60.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.26030781806149617,
+          "frozen": true,
+          "market": "nasdaq100",
+          "max_drawdown": -0.46646639381622856,
+          "regime_changes": 53.0,
+          "sharpe": 0.8863922087167327,
+          "value": 75.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.2527080482749666,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.43472828895316207,
+          "regime_changes": 45.0,
+          "sharpe": 0.8543181636890667,
+          "value": 90.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.24197742642728737,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.44603163111458455,
+          "regime_changes": 38.0,
+          "sharpe": 0.815724292337332,
+          "value": 105.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.2623934730278894,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.4248409751784995,
+          "regime_changes": 34.0,
+          "sharpe": 0.871145432941956,
+          "value": 120.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.21938279840231267,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.452357893089642,
+          "regime_changes": 27.0,
+          "sharpe": 0.7619593996017662,
+          "value": 150.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.14928537563148447,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.47181828607551746,
+          "regime_changes": 170.0,
+          "sharpe": 0.6015553963441024,
+          "value": 20.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.14732962001027583,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.4525983381729012,
+          "regime_changes": 125.0,
+          "sharpe": 0.6030783559624976,
+          "value": 30.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.14042122671811197,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.4294547526338154,
+          "regime_changes": 85.0,
+          "sharpe": 0.582953376663494,
+          "value": 45.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.17014359678417468,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.3774770122397212,
+          "regime_changes": 67.0,
+          "sharpe": 0.7103419935657118,
+          "value": 60.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.1646847763938677,
+          "frozen": true,
+          "market": "sp500",
+          "max_drawdown": -0.37844061678530705,
+          "regime_changes": 54.0,
+          "sharpe": 0.68030548841034,
+          "value": 75.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.1741339914457034,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.4227587833086024,
+          "regime_changes": 45.0,
+          "sharpe": 0.6964932712476117,
+          "value": 90.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.1655349925485854,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.43265175142355017,
+          "regime_changes": 38.0,
+          "sharpe": 0.6838176540716253,
+          "value": 105.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.1410541817094435,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.4262178675054483,
+          "regime_changes": 33.0,
+          "sharpe": 0.5928889402188755,
+          "value": 120.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.15214820160179943,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.35820407715403946,
+          "regime_changes": 28.0,
+          "sharpe": 0.668501542424692,
+          "value": 150.0,
+          "window": "real 2010-2026"
+        }
+      ],
+      "values": [
+        20.0,
+        30.0,
+        45.0,
+        60.0,
+        75.0,
+        90.0,
+        105.0,
+        120.0,
+        150.0
+      ]
+    },
+    {
+      "expectation": "sawtooth; direction flips between windows",
+      "family": "hysteresis",
+      "frozen_value": 5.0,
+      "rows": [
+        {
+          "cagr": 0.18908646037697063,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5999790792756187,
+          "regime_changes": 97.0,
+          "sharpe": 0.6366206766937955,
+          "value": 0.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.2003430860284332,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6219904536418863,
+          "regime_changes": 97.0,
+          "sharpe": 0.6928268791497602,
+          "value": 2.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.1888008981855891,
+          "frozen": true,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6238477334432446,
+          "regime_changes": 93.0,
+          "sharpe": 0.6475910942531811,
+          "value": 5.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.17290064170356234,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6967626837942809,
+          "regime_changes": 90.0,
+          "sharpe": 0.6020204330843012,
+          "value": 8.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.1729565637585213,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.7147833740691022,
+          "regime_changes": 83.0,
+          "sharpe": 0.5771320627382958,
+          "value": 12.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.09480101284682707,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5774965320889979,
+          "regime_changes": 97.0,
+          "sharpe": 0.3960739944889064,
+          "value": 0.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.10197497044533121,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.543726302069834,
+          "regime_changes": 96.0,
+          "sharpe": 0.423641680453801,
+          "value": 2.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.0992865020642606,
+          "frozen": true,
+          "market": "sp500",
+          "max_drawdown": -0.577496532088999,
+          "regime_changes": 95.0,
+          "sharpe": 0.41266457872035717,
+          "value": 5.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.10712448864479751,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5655449942451616,
+          "regime_changes": 91.0,
+          "sharpe": 0.442013053927269,
+          "value": 8.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.1104995608283319,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5656087321240302,
+          "regime_changes": 88.0,
+          "sharpe": 0.45205981501229153,
+          "value": 12.0,
+          "window": "full 1996-2026"
+        },
+        {
+          "cagr": 0.17457078430754747,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5999790792756194,
+          "regime_changes": 16.0,
+          "sharpe": 0.5221873993682588,
+          "value": 0.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.06159298393582624,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6219904536418854,
+          "regime_changes": 16.0,
+          "sharpe": 0.24056743985309545,
+          "value": 2.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.07450792976831444,
+          "frozen": true,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6238477334432446,
+          "regime_changes": 14.0,
+          "sharpe": 0.28130885267912487,
+          "value": 5.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.035724434704754504,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6967626837942805,
+          "regime_changes": 14.0,
+          "sharpe": 0.18330031054932192,
+          "value": 8.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": 0.04054604211847401,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.7147833740691023,
+          "regime_changes": 13.0,
+          "sharpe": 0.22529589067169545,
+          "value": 12.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.011119083222706938,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.4527342112269842,
+          "regime_changes": 16.0,
+          "sharpe": -0.04695138272094823,
+          "value": 0.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.004124538833869318,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.4472278154084288,
+          "regime_changes": 16.0,
+          "sharpe": -0.018055341032752793,
+          "value": 2.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -3.077526743533454e-05,
+          "frozen": true,
+          "market": "sp500",
+          "max_drawdown": -0.4473578902157903,
+          "regime_changes": 15.0,
+          "sharpe": -0.0015168179497698617,
+          "value": 5.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.00048559087934507694,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.41512497087499967,
+          "regime_changes": 15.0,
+          "sharpe": -0.01903657033033702,
+          "value": 8.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.015733130940751905,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.45163406970863706,
+          "regime_changes": 14.0,
+          "sharpe": -0.0565209618453331,
+          "value": 12.0,
+          "window": "dotcom 1999-2003"
+        },
+        {
+          "cagr": -0.007883644790173228,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5524936079243759,
+          "regime_changes": 10.0,
+          "sharpe": 0.031615862213126365,
+          "value": 0.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": 0.06944869414627908,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.43126384752142166,
+          "regime_changes": 10.0,
+          "sharpe": 0.32152300657319843,
+          "value": 2.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.031254579672701066,
+          "frozen": true,
+          "market": "nasdaq100",
+          "max_drawdown": -0.6027801836296072,
+          "regime_changes": 10.0,
+          "sharpe": -0.036521047789328194,
+          "value": 5.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": 0.05165954624327673,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.45136020774687524,
+          "regime_changes": 9.0,
+          "sharpe": 0.24920060850840242,
+          "value": 8.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.03992441711422334,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.5955557256351864,
+          "regime_changes": 9.0,
+          "sharpe": -0.06716735163902875,
+          "value": 12.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.12430260743193855,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5774965320889993,
+          "regime_changes": 10.0,
+          "sharpe": -0.46224120196223695,
+          "value": 0.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.0883987692882564,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5437263020698337,
+          "regime_changes": 10.0,
+          "sharpe": -0.310384043528173,
+          "value": 2.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.12377639376132099,
+          "frozen": true,
+          "market": "sp500",
+          "max_drawdown": -0.5774965320889991,
+          "regime_changes": 10.0,
+          "sharpe": -0.43924324520718866,
+          "value": 5.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.11671507512356383,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5655449942451618,
+          "regime_changes": 10.0,
+          "sharpe": -0.4240835707378308,
+          "value": 8.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": -0.12000125942627238,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.5656087321240293,
+          "regime_changes": 10.0,
+          "sharpe": -0.4422178138821626,
+          "value": 12.0,
+          "window": "gfc 2007-2009"
+        },
+        {
+          "cagr": 0.2352587826823569,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.4731701438403785,
+          "regime_changes": 55.0,
+          "sharpe": 0.8261688393040845,
+          "value": 0.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.2560709861992241,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.4203760495216302,
+          "regime_changes": 56.0,
+          "sharpe": 0.8911045389010718,
+          "value": 2.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.26030781806149617,
+          "frozen": true,
+          "market": "nasdaq100",
+          "max_drawdown": -0.46646639381622856,
+          "regime_changes": 53.0,
+          "sharpe": 0.8863922087167327,
+          "value": 5.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.22132767987403823,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.4624976116369416,
+          "regime_changes": 51.0,
+          "sharpe": 0.787036443395686,
+          "value": 8.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.23721486685933257,
+          "frozen": false,
+          "market": "nasdaq100",
+          "max_drawdown": -0.4691107585702191,
+          "regime_changes": 45.0,
+          "sharpe": 0.7992002565605749,
+          "value": 12.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.16429359968774215,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.42469035869164073,
+          "regime_changes": 55.0,
+          "sharpe": 0.6702511152686798,
+          "value": 0.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.16561507466025027,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.4007959917130115,
+          "regime_changes": 55.0,
+          "sharpe": 0.6825119336798093,
+          "value": 2.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.1646847763938677,
+          "frozen": true,
+          "market": "sp500",
+          "max_drawdown": -0.37844061678530705,
+          "regime_changes": 54.0,
+          "sharpe": 0.68030548841034,
+          "value": 5.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.17471699776398952,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.4246903586916413,
+          "regime_changes": 51.0,
+          "sharpe": 0.706793505511338,
+          "value": 8.0,
+          "window": "real 2010-2026"
+        },
+        {
+          "cagr": 0.19061915322490752,
+          "frozen": false,
+          "market": "sp500",
+          "max_drawdown": -0.42469035869164107,
+          "regime_changes": 48.0,
+          "sharpe": 0.7618629780583189,
+          "value": 12.0,
+          "window": "real 2010-2026"
+        }
+      ],
+      "values": [
+        0.0,
+        2.0,
+        5.0,
+        8.0,
+        12.0
+      ]
+    }
+  ],
+  "task": "TASK-182",
+  "windows": [
+    {
+      "end": "",
+      "start": "",
+      "window": "full 1996-2026"
+    },
+    {
+      "end": "2003-12-31",
+      "start": "1999-03-10",
+      "window": "dotcom 1999-2003"
+    },
+    {
+      "end": "2009-12-31",
+      "start": "2007-01-01",
+      "window": "gfc 2007-2009"
+    },
+    {
+      "end": "",
+      "start": "2010-02-11",
+      "window": "real 2010-2026"
+    }
+  ]
+}

@@ -84,6 +84,11 @@ logger = logging.getLogger(__name__)
 TRADING_DAYS_PER_YEAR = 252
 
 #: Fund inception dates. Before these, any price is reconstructed.
+#:
+#: The default for both providers, not a hard-coded assumption inside them:
+#: research that replicates this strategy on another fund family (S&P 500's
+#: SPY/SSO/UPRO, say) passes its own ``inceptions`` instead. Everything
+#: operational uses this dict.
 INCEPTION: dict[str, date] = {
     "QQQ": date(1999, 3, 10),
     "QLD": date(2006, 6, 21),
@@ -163,9 +168,11 @@ class SplicedIndexProvider:
     index_provider: SeriesProvider
     index_symbol: str = "FRED:NASDAQ100"
     underlying_source: str = "Nasdaq-100 index, spliced before QQQ inception"
+    #: Listing dates, so another fund family can be spliced with its own index.
+    inceptions: dict[str, date] = field(default_factory=lambda: dict(INCEPTION))
 
     def fetch(self, symbol: str, start: date, end: date) -> DataFrame:
-        inception = INCEPTION.get(symbol)
+        inception = self.inceptions.get(symbol)
         if inception is None or start >= inception:
             return self.base.fetch(symbol, start, end)
 
@@ -231,10 +238,13 @@ class SyntheticLeveragedProvider:
     #: Annual percentage financing rate, indexed by date. Supplied by the caller
     #: so the real fed funds series can be injected rather than assumed.
     financing_rates: Series | None = None
+    #: Listing dates of the sleeves being reconstructed. Defaults to the Nasdaq
+    #: funds; cross-market research supplies its own.
+    inceptions: dict[str, date] = field(default_factory=lambda: dict(INCEPTION))
 
     def fetch(self, symbol: str, start: date, end: date) -> DataFrame:
         leverage = self.leverages.get(symbol)
-        inception = INCEPTION.get(symbol)
+        inception = self.inceptions.get(symbol)
         if leverage is None or inception is None or start >= inception:
             return self.base.fetch(symbol, start, end)
 
