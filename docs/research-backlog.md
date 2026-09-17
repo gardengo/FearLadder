@@ -35,6 +35,27 @@ TQQQ  7753 rows  1996-01-02 .. 2026-09-15
 leveraged sleeves are real prices from 2010-02-11 onward
 ```
 
+**세 줄 더 확인하라 — 이것 때문에 한 번 틀렸다.**
+
+```text
+AAII_SENTIMENT   1599 rows  1996-01-04 ..      <- 1996 이어야 한다. 2021 이면 틀렸다
+CNN_FEAR_GREED   3927 rows  2011-01-03 ..      <- 2011 이어야 한다. 2021 이면 틀렸다
+```
+
+`data/reference/` 는 **gitignore 대상**이라(제3자 데이터를 재배포하지 않는다)
+새 워크트리에는 비어 있다. 그 상태로 수집하면 AAII/CNN 이 운영 DB 에 들어 있는
+**5년치만** 들어오고, 종합 점수가 달라져 국면 경로가 어긋난다. 겉으로는 잘
+돌아가고 단계 변경 횟수(93회)까지 그대로라 알아채기 어렵다. 실제로 틀어진 것은
+낙폭이었다 — **−62.4% 가 −71.5% 로** 나왔다.
+
+메인 체크아웃에는 파일이 있으니 워크트리로 복사하면 된다:
+
+```bash
+cp -r E:/Develop/FearLadder/data/reference/{aaii,cnn} data/reference/
+```
+
+없으면 `python scripts/fetch_reference.py` 로 받는다.
+
 ### 0.2 Windows 콘솔 인코딩
 
 스크립트 docstring 에 한글과 `–` 가 있어서 cp949 콘솔에서는 `--help` 가
@@ -108,6 +129,12 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 - 전략 전체 최대낙폭 −62.4% 는 2000-03-27 → 2002-10-09, **재구성 가격 구간**.
   실물 구간 최대낙폭은 −46.6%, 2021-11-19 → 2023-03-10 이고 회복에 2.3년.
 - 2020년 3월은 이 전략에서 −25% 국면조차 만들지 못했다(추세 필터가 작동).
+- **재구성 모델은 폭락기에 낙관적이다** — 금융위기 QLD 실측 대비 +6.21%/년,
+  R² 0.968(전체 수명 0.990). 원인은 상수 `MEASURED_DRAG`: 그 창이 함의하는
+  연간 마찰은 6.68% 다. 다른 용도로 이 모델을 쓸 때 반드시 감안하라(§2.12).
+- **그래도 −62.4% 는 그 오차에 둔감하다** — 재구성 구간 전체에 위기 수준
+  조달비용을 물려도 −62.6%. 닷컴 낙폭 구간 평균 보유가 현금 54.8% / QQQ 37.8% /
+  QLD 7.4% / TQQQ 0% 라서다. `max_leverage_below` 가 1.5 일 때만 민감해진다(§2.12).
 
 ### 기준 수치 (무언가 어긋나면 이걸로 확인한다)
 
@@ -120,7 +147,19 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 
 권장 순서대로. 각 항목은 독립적이므로 골라 해도 된다.
 
-### TASK-181 재구성 모델을 2008년 실물 QLD 로 검증한다 — **1순위**
+### ~~TASK-181 재구성 모델을 2008년 실물 QLD 로 검증한다~~ — **완료 (2026-09-18)**
+
+`docs/strategy.md` §2.12 · `reports/reconstruction_accuracy.json` ·
+`python scripts/reconstruction_accuracy.py --db <full.db>`
+
+두 줄 요약: **모델은 폭락기에 낙관적이다**(금융위기 R² 0.968, +6.21%/년 표류,
+함의 drag 6.68% vs 모델 0.68%). **그런데 −62.4% 는 그 오차에 둔감하다**
+(−62.6%) — 닷컴 낙폭 구간의 레버리지 슬리브 보유일이 10.4% 뿐이고 나머지는
+현금과 실물 QQQ 이기 때문이다. §2.11 은 철회하지 않고 단서만 좁혔다.
+
+아래는 착수 당시의 기록이다.
+
+
 
 **질문.** §2.11 의 결론은 "대폭락 증거가 모델 가격 하나뿐" 이라는 데 걸려 있다.
 그 모델이 **폭락기에** 얼마나 정확한가?
@@ -234,9 +273,11 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 
 1. **스크립트로 만든다.** 스크래치 파일로 끝내지 않는다 — 문서의 모든 표는
    재현 명령을 갖는다. `scripts/tail_risk.py` 를 본보기로 삼아라.
-2. **리포트를 `reports/` 에 커밋한다.** 대시보드가 있으면 읽어서 보여준다
-   (`app/views/common.py` 의 `SENSITIVITY_REPORTS`). 리포트가 없으면 해당 구역을
-   조용히 생략하도록 되어 있으니, 없는 상태에서도 앱이 깨지지 않는지 확인하라.
+2. **리포트를 `reports/` 에 커밋한다.** 대시보드에는 싣지 않는다 — 2026-09-16
+   에 파라미터 결정 근거를 화면에서 덜어내면서 `SENSITIVITY_REPORTS` 와 그것을
+   쓰던 구역이 전부 제거됐다. 대시보드는 "지금 무엇을 하면 되는가" 만 보여주고,
+   "왜 이 값인가" 는 저장소에서 찾는다. 사후 측정 리포트는 `docs/strategy.md`
+   의 절과 `reports/*.json` 이 짝이 되는 것으로 끝이다.
 3. **`docs/strategy.md` 에 절을 추가한다.** 제목에 날짜와 **"사후 측정 — 아무것도
    바꾸지 않음"** 을 명시한다. §2.5 의 지지도 표도 같이 갱신한다.
 4. **이전 결론이 틀렸으면 철회를 눈에 보이게 적는다.** §2.10 의 정정 블록이
@@ -252,9 +293,10 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 
 | | |
 | --- | --- |
-| 전략 명세·측정 기록 | `docs/strategy.md` (§2.5 지지도 표, §2.10–§2.11 최근 측정) |
+| 전략 명세·측정 기록 | `docs/strategy.md` (§2.5 지지도 표, §2.10–§2.12 최근 측정) |
 | 재구성 모델 | `src/fear_ladder/data/collectors/synthetic.py` |
+| 재구성 정확도 측정 | `scripts/reconstruction_accuracy.py` |
 | 전이 장치 측정 | `scripts/transition_sensitivity.py` |
 | 꼬리위험 측정 | `scripts/tail_risk.py` |
 | 전체 이력 DB 생성 | `scripts/collect_full_history.py` |
-| 기존 리포트 | `reports/transition_sweep_{research,validation,pre2010,real_etf,oos}.json`, `reports/tail_risk.json` |
+| 기존 리포트 | `reports/transition_sweep_{research,validation,pre2010,real_etf,oos}.json`, `reports/tail_risk.json`, `reports/reconstruction_accuracy.json` |

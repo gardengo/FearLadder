@@ -41,8 +41,23 @@ QLD    20.2 yr   0.990      −1.5%
 TQQQ   16.6 yr   0.997      −8.3% (conservative)
 =====  ========  =========  ===================
 
-``tests/unit/test_synthetic.py`` re-measures this, so a provider change that
-degrades tracking fails the build.
+**Do not read those numbers as crash accuracy.** A fund's whole life is
+overwhelmingly calm days. Measured on the one crash a leveraged sleeve lived
+through at real prices — QLD, 2007-10-31 → 2009-03-09 — the model is at its
+worst and its error points the optimistic way: R² 0.968, +8.5% cumulative over
+340 days, an annualised drift of +6.2%/yr against −0.08%/yr over the whole life.
+The window implies an all-in carry of 6.7%/yr where ``MEASURED_DRAG`` charges
+0.68%, which is the swap spread a leveraged fund pays widening exactly when
+funding freezes. In calm windows the implied drag is *negative*: one constant
+fitted to a whole life flatters crashes and penalises quiet years.
+
+It matters less than it sounds for this strategy's own drawdown — the trend
+filter has cut leverage long before the error accumulates — but that is a fact
+about the strategy, not about the model. ``docs/strategy.md`` §2.12 has the
+measurement; ``scripts/reconstruction_accuracy.py`` reproduces it.
+
+``tests/unit/test_synthetic.py`` re-measures the whole-life tracking, so a
+provider change that degrades it fails the build.
 """
 
 from __future__ import annotations

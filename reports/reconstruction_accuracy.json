@@ -1,0 +1,497 @@
+{
+  "drags": {
+    "QLD": 0.0068,
+    "TQQQ": 0.0016
+  },
+  "financing_available": true,
+  "financing_symbol": "FRED:DFF",
+  "leverage_scaling": [
+    {
+      "cumulative_error_2x": -0.002727392499839887,
+      "cumulative_error_3x": 0.003506790604125287,
+      "drawdown_error_pp_2x": -0.166935442943561,
+      "drawdown_error_pp_3x": 0.19897720886217218,
+      "kind": "crash",
+      "tracking_error_ratio": 2.330198488946116,
+      "window": "covid 2020"
+    },
+    {
+      "cumulative_error_2x": 0.0018773112471848208,
+      "cumulative_error_3x": 0.01612155777920843,
+      "drawdown_error_pp_2x": 0.06797582216672149,
+      "drawdown_error_pp_3x": 0.29414516444588035,
+      "kind": "crash",
+      "tracking_error_ratio": 1.5254136665165052,
+      "window": "bear 2022"
+    },
+    {
+      "cumulative_error_2x": -0.056628730730006516,
+      "cumulative_error_3x": -0.0729609774006511,
+      "drawdown_error_pp_2x": 0.041566245913560174,
+      "drawdown_error_pp_3x": -0.16787925009223992,
+      "kind": "calm",
+      "tracking_error_ratio": 1.500879230472831,
+      "window": "calm 2013-2015"
+    },
+    {
+      "cumulative_error_2x": -0.04651736448566346,
+      "cumulative_error_3x": -0.04951829010366515,
+      "drawdown_error_pp_2x": -0.4532732576877141,
+      "drawdown_error_pp_3x": -0.43475900530055567,
+      "kind": "calm",
+      "tracking_error_ratio": 1.5030582388843228,
+      "window": "calm 2016-2019"
+    },
+    {
+      "cumulative_error_2x": -0.015484038202833394,
+      "cumulative_error_3x": -0.08236823021075224,
+      "drawdown_error_pp_2x": 1.3548407839548582,
+      "drawdown_error_pp_3x": 0.29414516444585814,
+      "kind": "all",
+      "tracking_error_ratio": 0.7394727732502574,
+      "window": "whole life"
+    }
+  ],
+  "strategy_version": "v1.0-frozen",
+  "stress": {
+    "by_cap": [
+      {
+        "baseline_max_drawdown": -0.5880060229850291,
+        "drawdown_change_pp": 8.881784197001252e-14,
+        "frozen": false,
+        "max_leverage_below": 0.0,
+        "stressed_max_drawdown": -0.5880060229850282
+      },
+      {
+        "baseline_max_drawdown": -0.5947046468264601,
+        "drawdown_change_pp": -4.440892098500626e-14,
+        "frozen": false,
+        "max_leverage_below": 0.25,
+        "stressed_max_drawdown": -0.5947046468264605
+      },
+      {
+        "baseline_max_drawdown": -0.6238477334432446,
+        "drawdown_change_pp": -0.21170243808257272,
+        "frozen": true,
+        "max_leverage_below": 0.5,
+        "stressed_max_drawdown": -0.6259647578240704
+      },
+      {
+        "baseline_max_drawdown": -0.8354121537998653,
+        "drawdown_change_pp": -0.09261637994371075,
+        "frozen": false,
+        "max_leverage_below": 1.0,
+        "stressed_max_drawdown": -0.8363383175993024
+      },
+      {
+        "baseline_max_drawdown": -0.9242748414835833,
+        "drawdown_change_pp": -0.8016623592518313,
+        "frozen": false,
+        "max_leverage_below": 1.5,
+        "stressed_max_drawdown": -0.9322914650761016
+      }
+    ],
+    "extra_drag": {
+      "QLD": 0.06002147900694638,
+      "TQQQ": 0.12004295801389275
+    },
+    "index_drawdown_threshold": 0.2,
+    "source": "gfc 2007-2009 / QLD drag_shortfall",
+    "windows": [
+      {
+        "baseline": {
+          "cagr": 0.1888008981855891,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.6238477334432446,
+          "sharpe": 0.6475910942531811
+        },
+        "cagr_change_pp": -0.4288612204877307,
+        "drawdown_change_pp": -0.21170243808257272,
+        "end": "",
+        "start": "",
+        "stressed": {
+          "cagr": 0.1845122859807118,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.6259647578240704,
+          "sharpe": 0.6356318807142605
+        },
+        "window": "full 1996-2026"
+      },
+      {
+        "baseline": {
+          "cagr": 0.07450792976831444,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.6238477334432446,
+          "sharpe": 0.28130885267912487
+        },
+        "cagr_change_pp": -0.3259861518166707,
+        "drawdown_change_pp": -0.21170243808258382,
+        "end": "2003-12-31",
+        "start": "1999-03-10",
+        "stressed": {
+          "cagr": 0.07124806825014773,
+          "drawdown_peak": "2000-03-27",
+          "drawdown_trough": "2002-10-09",
+          "max_drawdown": -0.6259647578240705,
+          "sharpe": 0.27106067106551546
+        },
+        "window": "dotcom 1999-2003"
+      },
+      {
+        "baseline": {
+          "cagr": 0.26030781806149617,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2023-03-10",
+          "max_drawdown": -0.46646639381622856,
+          "sharpe": 0.8863922087167327
+        },
+        "cagr_change_pp": 0.0,
+        "drawdown_change_pp": 0.0,
+        "end": "",
+        "start": "2010-02-11",
+        "stressed": {
+          "cagr": 0.26030781806149617,
+          "drawdown_peak": "2021-11-19",
+          "drawdown_trough": "2023-03-10",
+          "max_drawdown": -0.46646639381622856,
+          "sharpe": 0.8863922087167327
+        },
+        "window": "real 2010-2026"
+      }
+    ]
+  },
+  "task": "TASK-181",
+  "underlying": "QQQ",
+  "windows": [
+    {
+      "end": "2009-03-09",
+      "funds": [
+        {
+          "annualised_drift": 0.06208154084725925,
+          "configured_drag": 0.0068,
+          "cumulative_error": 0.08465682138195918,
+          "days": 340,
+          "drag_shortfall": 0.06002147900694638,
+          "drawdown_error_pp": 1.3548407839548693,
+          "end": "2009-03-09",
+          "implied_drag": 0.06682147900694638,
+          "leverage": 2.0,
+          "max_path_error": 0.0994894112341349,
+          "model_drawdown_trough": "2009-03-09",
+          "model_max_drawdown": -0.8264124173086068,
+          "optimistic": true,
+          "r_squared": 0.9685124898044558,
+          "real_drawdown_trough": "2009-03-09",
+          "real_max_drawdown": -0.8399608251481555,
+          "start": "2007-10-31",
+          "symbol": "QLD",
+          "tracking_error_annual": 0.13471215054669022,
+          "years": 1.3492063492063493
+        }
+      ],
+      "kind": "crash",
+      "note": "the only >50% index decline a leveraged sleeve has lived through at real prices",
+      "start": "2007-10-31",
+      "window": "gfc 2007-2009"
+    },
+    {
+      "end": "2010-12-31",
+      "funds": [
+        {
+          "annualised_drift": -0.010716149254062834,
+          "configured_drag": 0.0068,
+          "cumulative_error": -0.019474660446600067,
+          "days": 460,
+          "drag_shortfall": -0.01082710615004585,
+          "drawdown_error_pp": -0.30768515284770315,
+          "end": "2010-12-31",
+          "implied_drag": -0.004027106150045851,
+          "leverage": 2.0,
+          "max_path_error": 0.023341790443228594,
+          "model_drawdown_trough": "2010-07-02",
+          "model_max_drawdown": -0.3065590111783325,
+          "optimistic": false,
+          "r_squared": 0.9919475344202454,
+          "real_drawdown_trough": "2010-07-02",
+          "real_max_drawdown": -0.3034821596498555,
+          "start": "2009-03-09",
+          "symbol": "QLD",
+          "tracking_error_annual": 0.0373571307524081,
+          "years": 1.8253968253968254
+        }
+      ],
+      "kind": "rebound",
+      "note": "the other half of a crash: a violent recovery, where a 2x fund also compounds oddly",
+      "start": "2009-03-09",
+      "window": "gfc rebound 2009-2010"
+    },
+    {
+      "end": "2020-03-23",
+      "funds": [
+        {
+          "annualised_drift": -0.028269469952551862,
+          "configured_drag": 0.0068,
+          "cumulative_error": -0.002727392499839887,
+          "days": 24,
+          "drag_shortfall": -0.02884537444700544,
+          "drawdown_error_pp": -0.166935442943561,
+          "end": "2020-03-23",
+          "implied_drag": -0.02204537444700544,
+          "leverage": 2.0,
+          "max_path_error": 0.015375952648258306,
+          "model_drawdown_trough": "2020-03-16",
+          "model_max_drawdown": -0.5188235718919435,
+          "optimistic": false,
+          "r_squared": 0.9956790172618761,
+          "real_drawdown_trough": "2020-03-20",
+          "real_max_drawdown": -0.5171542174625079,
+          "start": "2020-02-19",
+          "symbol": "QLD",
+          "tracking_error_annual": 0.10603333400947121,
+          "years": 0.09523809523809523
+        },
+        {
+          "annualised_drift": 0.03744077752336494,
+          "configured_drag": 0.0016,
+          "cumulative_error": 0.003506790604125287,
+          "days": 24,
+          "drag_shortfall": 0.03595774158145328,
+          "drawdown_error_pp": 0.19897720886217218,
+          "end": "2020-03-23",
+          "implied_drag": 0.03755774158145328,
+          "leverage": 3.0,
+          "max_path_error": 0.03828894722528586,
+          "model_drawdown_trough": "2020-03-23",
+          "model_max_drawdown": -0.697230971127899,
+          "optimistic": true,
+          "r_squared": 0.9908593697634868,
+          "real_drawdown_trough": "2020-03-20",
+          "real_max_drawdown": -0.6992207432165207,
+          "start": "2020-02-19",
+          "symbol": "TQQQ",
+          "tracking_error_annual": 0.2470787146867886,
+          "years": 0.09523809523809523
+        }
+      ],
+      "kind": "crash",
+      "note": "fastest decline in the record, and short enough that drift cannot explain the error",
+      "start": "2020-02-19",
+      "window": "covid 2020"
+    },
+    {
+      "end": "2022-12-28",
+      "funds": [
+        {
+          "annualised_drift": 0.0017015860854376896,
+          "configured_drag": 0.0068,
+          "cumulative_error": 0.0018773112471848208,
+          "days": 278,
+          "drag_shortfall": 0.0016987085131561991,
+          "drawdown_error_pp": 0.06797582216672149,
+          "end": "2022-12-28",
+          "implied_drag": 0.008498708513156199,
+          "leverage": 2.0,
+          "max_path_error": 0.003977300974097209,
+          "model_drawdown_trough": "2022-12-28",
+          "model_max_drawdown": -0.6372288609875433,
+          "optimistic": true,
+          "r_squared": 0.9992750724173372,
+          "real_drawdown_trough": "2022-12-28",
+          "real_max_drawdown": -0.6379086192092105,
+          "start": "2021-11-19",
+          "symbol": "QLD",
+          "tracking_error_annual": 0.017105866618093737,
+          "years": 1.1031746031746033
+        },
+        {
+          "annualised_drift": 0.014602833263154258,
+          "configured_drag": 0.0016,
+          "cumulative_error": 0.01612155777920843,
+          "days": 278,
+          "drag_shortfall": 0.014435303968091128,
+          "drawdown_error_pp": 0.29414516444588035,
+          "end": "2022-12-28",
+          "implied_drag": 0.01603530396809113,
+          "leverage": 3.0,
+          "max_path_error": 0.0189407739219718,
+          "model_drawdown_trough": "2022-12-28",
+          "model_max_drawdown": -0.8146039937310315,
+          "optimistic": true,
+          "r_squared": 0.9993041982784363,
+          "real_drawdown_trough": "2022-12-28",
+          "real_max_drawdown": -0.8175454453754903,
+          "start": "2021-11-19",
+          "symbol": "TQQQ",
+          "tracking_error_annual": 0.026093522716848658,
+          "years": 1.1031746031746033
+        }
+      ],
+      "kind": "crash",
+      "note": "the strategy's own worst real-priced drawdown (§2.11)",
+      "start": "2021-11-19",
+      "window": "bear 2022"
+    },
+    {
+      "end": "2015-12-31",
+      "funds": [
+        {
+          "annualised_drift": -0.019244207467529972,
+          "configured_drag": 0.0068,
+          "cumulative_error": -0.056628730730006516,
+          "days": 756,
+          "drag_shortfall": -0.019478862897444334,
+          "drawdown_error_pp": 0.041566245913560174,
+          "end": "2015-12-31",
+          "implied_drag": -0.012678862897444333,
+          "leverage": 2.0,
+          "max_path_error": 0.05851007876772307,
+          "model_drawdown_trough": "2015-08-25",
+          "model_max_drawdown": -0.26425105748809086,
+          "optimistic": true,
+          "r_squared": 0.9967533709788149,
+          "real_drawdown_trough": "2015-08-25",
+          "real_max_drawdown": -0.26466671994722646,
+          "start": "2013-01-02",
+          "symbol": "QLD",
+          "tracking_error_annual": 0.01694430058505832,
+          "years": 3.0
+        },
+        {
+          "annualised_drift": -0.024937011266648823,
+          "configured_drag": 0.0016,
+          "cumulative_error": -0.0729609774006511,
+          "days": 756,
+          "drag_shortfall": -0.025322192241931,
+          "drawdown_error_pp": -0.16787925009223992,
+          "end": "2015-12-31",
+          "implied_drag": -0.023722192241931,
+          "leverage": 3.0,
+          "max_path_error": 0.0760453078733947,
+          "model_drawdown_trough": "2015-08-25",
+          "model_max_drawdown": -0.3740494700099517,
+          "optimistic": false,
+          "r_squared": 0.9967788013069496,
+          "real_drawdown_trough": "2015-08-25",
+          "real_max_drawdown": -0.3723706775090293,
+          "start": "2013-01-02",
+          "symbol": "TQQQ",
+          "tracking_error_annual": 0.02543134882300267,
+          "years": 3.0
+        }
+      ],
+      "kind": "calm",
+      "note": "reference: what the error looks like when nothing happens",
+      "start": "2013-01-01",
+      "window": "calm 2013-2015"
+    },
+    {
+      "end": "2019-12-31",
+      "funds": [
+        {
+          "annualised_drift": -0.011861285045228875,
+          "configured_drag": 0.0068,
+          "cumulative_error": -0.04651736448566346,
+          "days": 1006,
+          "drag_shortfall": -0.011955012631472268,
+          "drawdown_error_pp": -0.4532732576877141,
+          "end": "2019-12-31",
+          "implied_drag": -0.005155012631472268,
+          "leverage": 2.0,
+          "max_path_error": 0.04696633356932878,
+          "model_drawdown_trough": "2018-12-24",
+          "model_max_drawdown": -0.42917140149318134,
+          "optimistic": false,
+          "r_squared": 0.9975938188972459,
+          "real_drawdown_trough": "2018-12-24",
+          "real_max_drawdown": -0.4246386689163042,
+          "start": "2016-01-04",
+          "symbol": "QLD",
+          "tracking_error_annual": 0.016815130652920143,
+          "years": 3.992063492063492
+        },
+        {
+          "annualised_drift": -0.012641251263867725,
+          "configured_drag": 0.0016,
+          "cumulative_error": -0.04951829010366515,
+          "days": 1006,
+          "drag_shortfall": -0.01274745493064178,
+          "drawdown_error_pp": -0.43475900530055567,
+          "end": "2019-12-31",
+          "implied_drag": -0.01114745493064178,
+          "leverage": 3.0,
+          "max_path_error": 0.05058373508504299,
+          "model_drawdown_trough": "2018-12-24",
+          "model_max_drawdown": -0.5851751846785443,
+          "optimistic": false,
+          "r_squared": 0.9977264216322708,
+          "real_drawdown_trough": "2018-12-24",
+          "real_max_drawdown": -0.5808275946255388,
+          "start": "2016-01-04",
+          "symbol": "TQQQ",
+          "tracking_error_annual": 0.025274120665787943,
+          "years": 3.992063492063492
+        }
+      ],
+      "kind": "calm",
+      "note": "reference: a second calm stretch, so the calm number is not one fluke",
+      "start": "2016-01-01",
+      "window": "calm 2016-2019"
+    },
+    {
+      "end": "",
+      "funds": [
+        {
+          "annualised_drift": -0.0007719921825423137,
+          "configured_drag": 0.0068,
+          "cumulative_error": -0.015484038202833394,
+          "days": 5092,
+          "drag_shortfall": -0.00077280341497344,
+          "drawdown_error_pp": 1.3548407839548582,
+          "end": "2026-09-17",
+          "implied_drag": 0.00602719658502656,
+          "leverage": 2.0,
+          "max_path_error": 0.17146066360488854,
+          "model_drawdown_trough": "2009-03-09",
+          "model_max_drawdown": -0.8264124173086069,
+          "optimistic": true,
+          "r_squared": 0.9900260859953786,
+          "real_drawdown_trough": "2009-03-09",
+          "real_max_drawdown": -0.8399608251481555,
+          "start": "2006-06-21",
+          "symbol": "QLD",
+          "tracking_error_annual": 0.04406140896916491,
+          "years": 20.206349206349206
+        },
+        {
+          "annualised_drift": -0.005174992320593486,
+          "configured_drag": 0.0016,
+          "cumulative_error": -0.08236823021075224,
+          "days": 4175,
+          "drag_shortfall": -0.005192759568674828,
+          "drawdown_error_pp": 0.29414516444585814,
+          "end": "2026-09-17",
+          "implied_drag": -0.0035927595686748278,
+          "leverage": 3.0,
+          "max_path_error": 0.20491293058567306,
+          "model_drawdown_trough": "2022-12-28",
+          "model_max_drawdown": -0.8146039937310318,
+          "optimistic": true,
+          "r_squared": 0.9973847071202518,
+          "real_drawdown_trough": "2022-12-28",
+          "real_max_drawdown": -0.8175454453754903,
+          "start": "2010-02-11",
+          "symbol": "TQQQ",
+          "tracking_error_annual": 0.03258221228374214,
+          "years": 16.567460317460316
+        }
+      ],
+      "kind": "all",
+      "note": "each fund from its own inception — the figure synthetic.py's docstring quotes",
+      "start": "",
+      "window": "whole life"
+    }
+  ]
+}
