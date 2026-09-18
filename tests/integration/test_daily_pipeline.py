@@ -119,7 +119,7 @@ def test_the_run_records_each_stage_it_reached(seeded: Path, placeholder_config)
 
 
 def test_the_state_explains_itself(seeded: Path, placeholder_config) -> None:
-    # CLAUDE_CODE_INITIAL_PROMPT.md 12 — reason codes and a score breakdown.
+    # CONTRIBUTING.md 12 — reason codes and a score breakdown.
     with SQLiteUnitOfWork(seeded) as uow:
         result = _pipeline(placeholder_config).run(uow, as_of=TODAY)
 
@@ -193,7 +193,7 @@ def test_two_runs_produce_identical_advice(seeded: Path, placeholder_config) -> 
 def test_stale_mandatory_data_produces_unknown_not_a_signal(
     db_path: Path, provenance: Provenance, placeholder_config
 ) -> None:
-    # CLAUDE_CODE_INITIAL_PROMPT.md 14 — no signal on untrustworthy data.
+    # CONTRIBUTING.md 14 — no signal on untrustworthy data.
     with SQLiteUnitOfWork(db_path) as uow:
         _seed(uow, provenance, through=TODAY - timedelta(days=60))
 
@@ -322,7 +322,7 @@ def test_a_crash_is_recorded_and_no_state_is_written(
 ) -> None:
     """A mid-pipeline failure must leave nothing behind.
 
-    ``CLAUDE_CODE_INITIAL_PROMPT.md`` §5: never push a plausible-looking state
+    ``CONTRIBUTING.md`` §5: never push a plausible-looking state
     produced by a run that did not finish.
     """
     from fear_ladder.allocation.engine import AllocationEngine

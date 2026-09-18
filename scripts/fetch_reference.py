@@ -42,8 +42,6 @@ from fear_ladder.monitoring.logging import configure_logging
 
 logger = logging.getLogger("fetch_reference")
 
-REFERENCE_DIR = paths.DATA_DIR / "reference"
-
 #: A public mirror of CNN's index. Reconstructed, not published by CNN.
 CNN_HISTORY_URLS = (
     "https://raw.githubusercontent.com/whit3rabbit/fear-greed-data/main/fear-greed.csv",
@@ -204,7 +202,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cnn", action="store_true", help="fetch only CNN Fear & Greed")
     parser.add_argument("--aaii", action="store_true", help="fetch only AAII sentiment")
-    parser.add_argument("--out", type=Path, default=REFERENCE_DIR)
+    parser.add_argument("--out", type=Path, default=paths.REFERENCE_DIR)
     return parser
 
 

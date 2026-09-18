@@ -146,7 +146,7 @@ class AlertEngine:
 
         if state.is_unknown:
             # A failed day produces exactly one message, and it is never
-            # investment advice (CLAUDE_CODE_INITIAL_PROMPT.md 14).
+            # investment advice (CONTRIBUTING.md 14).
             rule = rules.get(EventType.DATA_FAILURE.value)
             if rule is not None:
                 decisions.append(

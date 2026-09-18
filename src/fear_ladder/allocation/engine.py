@@ -139,7 +139,7 @@ class AllocationEngine:
     ) -> AllocationDecision:
         """Target weights for a confirmed regime on a given day."""
         if regime == UNKNOWN_REGIME:
-            # ARCHITECTURE.md 15 / CLAUDE_CODE_INITIAL_PROMPT.md 14: an unknown
+            # ARCHITECTURE.md 15 / CONTRIBUTING.md 14: an unknown
             # state produces no advice at all.
             return AllocationDecision(
                 allocation=None,

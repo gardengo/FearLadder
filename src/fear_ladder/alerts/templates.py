@@ -1,6 +1,6 @@
 """Alert message templates (TASK-121).
 
-``CLAUDE_CODE_INITIAL_PROMPT.md`` §12 is explicit that an alert saying only
+``CONTRIBUTING.md`` §12 is explicit that an alert saying only
 ``Regime = Fear`` is not acceptable. Every message therefore carries the regime,
 the score and its change, the target leverage, the target allocation, the loudest
 indicators and the reason codes — enough for the user to judge without opening
@@ -16,7 +16,7 @@ import html
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from fear_ladder.constants import Asset, EventType
+from fear_ladder.constants import Asset
 from fear_ladder.data.models import MarketState, TargetAllocation
 
 DISCLAIMER = "이 시스템은 자동매매를 하지 않습니다. 매매 여부는 직접 결정하세요."
@@ -245,16 +245,6 @@ TEMPLATES = {
     "extreme_bubble": extreme_bubble,
     "tqqq_candidate": tqqq_candidate,
     "data_failure": data_failure,
-}
-
-#: Every event type ``PRD.md`` §16 lists must have a template.
-EVENT_TEMPLATES = {
-    EventType.REGIME_CHANGED: "regime_changed",
-    EventType.TARGET_LEVERAGE_CHANGED: "target_leverage_changed",
-    EventType.EXTREME_FEAR: "extreme_fear",
-    EventType.EXTREME_BUBBLE: "extreme_bubble",
-    EventType.TQQQ_CANDIDATE: "tqqq_candidate",
-    EventType.DATA_FAILURE: "data_failure",
 }
 
 

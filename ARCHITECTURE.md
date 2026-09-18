@@ -69,13 +69,13 @@ Streamlit은 저장된 결과를 시각화하는 Dashboard 역할을 담당한�
 # 3. Repository Structure
 
 ```text
-nasdaq-leverage-fear-ladder/
+FearLadder/
 ├── README.md
 ├── PRD.md
 ├── ARCHITECTURE.md
 ├── BACKTEST_SPEC.md
 ├── TASKS.md
-├── CLAUDE_CODE_INITIAL_PROMPT.md
+├── CONTRIBUTING.md
 │
 ├── pyproject.toml
 ├── .env.example
@@ -104,7 +104,8 @@ nasdaq-leverage-fear-ladder/
 │       ├── regime/
 │       ├── allocation/        # 배분 + TQQQ 게이트 + 추세 필터
 │       ├── backtest/
-│       ├── research/        # 연구 경로 (§20)
+│       ├── research/        # 연구 경로 (§20). measurement.py 는 사후 측정 스크립트가
+│       │                    # 공유하는 창·변형·지표 (ARCHITECTURE §3 "얇은 CLI")
 │       ├── pipeline/        # 일일 워커 + 대시보드 조회
 │       ├── alerts/
 │       └── monitoring/
@@ -114,6 +115,7 @@ nasdaq-leverage-fear-ladder/
 │   ├── notify.py            # 알림 채널 점검·복구
 │   ├── prune_observations.py
 │   ├── backfill_history.py
+│   ├── collect_full_history.py   # 30년 이력 DB (저장소 밖에 만든다)
 │   ├── fetch_reference.py
 │   ├── backtest.py          # 연구
 │   ├── optimize.py
@@ -121,7 +123,17 @@ nasdaq-leverage-fear-ladder/
 │   ├── freeze.py
 │   ├── make_performance_report.py
 │   ├── make_placeholder_indicators.py
-│   └── make_favicon.py
+│   ├── make_favicon.py
+│   │                        # 고정 이후의 사후 측정 (§21, docs/research-backlog.md).
+│   │                        # 전부 config/ 를 복사해 쓰고, 한 글자도 쓰지 않는다.
+│   ├── transition_sensitivity.py
+│   ├── tail_risk.py
+│   ├── reconstruction_accuracy.py
+│   ├── cross_market.py
+│   ├── indicator_ablation.py
+│   ├── event_analysis.py
+│   ├── cost_model.py
+│   └── cash_exposure.py
 │
 ├── app/
 │   ├── streamlit_app.py     # 탭 배선만
@@ -131,20 +143,18 @@ nasdaq-leverage-fear-ladder/
 │
 ├── data/
 │   ├── fear_ladder.db
-│   ├── reference/           # 운영자가 배치하는 외부 자료 (ProShares/CNN/AAII)
-│   ├── raw/
-│   ├── processed/
-│   └── snapshots/
+│   └── reference/           # 운영자가 배치하는 외부 자료 (ProShares/CNN/AAII).
+│                            # 미추적 — 제3자 데이터를 재배포하지 않는다
 │
 ├── docs/
 │   ├── strategy.md
-│   └── operations.md
+│   ├── operations.md
+│   └── research-backlog.md  # 고정 이후 측정의 준비 절차·규칙·이미 잰 것
 │
 ├── tests/
 │   ├── unit/
 │   ├── integration/
-│   ├── backtest/
-│   └── fixtures/
+│   └── backtest/
 │
 ├── .github/
 │   └── workflows/
@@ -153,6 +163,7 @@ nasdaq-leverage-fear-ladder/
 │
 └── reports/
     ├── performance.json     # 대시보드가 읽는 성과 증거
+    ├── *.json               # 사후 측정 결과. docs/strategy.md §2.10–§2.18 의 증거물
     └── backtest/            # scripts/backtest.py --report 산출물 (미추적)
 ```
 
@@ -560,7 +571,10 @@ retrieved_at
 
 # 17. Dashboard Views
 
-## Current
+탭 하나당 `app/views/` 아래 모듈 하나. 배선은 `app/streamlit_app.py` 의 `TABS` 에만
+있다. 어느 탭도 엔진을 import 하지 않는다 (§4.2).
+
+## 오늘 — `views/today.py`
 
 - Current Regime
 - Market Score
@@ -569,23 +583,37 @@ retrieved_at
 - Key Indicators
 - Last Update
 
-## History
+## 전략 설명 — `views/strategy.py`
+
+- 사다리 구조와 각 단계의 목표 비중
+- 추세 필터 · TQQQ 게이트가 무엇을 언제 막는가
+
+## 성과 — `views/performance.py`
+
+`reports/performance.json` 을 읽는다. 대시보드는 백테스트를 돌리지 않는다.
+
+- Equity Curve
+- Drawdown
+- CAGR / Sharpe / Sortino / Calmar
+- Benchmark Comparison
+
+## 기록 — `views/history.py`
 
 - QQQ Price + Regime
 - Market Score
 - Target Leverage
 - Regime Transition
+
+## 이벤트 — `views/events.py`
+
 - Event History
+- 알림 발송 상태
 
-## Backtest
+## 운영 — `views/operations.py`
 
-- Equity Curve
-- Drawdown
-- CAGR
-- Sharpe
-- Sortino
-- Calmar
-- Benchmark Comparison
+- 최근 파이프라인 실행과 그 결과
+- 데이터 신선도 · 교차검증 findings
+- 활성 전략 버전
 
 ---
 

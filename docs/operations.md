@@ -9,9 +9,9 @@ TASK-172. 무언가 잘못됐을 때 읽는 문서.
 | 질문 | 확인 방법 |
 | --- | --- |
 | 오늘 워커가 돌았나? | Actions → `daily-monitor` 최근 실행 |
-| 상태가 저장됐나? | 대시보드 → Current 탭 → Last Update |
-| 알림이 나갔나? | 대시보드 → Events 탭 → Alerts 의 `delivery_status` |
-| 데이터가 멀쩡한가? | 대시보드 → Operations 탭 → Data Coverage / Findings |
+| 상태가 저장됐나? | 대시보드 → '오늘' 탭 → Last Update |
+| 알림이 나갔나? | 대시보드 → '이벤트' 탭 → Alerts 의 `delivery_status` |
+| 데이터가 멀쩡한가? | 대시보드 → '운영' 탭 → Data Coverage / Findings |
 
 ```bash
 # 로컬에서 같은 것을 보기

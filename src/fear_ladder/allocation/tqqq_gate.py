@@ -72,9 +72,16 @@ class RuleOutcome:
 
 @runtime_checkable
 class BottomConfirmationRule(Protocol):
-    """The interface TASK-063 asks for."""
+    """The interface TASK-063 asks for.
 
-    name: str
+    ``name`` is declared read-only. Every implementation is a frozen dataclass —
+    a rule that could be renamed after the gate was built would make the audit
+    trail in ``GateDecision`` describe something other than what ran — and a
+    mutable ``name: str`` here would reject exactly those.
+    """
+
+    @property
+    def name(self) -> str: ...
 
     def evaluate(self, context: GateContext) -> RuleOutcome: ...
 

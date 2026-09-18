@@ -12,8 +12,9 @@ than modelled reached its known inception price from a higher start, so the
 corrected history starts higher and falls further. A correction that flattered
 the drawdown would be worse than none.
 
-*A variant must not contaminate the frozen configuration.* Same rule as
-``test_tail_risk.py``: ``config/`` is the freeze's evidence.
+(The third property every one of these harnesses rests on — a variant must not
+contaminate the frozen configuration, because ``config/`` is the freeze's
+evidence — is checked once, in ``test_measurement.py``.)
 """
 
 from __future__ import annotations
@@ -30,7 +31,6 @@ import pytest
 from pandas import DataFrame, Series
 
 from fear_ladder import paths
-from fear_ladder.config.loader import load_config
 from fear_ladder.data.collectors.synthetic import INCEPTION, leveraged_returns
 
 START = date(2000, 1, 3)
@@ -233,16 +233,6 @@ def test_the_borrowed_exposure_split_matches_the_sleeves(harness: ModuleType) ->
 
 
 # ------------------------------------------------------------------ the config
-
-
-def test_a_cap_variant_leaves_the_frozen_config_alone(harness: ModuleType) -> None:
-    config = load_config()
-    before = config.strategy.trend_filter.max_leverage_below
-
-    variant = harness.with_cap(config, 1.5)
-    assert variant.strategy.trend_filter.max_leverage_below == 1.5
-    assert config.strategy.trend_filter.max_leverage_below == before
-    assert variant.strategy.transition == config.strategy.transition
 
 
 def test_leverage_scaling_skips_a_window_with_only_one_sleeve(harness: ModuleType) -> None:

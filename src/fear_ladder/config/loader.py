@@ -166,7 +166,7 @@ def research_parameters_allowed(env: dict[str, str] | None = None) -> bool:
 def ensure_production_ready(config: AppConfig, *, env: dict[str, str] | None = None) -> None:
     """Refuse to drive a production run from unresolved research parameters.
 
-    ``CLAUDE_CODE_INITIAL_PROMPT.md`` 10/11: RESEARCH_PLACEHOLDER values exist so
+    ``CONTRIBUTING.md`` 10/11: RESEARCH_PLACEHOLDER values exist so
     development can proceed, but they must never reach the operational runner.
     """
     if config.is_production_ready:

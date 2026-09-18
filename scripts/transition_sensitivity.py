@@ -43,7 +43,6 @@ here means a new freeze, labelled as such.
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from collections.abc import Callable, Iterator
@@ -57,18 +56,21 @@ from pandas import Series
 
 from fear_ladder import paths
 from fear_ladder.config.loader import load_config
+from fear_ladder.config.schema import AppConfig
+from fear_ladder.constants import TRADABLE_SYMBOLS
 from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 from fear_ladder.monitoring.logging import configure_logging
 from fear_ladder.regime.transition import TransitionEngine
 from fear_ladder.research.backtest_runner import StrategyBacktest
 from fear_ladder.research.data_loader import load_market_data
+from fear_ladder.research.measurement import with_block
 from fear_ladder.research.performance import cash_curve, window_stats
+from fear_ladder.research.reports import write_json_report
 
 logger = logging.getLogger("sensitivity")
 
 OUTPUT = paths.REPORTS_DIR / "transition_sensitivity.json"
 SWEEP_OUTPUT = paths.REPORTS_DIR / "transition_parameter_sweep.json"
-ETFS = ("QQQ", "QLD", "TQQQ")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -105,36 +107,24 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _with_transition(config: object, **changes: object) -> object:
-    """The frozen config with some transition constants replaced.
-
-    Copied, not mutated: the models are frozen and ``config/`` is the freeze's
-    evidence. Nothing here writes to disk.
-    """
-    strategy = config.strategy  # type: ignore[attr-defined]
-    transition = strategy.transition.model_copy(update=changes)
-    return config.model_copy(  # type: ignore[attr-defined]
-        update={"strategy": strategy.model_copy(update={"transition": transition})}
-    )
-
-
 def _sweeps(
-    config: object, durations: list[int], confirmations: list[int], hystereses: list[float]
-) -> list[tuple[str, None, object]]:
+    config: AppConfig, durations: list[int], confirmations: list[int], hystereses: list[float]
+) -> list[tuple[str, None, AppConfig]]:
     """One variant per constant value, the frozen value included in each family."""
-    spec = config.strategy.transition  # type: ignore[attr-defined]
-    rows: list[tuple[str, None, object]] = []
-    for value in durations:
-        mark = " *" if value == spec.minimum_duration_days else ""
-        rows.append(
-            (f"d={value}{mark}", None, _with_transition(config, minimum_duration_days=value))
-        )
-    for value in confirmations:
-        mark = " *" if value == spec.confirmation_days else ""
-        rows.append((f"c={value}{mark}", None, _with_transition(config, confirmation_days=value)))
-    for value in hystereses:
-        mark = " *" if value == spec.hysteresis else ""
-        rows.append((f"h={value:g}{mark}", None, _with_transition(config, hysteresis=value)))
+    spec = config.strategy.transition
+    #: prefix -> the constant it sweeps, and the values to try.
+    families: tuple[tuple[str, str, list[float]], ...] = (
+        ("d", "minimum_duration_days", list(durations)),
+        ("c", "confirmation_days", list(confirmations)),
+        ("h", "hysteresis", list(hystereses)),
+    )
+    rows: list[tuple[str, None, AppConfig]] = []
+    for prefix, name, values in families:
+        held = getattr(spec, name)
+        for value in values:
+            mark = " *" if value == held else ""
+            variant = with_block(config, "transition", **{name: value})
+            rows.append((f"{prefix}={value:g}{mark}", None, variant))
     return rows
 
 
@@ -200,7 +190,7 @@ def main(argv: list[str] | None = None) -> int:
         data = load_market_data(uow.observations, config)
 
     closes = data.closes
-    first = max(closes[symbol].dropna().index[0] for symbol in ETFS)
+    first = max(closes[symbol].dropna().index[0] for symbol in TRADABLE_SYMBOLS)
     if args.start:
         first = max(first, args.start)
     last = args.end
@@ -220,7 +210,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         nav = run.result.nav
         days = list(nav.index)
-        stats = window_stats(nav / nav.iloc[0], cash_curve(data.cash_rates, days))
+        stats = window_stats(nav, cash_curve(data.cash_rates, days))
         results.append(
             {
                 "variant": label,
@@ -255,11 +245,7 @@ def main(argv: list[str] | None = None) -> int:
         },
         "variants": results,
     }
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(
-        json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_json_report(args.out, report)
     logger.info("wrote %s", args.out)
 
     spread = max(row["cagr"] for row in results) - min(row["cagr"] for row in results)

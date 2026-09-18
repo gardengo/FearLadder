@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import itertools
 import logging
-from collections.abc import Callable, Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -505,5 +505,3 @@ def build_search(
         keep_runs=keep_runs,
     )
 
-
-ObjectiveFn = Callable[[PerformanceMetrics], float]

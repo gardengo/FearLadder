@@ -33,9 +33,6 @@ htmlcov/
 
 # Data
 # NOTE: data/fear_ladder.db 는 운영상 커밋 대상이므로 무시하지 않는다.
-data/raw/
-data/processed/
-data/snapshots/
 # Operator-supplied reference exports (see data/reference/README.md).
 data/reference/*
 !data/reference/README.md
@@ -61,3 +58,4 @@ Thumbs.db
 # without this a `git add -A` in the main worktree would commit a second copy
 # of the whole tree.
 /validation/
+/.orca-worktree-trash/

@@ -235,20 +235,6 @@ def test_two_identical_paths_show_no_gap(harness: ModuleType) -> None:
 # ------------------------------------------------------------------ the config
 
 
-def test_a_variant_leaves_the_frozen_config_alone(harness: ModuleType) -> None:
-    config = load_config()
-    before = config.strategy.transition.minimum_duration_days
-
-    changed = harness.variant(config, "minimum_duration_days", 120.0)
-    assert changed.strategy.transition.minimum_duration_days == 120
-    assert config.strategy.transition.minimum_duration_days == before
-
-
-def test_an_unknown_family_is_refused(harness: ModuleType) -> None:
-    with pytest.raises(ValueError, match="unknown parameter family"):
-        harness.variant(load_config(), "regime_count", 5.0)
-
-
 def test_every_family_grid_contains_the_frozen_value(harness: ModuleType) -> None:
     """A grid that skipped it would compare the frozen strategy against nothing."""
     config = load_config()

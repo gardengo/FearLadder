@@ -1,7 +1,7 @@
 """Builds providers from ``config/data_sources.yaml``.
 
 Keeping the wiring in one place is what lets the pipeline honour
-``CLAUDE_CODE_INITIAL_PROMPT.md`` 6.5: if a configured provider fails, the
+``CONTRIBUTING.md`` 6.5: if a configured provider fails, the
 answer is a recorded failure, never an ad-hoc substitute source.
 """
 
@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from fear_ladder import paths
 from fear_ladder.config.schema import DataSourcesConfig, SeriesSourceSpec
@@ -30,9 +31,10 @@ from fear_ladder.data.collectors.synthetic import (
     SyntheticLeveragedProvider,
 )
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:  # pandas is imported lazily below, inside the one function
+    from pandas import Series  # that needs it, so importing it here would undo that
 
-REFERENCE_DIR = paths.DATA_DIR / "reference"
+logger = logging.getLogger(__name__)
 
 
 class UnknownProviderError(ValueError):
@@ -59,7 +61,7 @@ class ProviderRegistry:
 def build_registry(
     config: DataSourcesConfig, *, reference_dir: Path | None = None
 ) -> ProviderRegistry:
-    reference = reference_dir or REFERENCE_DIR
+    reference = reference_dir or paths.REFERENCE_DIR
     price: PriceProvider = FinanceDataReaderPriceProvider(
         underlying_sources=dict.fromkeys(
             config.price.symbols, "FinanceDataReader US equity feed"
@@ -159,7 +161,7 @@ def _wrap_with_reconstruction(
     )
 
 
-def _financing_rates(symbol: str | None):
+def _financing_rates(symbol: str | None) -> Series | None:
     """Fetch the borrowing-cost series, or ``None`` if it is unavailable.
 
     A missing rate does not stop the reconstruction; it makes it optimistic, and
@@ -190,7 +192,7 @@ def historical_cnn_provider(reference_dir: Path | None = None) -> CsvSeriesProvi
     construction, so a backtest cannot present reconstructed sentiment as if CNN
     had published it.
     """
-    reference = reference_dir or REFERENCE_DIR
+    reference = reference_dir or paths.REFERENCE_DIR
     return CsvSeriesProvider(
         path=reference / "cnn" / "fear_greed_history.csv",
         underlying_source="CNN Fear & Greed — reconstructed secondary dataset",

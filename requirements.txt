@@ -1,13 +1,16 @@
-# Streamlit Cloud reads this file (TASK-152). It mirrors the `dashboard` extra
-# in pyproject.toml, which stays the source of truth for local installs.
-#
-# Keep in sync with pyproject.toml.
+# Streamlit Cloud reads this file (TASK-152): it has no notion of extras, so
+# this is `pyproject.toml`'s base dependencies plus the `dashboard` extra,
+# flattened. pyproject.toml stays the source of truth — keep this in sync
+# with it, including dependencies the dashboard itself never imports. The
+# alternative is a file nobody can trust, which is worse than a few
+# unnecessary wheels.
 pandas>=2.2
 numpy>=1.26
 PyYAML>=6.0
 pydantic>=2.6
 requests>=2.31
 finance-datareader>=0.9.90
+xlrd>=2.0.1
 tzdata>=2024.1
 streamlit>=1.63
 plotly>=5.20

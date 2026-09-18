@@ -42,7 +42,6 @@ alternative; acting on it would need a new freeze (§4).
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from datetime import date
@@ -55,12 +54,13 @@ from pandas import Series
 
 from fear_ladder import paths
 from fear_ladder.config.loader import load_config
-from fear_ladder.config.schema import AppConfig
 from fear_ladder.constants import Asset
 from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 from fear_ladder.monitoring.logging import configure_logging
 from fear_ladder.research.backtest_runner import BacktestRun, StrategyBacktest
 from fear_ladder.research.data_loader import load_market_data
+from fear_ladder.research.measurement import with_parameter
+from fear_ladder.research.reports import write_json_report
 
 logger = logging.getLogger("cash_exposure")
 
@@ -68,6 +68,7 @@ OUTPUT = paths.REPORTS_DIR / "cash_exposure.json"
 
 #: The two caps §2.5 said were the only real choices. 1.0/1.5 are not here:
 #: §2.13 and §2.15 already showed them monotonically and largely worse.
+CAP = "max_leverage_below"
 CAPS: tuple[float, ...] = (0.0, 0.5)
 
 #: Trading days, used only to label stretch lengths in human units.
@@ -94,13 +95,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--top", type=int, default=10, help="how many longest stretches to record"
     )
     return parser
-
-
-def variant(config: AppConfig, cap: float) -> AppConfig:
-    """The frozen config with one cap replaced. Copied, never mutated."""
-    block = config.strategy.trend_filter.model_copy(update={"max_leverage_below": cap})
-    strategy = config.strategy.model_copy(update={"trend_filter": block})
-    return config.model_copy(update={"strategy": strategy})
 
 
 def equity_share(item: object) -> float:
@@ -254,7 +248,9 @@ def main(argv: list[str] | None = None) -> int:
 
     runs: dict[float, BacktestRun] = {}
     for cap in CAPS:
-        variant_config = config if cap == frozen_cap else variant(config, cap)
+        variant_config = (
+            config if cap == frozen_cap else with_parameter(config, CAP, cap)
+        )
         runs[cap] = StrategyBacktest(variant_config).run(data, include_benchmarks=False)
 
     days = sorted(set.intersection(*(set(run.allocations) for run in runs.values())))
@@ -331,11 +327,7 @@ def main(argv: list[str] | None = None) -> int:
         "exposure": exposure,
         "gap": {**breakdown, "eras": eras},
     }
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(
-        json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_json_report(args.out, report)
     logger.info("wrote %s", args.out)
     return 0
 

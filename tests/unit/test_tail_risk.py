@@ -1,10 +1,12 @@
 """The tail-risk harness (``scripts/tail_risk.py``).
 
-The harness compares trend-filter constants across crash and calm eras. Two
-properties have to hold or its numbers mean nothing: a variant must not mutate
-the frozen configuration it was copied from, and the drawdown it reports must
-be the deepest one, dated correctly — the whole point of ``docs/strategy.md``
-§2.11 is *which era* a drawdown fell in.
+The harness compares trend-filter constants across crash and calm eras. The
+drawdown it reports must be the deepest one, dated correctly — the whole point
+of ``docs/strategy.md`` §2.11 is *which era* a drawdown fell in.
+
+The other property these numbers rest on — a variant must not mutate the frozen
+configuration — now lives once in ``test_measurement.py``, with the helper the
+harness calls.
 """
 
 from __future__ import annotations
@@ -33,20 +35,11 @@ def harness() -> ModuleType:
     return module
 
 
-def test_a_variant_leaves_the_frozen_config_alone(harness: ModuleType) -> None:
-    """A mutated config would contaminate every later window silently."""
-    config = load_config()
-    before = config.strategy.trend_filter.max_leverage_below
-    variant = harness._with_trend_filter(config, max_leverage_below=0.0)
-    assert variant.strategy.trend_filter.max_leverage_below == 0.0
-    assert config.strategy.trend_filter.max_leverage_below == before
-
-
-def test_a_variant_changes_nothing_else(harness: ModuleType) -> None:
-    config = load_config()
-    variant = harness._with_trend_filter(config, max_leverage_below=0.0)
-    assert variant.strategy.transition == config.strategy.transition
-    assert variant.strategy.trend_filter.threshold == config.strategy.trend_filter.threshold
+def test_the_windows_span_both_priced_eras(harness: ModuleType) -> None:
+    """A sweep read only over modelled prices would prove nothing about §2.11."""
+    labels = [label for label, _, _ in harness.WINDOWS]
+    assert "real 2010-2026" in labels
+    assert any(label.startswith(("dotcom", "gfc")) for label in labels)
 
 
 def test_the_frozen_value_is_marked_once_per_family(harness: ModuleType) -> None:

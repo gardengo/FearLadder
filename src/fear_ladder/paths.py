@@ -15,9 +15,7 @@ PROJECT_ROOT: Path = PACKAGE_ROOT.parent.parent
 
 CONFIG_DIR: Path = PROJECT_ROOT / "config"
 DATA_DIR: Path = PROJECT_ROOT / "data"
-RAW_DIR: Path = DATA_DIR / "raw"
-PROCESSED_DIR: Path = DATA_DIR / "processed"
-SNAPSHOT_DIR: Path = DATA_DIR / "snapshots"
+REFERENCE_DIR: Path = DATA_DIR / "reference"
 REPORTS_DIR: Path = PROJECT_ROOT / "reports"
 BACKTEST_REPORT_DIR: Path = REPORTS_DIR / "backtest"
 

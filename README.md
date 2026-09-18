@@ -221,17 +221,17 @@ src/fear_ladder/
   regime/       점수를 단계로. 확인 · 히스테리시스 · 최소 유지
   allocation/   단계를 목표 비중으로. 추세 필터와 TQQQ 게이트
   backtest/     NAV 시뮬레이터, 비용 모델, 성과 지표
-  research/     탐색 · 검증 · walk-forward · freeze · 성과 리포트
+  research/     탐색 · 검증 · walk-forward · freeze · 성과 리포트 · 사후 측정 도구
   alerts/       이벤트 판정과 Telegram 발송
   pipeline/     일일 워커와 대시보드용 읽기 전용 쿼리
   monitoring/   로깅
 
 app/            Streamlit 대시보드 (views/ 아래 탭별 모듈)
-scripts/        CLI 진입점
+scripts/        CLI 진입점 21개. 얇게 유지하고 로직은 패키지 안에 둡니다
 config/         운영 설정 + frozen/ 증거 + research/ 탐색 프로파일
-docs/           전략과 운영 문서
-reports/        성과 리포트 (대시보드가 읽음)
-tests/          624개
+docs/           전략 · 운영 · 사후 검증 문서
+reports/        성과 리포트 (대시보드가 읽음) + 사후 측정 결과
+tests/          785개
 ```
 
 계층은 한 방향으로만 의존합니다. `pipeline` 이 엔진들을 호출하고, 엔진은 서로를
@@ -251,7 +251,8 @@ tests/          624개
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 코드가 어떤 층으로 나뉘고 어디에 무엇이 있는가 | 코드를 고치기 전 |
 | [BACKTEST_SPEC.md](BACKTEST_SPEC.md) | 백테스트의 규칙 — 미래참조 금지, 구간 분리, 비용 모델 | 측정을 다시 하거나 검증할 때 |
 | [TASKS.md](TASKS.md) | 작업 단위와 진행 상태 | 개발 이력을 추적할 때 |
-| [CLAUDE_CODE_INITIAL_PROMPT.md](CLAUDE_CODE_INITIAL_PROMPT.md) | 이 프로젝트의 규율 — 파라미터를 손으로 채우지 않는다 등 | 기여하기 전 |
+| [docs/research-backlog.md](docs/research-backlog.md) | 고정 이후의 사후 측정 — 준비 절차, 지켜야 할 규칙, 이미 잰 것 | 전략을 다시 재려 할 때 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 이 프로젝트의 규율 — 파라미터를 손으로 채우지 않는다 등 | 기여하기 전 |
 
 **가장 중요한 문서는 `docs/strategy.md`입니다.** 성과보다 그 성과가 어떻게
 나왔는지가 더 중요하고, 실패한 시도와 기각 사유까지 남겨두었습니다.
@@ -266,17 +267,19 @@ tests/          624개
 | 탐색 · 검증 · 최종 구간 | 전부 소비됨 |
 | 일일 파이프라인 | 동작 확인 완료 |
 | 대시보드 | 6개 탭 |
-| 테스트 | 668개 |
+| 테스트 | 785개 (`pytest -m "not network"`) |
 
 고정된 설정은 `config/strategy.yaml`과 `config/frozen/v1.0-frozen.*`에 있습니다.
 **손으로 고치면 안 됩니다** — manifest가 그 숫자들에 대한 증거이고, 편집하면
 증거가 무효가 됩니다. 바꾸려면 탐색을 다시 하고 새 버전을 고정해야 합니다.
 
+일일 워커는 GitHub Actions 에서 미국 거래일 다음 날 아침(06:00 UTC)에 돌고 있고,
+바뀐 DB 를 스스로 커밋합니다 (`.github/workflows/daily_monitor.yml`).
+
 ### 남은 것
 
 - Telegram 알림 설정 — 토큰 두 개를 secret 으로 넣고 `python scripts/notify.py --test`
-  로 확인. 설정 전까지 알림은 `PENDING` 으로 쌓였다가 토큰이 생기면 배달된다
-- GitHub Actions 일일 스케줄 활성화
+  로 확인. 설정 전까지 알림은 쌓였다가 토큰이 생기면 배달됩니다
 - 최종 구간까지 다 썼으므로, **다음 전략 변경에는 깨끗한 검증 구간이 없습니다.**
   새 데이터가 쌓이기를 기다려야 합니다.
 

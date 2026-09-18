@@ -142,7 +142,7 @@ def test_state_score_must_be_inside_the_score_domain() -> None:
 
 
 def test_unknown_state_carries_no_advice() -> None:
-    # ARCHITECTURE.md 15 / CLAUDE_CODE_INITIAL_PROMPT.md 14.
+    # ARCHITECTURE.md 15 / CONTRIBUTING.md 14.
     state = MarketState.unknown(
         DAY, strategy_version="v0", reason_codes=("MANDATORY_DATA_MISSING:VIX",)
     )

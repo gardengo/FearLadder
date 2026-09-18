@@ -1,6 +1,6 @@
 """Data freshness and completeness checks (TASK-112).
 
-``CLAUDE_CODE_INITIAL_PROMPT.md`` §14 lists the situations in which the system
+``CONTRIBUTING.md`` §14 lists the situations in which the system
 must not produce a normal investment signal::
 
     mandatory data missing / stale data / corrupt data / date mismatch /
@@ -172,7 +172,7 @@ class FreshnessValidator:
         if newest is not None and newest > as_of and not replaying:
             # A value dated in the future means the clock, the source or the
             # requested date is wrong. Acting on it would be acting on a
-            # date mismatch (CLAUDE_CODE_INITIAL_PROMPT.md 14). Replaying a past
+            # date mismatch (CONTRIBUTING.md 14). Replaying a past
             # day is the one case where later rows are expected, and the caller
             # says so explicitly.
             return SourceFreshness(

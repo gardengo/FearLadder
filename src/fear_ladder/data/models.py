@@ -125,7 +125,8 @@ class MarketObservation:
                 raise DomainError(f"{self.symbol} {self.observation_date}: {name}={price!r} <= 0")
         if self.volume is not None and self.volume < 0:
             raise DomainError(f"{self.symbol} {self.observation_date}: negative volume")
-        if None not in (self.high, self.low) and self.high < self.low:
+        high, low = self.high, self.low
+        if high is not None and low is not None and high < low:
             raise DomainError(f"{self.symbol} {self.observation_date}: high < low")
 
     @property

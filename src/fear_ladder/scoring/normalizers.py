@@ -139,7 +139,7 @@ class LinearMappingNormalizer(Normalizer):
     Only legitimate when the raw range is *definitional* rather than empirical:
     the CNN index is already published on 0-100, and a percentile is already
     bounded by 0..1. Using it on an open-ended series would be inventing a
-    threshold, which ``CLAUDE_CODE_INITIAL_PROMPT.md`` 10 forbids.
+    threshold, which ``CONTRIBUTING.md`` 10 forbids.
     """
 
     raw_at_score_min: float = 0.0

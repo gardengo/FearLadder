@@ -23,7 +23,6 @@ report is genuinely what you want, and send it somewhere else with ``--out``.
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from datetime import date
@@ -33,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from fear_ladder import paths
 from fear_ladder.config.loader import load_config
-from fear_ladder.constants import Asset
+from fear_ladder.constants import TRADABLE_SYMBOLS, Asset
 from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 from fear_ladder.monitoring.logging import configure_logging
 from fear_ladder.research.backtest_runner import StrategyBacktest
@@ -46,6 +45,7 @@ from fear_ladder.research.performance import (
     summarise_rolling,
     window_stats,
 )
+from fear_ladder.research.reports import write_json_report
 
 logger = logging.getLogger("performance")
 
@@ -54,7 +54,6 @@ STRATEGY = "전략"
 #: Equity weights for the static grid. Ten-point steps are fine enough to find
 #: the mix that matches the strategy's drawdown and coarse enough to read.
 WEIGHTS = (100, 90, 80, 70, 60, 50, 40, 30, 20, 10)
-ETFS = ("QQQ", "QLD", "TQQQ")
 ROLLING_YEARS = (3, 5, 10, 20)
 
 
@@ -99,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
         data = load_market_data(uow.observations, config)
 
     closes = data.closes
-    first = max(closes[symbol].dropna().index[0] for symbol in ETFS)
+    first = max(closes[symbol].dropna().index[0] for symbol in TRADABLE_SYMBOLS)
     run = StrategyBacktest(config).run(data, start=first, include_benchmarks=False)
     nav = run.result.nav
     days = list(nav.index)
@@ -129,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
 
     cash = cash_curve(data.cash_rates, days)
     navs = {STRATEGY: nav / nav.iloc[0], "현금": cash}
-    for symbol in ETFS:
+    for symbol in TRADABLE_SYMBOLS:
         series = closes[symbol][days]
         navs[symbol] = series / series.iloc[0]
         for percent in WEIGHTS:
@@ -227,11 +226,7 @@ def main(argv: list[str] | None = None) -> int:
         },
     }
 
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(
-        json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_json_report(args.out, report)
     logger.info("wrote %s", args.out)
     stats = overall[STRATEGY]
     logger.info(

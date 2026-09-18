@@ -43,7 +43,7 @@ class ScoringError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class ScoreBreakdown:
-    """Why the composite score is what it is (``CLAUDE_CODE_INITIAL_PROMPT.md`` 12)."""
+    """Why the composite score is what it is (``CONTRIBUTING.md`` 12)."""
 
     observation_date: date
     composite: float | None

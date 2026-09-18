@@ -20,6 +20,7 @@ the honest measure of how much the search overfitted — is visible.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
@@ -233,7 +234,7 @@ def generate_folds(
     return folds
 
 
-def stitch(navs: object) -> Series:
+def stitch(navs: Iterable[Series]) -> Series:
     """Chain per-fold NAV paths into one continuous out-of-sample curve.
 
     Each fold restarts at 1.0, so the segments are re-based onto the running
@@ -241,7 +242,7 @@ def stitch(navs: object) -> Series:
     """
     pieces: list[Series] = []
     level = 1.0
-    for nav in navs:  # type: ignore[union-attr]
+    for nav in navs:
         series = nav.dropna()
         if series.empty:
             continue

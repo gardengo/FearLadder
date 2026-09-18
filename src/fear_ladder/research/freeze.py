@@ -18,7 +18,7 @@ Two things are enforced here rather than trusted:
 
 What this module deliberately does **not** do is choose the numbers. That is
 TASK-100, and it is a research result plus a human decision, not something code
-may invent (``CLAUDE_CODE_INITIAL_PROMPT.md`` §7, §10, §15).
+may invent (``CONTRIBUTING.md`` §7, §10, §15).
 """
 
 from __future__ import annotations
@@ -144,7 +144,7 @@ def freeze(
         raise FreezeError(
             "refusing to freeze the RESEARCH_PLACEHOLDER profile. Its numbers are "
             "deliberately arbitrary and exist only so the code can run "
-            "(CLAUDE_CODE_INITIAL_PROMPT.md 10)."
+            "(CONTRIBUTING.md 10)."
         )
     unresolved = config.unresolved_parameters()
     if unresolved:

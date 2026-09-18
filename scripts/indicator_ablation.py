@@ -35,7 +35,6 @@ means a new freeze.
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from dataclasses import dataclass
@@ -51,9 +50,10 @@ from fear_ladder.config.loader import load_config
 from fear_ladder.config.schema import AppConfig
 from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 from fear_ladder.monitoring.logging import configure_logging
-from fear_ladder.research.backtest_runner import BacktestRun, MarketData, StrategyBacktest
+from fear_ladder.research.backtest_runner import BacktestRun, StrategyBacktest
 from fear_ladder.research.data_loader import load_market_data
-from fear_ladder.research.performance import cash_curve, window_stats
+from fear_ladder.research.measurement import headline, with_block
+from fear_ladder.research.reports import write_json_report
 
 logger = logging.getLogger("indicator_ablation")
 
@@ -137,21 +137,7 @@ def renormalised(weights: dict[str, float], dropped: tuple[str, ...]) -> dict[st
 def variant_config(config: AppConfig, dropped: tuple[str, ...]) -> AppConfig:
     """The frozen config minus some indicators. Copied, never mutated."""
     weights = renormalised(dict(config.strategy.score.weights or {}), dropped)
-    score = config.strategy.score.model_copy(update={"weights": weights})
-    return config.model_copy(
-        update={"strategy": config.strategy.model_copy(update={"score": score})}
-    )
-
-
-def measure(run: BacktestRun, data: MarketData) -> dict[str, float]:
-    nav = run.result.nav
-    stats = window_stats(nav / nav.iloc[0], cash_curve(data.cash_rates, list(nav.index)))
-    return {
-        "cagr": stats["cagr"],
-        "max_drawdown": float((nav / nav.cummax() - 1.0).min()),
-        "sharpe": stats["sharpe"],
-        "regime_changes": float(run.regime_change_count),
-    }
+    return with_block(config, "score", weights=weights)
 
 
 def signal_shift(baseline: BacktestRun, run: BacktestRun) -> dict[str, float]:
@@ -192,7 +178,7 @@ def main(argv: list[str] | None = None) -> int:
     spans = windows(config)
     baseline_run = StrategyBacktest(config).run(data, include_benchmarks=False)
     baseline = {
-        label: measure(
+        label: headline(
             StrategyBacktest(config).run(data, start=start, end=end, include_benchmarks=False)
             if label != spans[0][0]
             else baseline_run,
@@ -211,12 +197,12 @@ def main(argv: list[str] | None = None) -> int:
     for item in plan(config, families_only=args.families_only):
         variant = variant_config(config, item.dropped)
         full_run = StrategyBacktest(variant).run(data, include_benchmarks=False)
-        measured = {spans[0][0]: measure(full_run, data)}
+        measured = {spans[0][0]: headline(full_run, data)}
         for label, start, end in spans[1:]:
             run = StrategyBacktest(variant).run(
                 data, start=start, end=end, include_benchmarks=False
             )
-            measured[label] = measure(run, data)
+            measured[label] = headline(run, data)
 
         shift = signal_shift(baseline_run, full_run)
         rows.append(
@@ -258,11 +244,7 @@ def main(argv: list[str] | None = None) -> int:
         "baseline": baseline,
         "ablations": rows,
     }
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(
-        json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_json_report(args.out, report)
     logger.info("wrote %s", args.out)
     return 0
 

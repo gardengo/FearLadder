@@ -36,15 +36,26 @@ from fear_ladder.research.backtest_runner import BacktestRun
 
 logger = logging.getLogger(__name__)
 
-ARTIFACT_NAMES = (
-    "summary.json",
-    "metrics.json",
-    "daily_portfolio.csv",
-    "daily_regime.csv",
-    "daily_indicators.csv",
-    "trades.csv",
-    "parameters.json",
-)
+
+def write_json_report(path: Path, payload: Any) -> Path:
+    """Write one research report, in the one format they all share.
+
+    Every script under ``scripts/`` that produces a file in ``reports/`` wrote
+    this same four-argument ``json.dumps`` call; they are read side by side and
+    diffed against each other, so the formatting has to match exactly.
+
+    ``sort_keys`` makes a re-run's diff show what changed rather than how the
+    dict happened to be built, ``ensure_ascii=False`` keeps the Korean notes
+    readable in the file itself, and the trailing newline keeps git from
+    reporting every report as having no final line.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True, default=str)
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
 
 
 def code_commit() -> str | None:
@@ -109,10 +120,7 @@ class ReportWriter:
     # -- helpers -----------------------------------------------------------
     @staticmethod
     def _json(path: Path, payload: dict[str, Any]) -> Path:
-        path.write_text(
-            json.dumps(payload, indent=2, sort_keys=True, default=str), encoding="utf-8"
-        )
-        return path
+        return write_json_report(path, payload)
 
     @staticmethod
     def _csv(path: Path, frame: DataFrame) -> Path:

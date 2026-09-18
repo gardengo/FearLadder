@@ -252,8 +252,9 @@ class TrendFilter:
         # A missing trend reading is treated as a broken trend. The filter exists
         # to stop the strategy levering into a decline it cannot see; failing
         # open would remove exactly the protection it was added for.
-        unknown = observed is None
-        fresh = unknown or (observed < self.threshold and self._deep_enough(depth_observed))
+        fresh = observed is None or (
+            observed < self.threshold and self._deep_enough(depth_observed)
+        )
         broken = engaged if engaged is not None else fresh
         if not broken:
             return weights, TrendVerdict(

@@ -19,7 +19,7 @@ Any target leverage has infinitely many portfolios; this rule picks one, and it
 picks the one a person would describe in a sentence. 1.5x is "half QQQ, half
 QLD", not "a bit of TQQQ and a lot of cash" — even though both reach 1.5x.
 Explainability is the whole reason: an alert has to justify itself
-(``CLAUDE_CODE_INITIAL_PROMPT.md`` §12).
+(``CONTRIBUTING.md`` §12).
 """
 
 from __future__ import annotations

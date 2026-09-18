@@ -5,7 +5,7 @@
         --evidence-research "..." --evidence-oos "..."
 
 What this tool does **not** do is choose the numbers. TASK-100 is a research
-result plus a human decision; ``CLAUDE_CODE_INITIAL_PROMPT.md`` §7 and §10 are
+result plus a human decision; ``CONTRIBUTING.md`` §7 and §10 are
 explicit that a developer may not invent weights, thresholds, boundaries or
 allocations. So the workflow is:
 
