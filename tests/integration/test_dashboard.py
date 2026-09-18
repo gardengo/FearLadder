@@ -339,6 +339,7 @@ def _render_app():
     return app
 
 
+@pytest.mark.dashboard
 def test_the_streamlit_page_renders_without_error(
     populated: Path, clean_streamlit_caches
 ) -> None:
@@ -362,6 +363,7 @@ def test_the_streamlit_page_renders_without_error(
     assert "성과" in headers
 
 
+@pytest.mark.dashboard
 def test_the_page_survives_an_empty_database(
     db_path: Path, clean_streamlit_caches
 ) -> None:

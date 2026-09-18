@@ -53,6 +53,11 @@ addopts = "-ra --strict-markers"
 markers = [
     "network: test requires live network access (deselect with '-m \"not network\"')",
     "slow: long-running test",
+    # The dashboard imports no compute module (ARCHITECTURE.md §4.2), so its
+    # tests cannot report on whether the operational pipeline is safe to run.
+    # The daily worker deselects them: a presentation bug must not be able to
+    # stop the market from being monitored.
+    "dashboard: exercises the Streamlit dashboard; needs the 'dashboard' extra",
 ]
 filterwarnings = ["error::DeprecationWarning:fear_ladder.*"]
 

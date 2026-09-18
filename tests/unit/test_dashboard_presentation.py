@@ -19,7 +19,17 @@ from fear_ladder import paths
 
 sys.path.insert(0, str(paths.PROJECT_ROOT / "app"))
 
+# ``views/__init__`` eagerly imports every tab, so pulling in ``common`` pulls in
+# ``streamlit`` — which lives in the ``dashboard`` extra, not ``dev``. Guard it
+# the way ``tests/integration/test_dashboard.py`` does: an environment without
+# the dashboard installed must **skip** this module, not fail collecting it.
+# A collection error cannot be deselected by ``-m``, so an unguarded import here
+# takes down every job that runs this tree, the daily worker included.
+pytest.importorskip("streamlit")
+
 from views import common
+
+pytestmark = pytest.mark.dashboard
 
 LABELS = ("Capitulation", "Panic", "Fear", "Neutral", "Optimism", "Greed", "Euphoria")
 BOUNDARIES = (12.0, 27.0, 42.0, 58.0, 73.0, 85.0)

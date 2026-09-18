@@ -104,10 +104,21 @@ jobs:
           than filling values in by hand."
           exit 1
 
+      # The name is the scope. This gate exists to refuse to publish a signal
+      # computed by broken code — so it runs the operational path and nothing
+      # else. Dashboard tests are deselected: the dashboard imports no compute
+      # module (ARCHITECTURE.md §18, §4.2), so it cannot tell you whether the
+      # pipeline is safe to run, and on 2026-09-16 a dashboard test did stop
+      # the market from being monitored for three days. `test.yml` runs the
+      # full suite, dashboard included, on every push and pull request.
+      #
+      # `-m` deselects *after* collection, so the marker alone is not enough:
+      # a dashboard module must also survive being imported without the
+      # `dashboard` extra. `pytest.importorskip` in those modules does that.
       - name: Run the tests that guard the pipeline
         run: |
           pip install -e ".[dev]"
-          pytest -m "not network" -q
+          pytest -m "not network and not dashboard" -q
 
       # CNN's long history and the AAII survey have no API worth depending on,
       # so they arrive as files. They are not committed — they are third-party
