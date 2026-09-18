@@ -10,7 +10,7 @@
 # So this file supplies deliberately ARBITRARY values, stamped
 # `parameter_status: RESEARCH_PLACEHOLDER`. `ensure_production_ready()` rejects
 # that status, so these numbers can never drive the operational runner
-# (CLAUDE_CODE_INITIAL_PROMPT.md §10, §11).
+# (CONTRIBUTING.md §10, §11).
 #
 # THE NUMBERS BELOW ARE NOT A STRATEGY.
 # They are uniform, round and unoptimised on purpose, so that nobody can mistake

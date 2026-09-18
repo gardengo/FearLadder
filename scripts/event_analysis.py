@@ -47,7 +47,6 @@ it would need a new freeze (§4).
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from dataclasses import dataclass
@@ -69,6 +68,8 @@ from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 from fear_ladder.monitoring.logging import configure_logging
 from fear_ladder.research.backtest_runner import BacktestRun, MarketData, StrategyBacktest
 from fear_ladder.research.data_loader import load_market_data
+from fear_ladder.research.measurement import frozen_value, with_parameter
+from fear_ladder.research.reports import write_json_report
 
 logger = logging.getLogger("event_analysis")
 
@@ -107,30 +108,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="write the event ledger and skip the paired parameter comparison",
     )
     return parser
-
-
-def variant(config: AppConfig, family: str, value: float) -> AppConfig:
-    """The frozen config with one parameter replaced. Copied, never mutated."""
-    strategy = config.strategy
-    if family == "max_leverage_below":
-        block = strategy.trend_filter.model_copy(update={family: value})
-        strategy = strategy.model_copy(update={"trend_filter": block})
-    elif family in {"minimum_duration_days", "hysteresis"}:
-        cast = int(value) if family == "minimum_duration_days" else value
-        block = strategy.transition.model_copy(update={family: cast})
-        strategy = strategy.model_copy(update={"transition": block})
-    else:
-        raise ValueError(f"unknown parameter family {family!r}")
-    return config.model_copy(update={"strategy": strategy})
-
-
-def frozen_value(config: AppConfig, family: str) -> float:
-    block = (
-        config.strategy.trend_filter
-        if family == "max_leverage_below"
-        else config.strategy.transition
-    )
-    return float(getattr(block, family))
 
 
 def change_dates(run: BacktestRun) -> list[date]:
@@ -327,7 +304,7 @@ def main(argv: list[str] | None = None) -> int:
             for value in family.values:
                 if value == held:
                     continue
-                run = StrategyBacktest(variant(config, family.name, value)).run(
+                run = StrategyBacktest(with_parameter(config, family.name, value)).run(
                     data, include_benchmarks=False
                 )
                 stats = paired(baseline, (run.result.nav, change_dates(run)))
@@ -355,11 +332,7 @@ def main(argv: list[str] | None = None) -> int:
         "summary": summary,
         "paired_comparisons": comparisons,
     }
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(
-        json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_json_report(args.out, report)
     logger.info("wrote %s", args.out)
     return 0
 

@@ -22,7 +22,7 @@ If a mandatory input is missing, stale or dated in the future, the day is
 recorded as UNKNOWN with no score and no allocation, a DATA_FAILURE alert is
 raised, and any allocation previously stored for that date is removed. A wrong
 "normal" state is the one output this system must never produce
-(``CLAUDE_CODE_INITIAL_PROMPT.md`` §5, §14).
+(``CONTRIBUTING.md`` §5, §14).
 
 This module must not import :mod:`fear_ladder.research` — the production path
 never calls the optimiser (``BACKTEST_SPEC.md`` §28), and a test enforces it.

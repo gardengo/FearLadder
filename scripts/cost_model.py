@@ -35,7 +35,6 @@ cost assumption for real would mean a new freeze (§4).
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from dataclasses import dataclass
@@ -53,7 +52,9 @@ from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 from fear_ladder.monitoring.logging import configure_logging
 from fear_ladder.research.backtest_runner import MarketData, StrategyBacktest
 from fear_ladder.research.data_loader import load_market_data
+from fear_ladder.research.measurement import eras, with_block
 from fear_ladder.research.performance import cash_curve, window_stats
+from fear_ladder.research.reports import write_json_report
 
 logger = logging.getLogger("cost_model")
 
@@ -94,13 +95,7 @@ SCENARIOS: tuple[Scenario, ...] = (
     ),
 )
 
-WINDOWS: tuple[tuple[str, date | None, date | None], ...] = (
-    ("full 1996-2026", None, None),
-    ("dotcom 1999-2003", date(1999, 3, 10), date(2003, 12, 31)),
-    ("gfc 2007-2009", date(2007, 1, 1), date(2009, 12, 31)),
-    ("real 2010-2026", date(2010, 2, 11), None),
-    ("oos 2021-2026", date(2021, 2, 27), None),
-)
+WINDOWS = eras("full", "dotcom", "gfc", "real", "oos")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -119,11 +114,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def with_costs(config: AppConfig, scenario: Scenario) -> AppConfig:
     """The frozen config with spread and slippage set. Copied, never mutated."""
-    costs = config.strategy.cost_model.model_copy(
-        update={"spread_bps": scenario.spread_bps, "slippage_bps": scenario.slippage_bps}
-    )
-    return config.model_copy(
-        update={"strategy": config.strategy.model_copy(update={"cost_model": costs})}
+    return with_block(
+        config,
+        "cost_model",
+        spread_bps=scenario.spread_bps,
+        slippage_bps=scenario.slippage_bps,
     )
 
 
@@ -132,11 +127,11 @@ def measure(
 ) -> dict[str, float]:
     run = StrategyBacktest(config).run(data, start=start, end=end, include_benchmarks=False)
     nav = run.result.nav
-    stats = window_stats(nav / nav.iloc[0], cash_curve(data.cash_rates, list(nav.index)))
+    stats = window_stats(nav, cash_curve(data.cash_rates, list(nav.index)))
     years = (nav.index[-1] - nav.index[0]).days / 365.25
     return {
         "cagr": stats["cagr"],
-        "max_drawdown": float((nav / nav.cummax() - 1.0).min()),
+        "max_drawdown": stats["max_drawdown"],
         "sharpe": stats["sharpe"],
         "turnover": run.result.total_turnover,
         "turnover_per_year": run.result.total_turnover / years if years else 0.0,
@@ -265,11 +260,7 @@ def main(argv: list[str] | None = None) -> int:
         "scenarios": rows,
         "crash_attribution": attribution,
     }
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(
-        json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_json_report(args.out, report)
     logger.info("wrote %s", args.out)
     return 0
 

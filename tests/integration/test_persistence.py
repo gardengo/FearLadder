@@ -345,7 +345,7 @@ def test_rerunning_a_day_updates_rather_than_duplicates(uow: SQLiteUnitOfWork) -
 def test_a_rerun_that_degrades_to_unknown_clears_the_old_allocation(
     uow: SQLiteUnitOfWork,
 ) -> None:
-    # CLAUDE_CODE_INITIAL_PROMPT.md 14: bad data must not leave advice standing.
+    # CONTRIBUTING.md 14: bad data must not leave advice standing.
     uow.states.save_state(_state(45.0, "Fear", target_leverage=1.4), _allocation())
     uow.states.save_state(
         MarketState.unknown(DAY, strategy_version=VERSION, reason_codes=("STALE:VIX",))

@@ -113,49 +113,6 @@ StrategyRepository
 
 ---
 
-# Phase 2.5 — Data Source Validation
-
-## TASK-027 FinanceDataReader Adapter
-
-### 목표
-
-미국 가격 데이터의 표준 수집 경로를 FinanceDataReader 기반으로 구현한다.
-
-대상:
-
-```text
-QQQ
-QLD
-TQQQ
-```
-
-### 요구사항
-
-- start/end 지원
-- 일별 OHLCV 표준화
-- source metadata 기록
-- library version 기록
-- retry/error handling
-
----
-
-## TASK-028 ProShares Cross-Validation
-
-### 목표
-
-QLD/TQQQ 가격 시계열을 ProShares 공식 자료와 교차검증한다.
-
-검증 항목:
-
-- trading dates
-- split events
-- price continuity
-- major price discrepancies
-
-불일치 시 자동으로 수정하지 말고 REVIEW 상태로 기록한다.
-
----
-
 # Phase 2 — Data Layer
 
 ## TASK-020 Data Models
@@ -203,6 +160,49 @@ VIX daily data를 표준화한다.
 가능한 경우 breadth를 추가한다.
 
 데이터 품질이 불충분하면 명시적으로 제외한다.
+
+---
+
+# Phase 2.5 — Data Source Validation
+
+## TASK-027 FinanceDataReader Adapter
+
+### 목표
+
+미국 가격 데이터의 표준 수집 경로를 FinanceDataReader 기반으로 구현한다.
+
+대상:
+
+```text
+QQQ
+QLD
+TQQQ
+```
+
+### 요구사항
+
+- start/end 지원
+- 일별 OHLCV 표준화
+- source metadata 기록
+- library version 기록
+- retry/error handling
+
+---
+
+## TASK-028 ProShares Cross-Validation
+
+### 목표
+
+QLD/TQQQ 가격 시계열을 ProShares 공식 자료와 교차검증한다.
+
+검증 항목:
+
+- trading dates
+- split events
+- price continuity
+- major price discrepancies
+
+불일치 시 자동으로 수정하지 말고 REVIEW 상태로 기록한다.
 
 ---
 
@@ -742,7 +742,8 @@ frozen strategy 명세.
 [x] OOS 검증 완료                 2026-09-13, 고정 이후 한 번. docs/strategy.md 2.8
 [x] strategy freeze 완료          v1.0-frozen, 지문 b425a9b104b62daa
 [x] SQLite 정상 저장
-[x] GitHub Actions daily 실행     평일 22:30 UTC, dry-run 으로 완주 확인
+[x] GitHub Actions daily 실행     거래일 다음 날 06:00 UTC (2026-09-14 에 옮겼다 —
+                                  22:30 UTC 는 QQQ 봉이 올라오기 전이었다)
 [x] Telegram alert 정상
 [x] Streamlit dashboard 정상
 [-] Docker 실행 정상              ← 운영자 결정으로 범위에서 제외
@@ -774,13 +775,14 @@ Telegram 이고 그 어디에도 컨테이너가 쓰이지 않는다. 유지할 
 
 ---
 
-# Phase 9 — 사후 검증 (research backlog) — **전부 완료 (2026-09-18)**
+# Phase 18 — 사후 검증 (research backlog) — **전부 완료 (2026-09-18)**
 
 전부 **사후 측정**이다. `config/` 는 v1.0-frozen 이고 아래 어떤 항목도 설정을
 바꾸지 않는다. 바꿀 근거가 나오면 새 freeze 절차(TASK-100)를 밟는다.
 
 상세한 배경·실행 방법·판단 기준·함정은 **`docs/research-backlog.md`** 에 있다.
-새 세션은 그 문서부터 읽는다.
+새 세션은 그 문서부터 읽는다. 아래는 각 항목의 **완료 기록**이고, 결론의 근거는
+`docs/strategy.md` §2.12–§2.18 에 있다.
 
 ---
 

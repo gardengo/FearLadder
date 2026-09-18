@@ -76,8 +76,14 @@ from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 from fear_ladder.monitoring.logging import configure_logging
 from fear_ladder.research.backtest_runner import MarketData, StrategyBacktest
 from fear_ladder.research.data_loader import load_market_data, required_symbols
-from fear_ladder.research.performance import cash_curve, window_stats
+from fear_ladder.research.measurement import (
+    eras,
+    frozen_value,
+    headline,
+    with_parameter,
+)
 from fear_ladder.research.reconstruction import implied_drag
+from fear_ladder.research.reports import write_json_report
 
 logger = logging.getLogger("cross_market")
 
@@ -187,12 +193,7 @@ LEVERAGE = {"QLD": 2.0, "TQQQ": 3.0}
 #: Crash windows are where a claim about tail behaviour has to hold; ``real``
 #: is where both markets have observed prices for every sleeve (UPRO from
 #: 2009-06-25, TQQQ from 2010-02-11, so 2010-02-11 clears both).
-WINDOWS: tuple[tuple[str, date | None, date | None], ...] = (
-    ("full 1996-2026", None, None),
-    ("dotcom 1999-2003", date(1999, 3, 10), date(2003, 12, 31)),
-    ("gfc 2007-2009", date(2007, 1, 1), date(2009, 12, 31)),
-    ("real 2010-2026", date(2010, 2, 11), None),
-)
+WINDOWS = eras("full", "dotcom", "gfc", "real")
 
 
 @dataclass(frozen=True, slots=True)
@@ -367,42 +368,11 @@ def relabelled_data(
 # ---------------------------------------------------------------- the sweeps
 
 
-def variant(config: AppConfig, family: str, value: float) -> AppConfig:
-    """The frozen config with one parameter replaced. Copied, never mutated."""
-    strategy = config.strategy
-    if family == "max_leverage_below":
-        block = strategy.trend_filter.model_copy(update={family: value})
-        strategy = strategy.model_copy(update={"trend_filter": block})
-    elif family in {"minimum_duration_days", "hysteresis"}:
-        cast = int(value) if family == "minimum_duration_days" else value
-        block = strategy.transition.model_copy(update={family: cast})
-        strategy = strategy.model_copy(update={"transition": block})
-    else:
-        raise ValueError(f"unknown parameter family {family!r}")
-    return config.model_copy(update={"strategy": strategy})
-
-
-def frozen_value(config: AppConfig, family: str) -> float:
-    block = (
-        config.strategy.trend_filter
-        if family == "max_leverage_below"
-        else config.strategy.transition
-    )
-    return float(getattr(block, family))
-
-
 def measure(
     config: AppConfig, data: MarketData, start: date | None, end: date | None
 ) -> dict[str, float]:
     run = StrategyBacktest(config).run(data, start=start, end=end, include_benchmarks=False)
-    nav = run.result.nav
-    stats = window_stats(nav / nav.iloc[0], cash_curve(data.cash_rates, list(nav.index)))
-    return {
-        "cagr": stats["cagr"],
-        "max_drawdown": float((nav / nav.cummax() - 1.0).min()),
-        "sharpe": stats["sharpe"],
-        "regime_changes": float(run.regime_change_count),
-    }
+    return headline(run, data)
 
 
 def direction(values: list[float]) -> str:
@@ -437,7 +407,8 @@ def run_sweeps(
             for market, data in markets.items():
                 measured[market] = {}
                 for value in sweep.values:
-                    stats = measure(variant(config, sweep.family, value), data, start, end)
+                    changed = with_parameter(config, sweep.family, value)
+                    stats = measure(changed, data, start, end)
                     measured[market][value] = stats
                     rows.append(
                         {
@@ -554,11 +525,7 @@ def main(argv: list[str] | None = None) -> int:
         "sweeps": sweeps,
         "agreement": agreement,
     }
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(
-        json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_json_report(args.out, report)
     logger.info("wrote %s", args.out)
     return 0
 

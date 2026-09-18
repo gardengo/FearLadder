@@ -43,7 +43,6 @@ strategy's *inputs*; it proposes no parameter change.
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from dataclasses import dataclass
@@ -70,8 +69,10 @@ from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 from fear_ladder.monitoring.logging import configure_logging
 from fear_ladder.research.backtest_runner import MarketData, StrategyBacktest
 from fear_ladder.research.data_loader import load_market_data
+from fear_ladder.research.measurement import with_parameter
 from fear_ladder.research.performance import cash_curve, window_stats
 from fear_ladder.research.reconstruction import implied_drag, model_path
+from fear_ladder.research.reports import write_json_report
 
 logger = logging.getLogger("reconstruction_accuracy")
 
@@ -416,19 +417,6 @@ def stress_test(
     }
 
 
-def with_cap(config: AppConfig, cap: float) -> AppConfig:
-    """The frozen config with ``trend_filter.max_leverage_below`` replaced.
-
-    Copied, never mutated: the models are frozen and ``config/`` is the freeze's
-    evidence.
-    """
-    strategy = config.strategy
-    trend_filter = strategy.trend_filter.model_copy(update={"max_leverage_below": cap})
-    return config.model_copy(
-        update={"strategy": strategy.model_copy(update={"trend_filter": trend_filter})}
-    )
-
-
 def stress_by_cap(
     config: AppConfig,
     data: MarketData,
@@ -463,7 +451,7 @@ def stress_by_cap(
     frozen = config.strategy.trend_filter.max_leverage_below
     rows: list[dict[str, object]] = []
     for cap in caps:
-        variant = with_cap(config, cap)
+        variant = with_parameter(config, "max_leverage_below", cap)
         depths = {}
         for name, inputs in (("baseline", data), ("stressed", stressed)):
             nav = StrategyBacktest(variant).run(inputs, include_benchmarks=False).result.nav
@@ -586,11 +574,7 @@ def main(argv: list[str] | None = None) -> int:
         "leverage_scaling": leverage_scaling(windows),
         "stress": stress,
     }
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(
-        json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_json_report(args.out, report)
     logger.info("wrote %s", args.out)
     return 0
 

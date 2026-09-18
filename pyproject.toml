@@ -33,11 +33,12 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.5",
     "mypy>=1.10",
+    # Without the stubs, mypy stops at the first `import yaml` and reports
+    # nothing else — which is how the type check in CI ran green while
+    # checking almost nothing.
+    "types-PyYAML>=6.0",
     "freezegun>=1.5",
 ]
-
-[project.scripts]
-fearladder-daily = "fear_ladder.pipeline.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -74,7 +75,11 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 "tests/**" = ["ARG001", "ARG002"]
 
 [tool.mypy]
-python_version = "3.11"
+# 3.12 rather than the 3.11 floor in `requires-python`: numpy ships stubs that
+# use PEP 695 `type` statements, and mypy rejects those outright when told to
+# target 3.11 — it aborts before checking any of this project's own code. Ruff
+# still holds the 3.11 syntax floor (`target-version` above).
+python_version = "3.12"
 mypy_path = "src"
 packages = ["fear_ladder"]
 warn_unused_configs = true
@@ -83,5 +88,8 @@ no_implicit_optional = true
 warn_redundant_casts = true
 
 [[tool.mypy.overrides]]
-module = ["FinanceDataReader.*", "pandas.*", "plotly.*", "streamlit.*"]
+# mypy checks `fear_ladder` only (see `packages` above), and nothing in the
+# package imports streamlit or plotly — the dashboard under app/ does, and it
+# imports no compute module in return (ARCHITECTURE.md §4.2).
+module = ["FinanceDataReader.*", "pandas.*"]
 ignore_missing_imports = true

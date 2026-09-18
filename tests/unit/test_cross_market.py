@@ -8,8 +8,10 @@ here are mostly about it not leaking:
 matrix and everything else from the database; if a price symbol were requested
 from the database too, half the portfolio would silently be the wrong market.
 
-*A variant must not contaminate the frozen configuration*, the same rule as
-``test_tail_risk.py`` and ``test_reconstruction_accuracy.py``.
+*The sweep must cover the three families §2.13 reports on*, and no others —
+the verdict is stated per family, so a silently added or dropped one would
+change what the conclusion is about. (That a variant does not contaminate the
+frozen configuration is checked once, in ``test_measurement.py``.)
 
 *The monotone / sawtooth verdict must be exact.* It is the finding the whole
 script exists to produce, and "almost monotone" is not a category §2.11 has.
@@ -125,38 +127,22 @@ def test_the_spec_separates_the_underlying_from_the_sleeves(harness: ModuleType)
 # ------------------------------------------------------------------- the config
 
 
-def test_a_variant_leaves_the_frozen_config_alone(harness: ModuleType) -> None:
+def test_the_sweep_covers_exactly_the_families_the_finding_is_stated_over(
+    harness: ModuleType,
+) -> None:
+    """§2.13 reads "cap reproduces, d and h do not" — one verdict per family."""
+    assert {sweep.family for sweep in harness.SWEEPS} == {
+        "max_leverage_below",
+        "minimum_duration_days",
+        "hysteresis",
+    }
+
+
+def test_every_sweep_grid_contains_the_frozen_value(harness: ModuleType) -> None:
+    """A grid that skipped it would compare the frozen strategy against nothing."""
     config = load_config()
-    before = config.strategy.trend_filter.max_leverage_below
-
-    variant = harness.variant(config, "max_leverage_below", 1.5)
-    assert variant.strategy.trend_filter.max_leverage_below == 1.5
-    assert config.strategy.trend_filter.max_leverage_below == before
-    assert variant.strategy.transition == config.strategy.transition
-
-
-def test_a_duration_variant_stays_an_integer(harness: ModuleType) -> None:
-    """The grid is floats for uniformity; the schema's field is not."""
-    variant = harness.variant(load_config(), "minimum_duration_days", 120.0)
-    assert variant.strategy.transition.minimum_duration_days == 120
-    assert isinstance(variant.strategy.transition.minimum_duration_days, int)
-
-
-def test_a_hysteresis_variant_changes_nothing_else(harness: ModuleType) -> None:
-    config = load_config()
-    variant = harness.variant(config, "hysteresis", 12.0)
-
-    assert variant.strategy.transition.hysteresis == 12.0
-    assert (
-        variant.strategy.transition.minimum_duration_days
-        == config.strategy.transition.minimum_duration_days
-    )
-    assert variant.strategy.trend_filter == config.strategy.trend_filter
-
-
-def test_an_unknown_family_is_refused(harness: ModuleType) -> None:
-    with pytest.raises(ValueError, match="unknown parameter family"):
-        harness.variant(load_config(), "confirmation_days", 3.0)
+    for sweep in harness.SWEEPS:
+        assert harness.frozen_value(config, sweep.family) in sweep.values, sweep.family
 
 
 def test_the_frozen_value_is_read_from_the_right_block(harness: ModuleType) -> None:

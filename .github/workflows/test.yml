@@ -43,8 +43,11 @@ jobs:
         run: ruff check src tests scripts app
 
       - name: Type check
-        # Advisory for now: the type surface is still settling.
-        continue-on-error: true
+        # Enforcing since 2026-09-18. It was advisory while the type surface
+        # settled, and by then it had stopped checking anything at all: without
+        # the PyYAML stubs mypy aborted on the first `import yaml` and reported
+        # three import errors instead of the package. The stubs are a dev
+        # dependency now and the package is clean, so a regression should fail.
         run: mypy
 
       - name: Test

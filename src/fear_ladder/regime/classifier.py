@@ -3,7 +3,7 @@
 The classifier is a pure function of the composite score and the configured
 boundaries. Stage count (3 / 5 / 7 / 9) and the cut points are research
 parameters: ``BACKTEST_SPEC.md`` 12 says more stages are not assumed to be
-better, and ``CLAUDE_CODE_INITIAL_PROMPT.md`` 7 forbids fixing the numbers here.
+better, and ``CONTRIBUTING.md`` 7 forbids fixing the numbers here.
 
 Boundary convention, fixed once so the whole system agrees::
 

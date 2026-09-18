@@ -219,7 +219,7 @@ def _absolute_candidates(
     An absolute scale has no such memory. It is only offered where the config
     declares a ``definitional_range`` - RSI is 0-100 because RSI is 0-100, not
     because a sample said so. Without that declaration this would be inventing
-    a threshold, which ``CLAUDE_CODE_INITIAL_PROMPT.md`` 10 forbids.
+    a threshold, which ``CONTRIBUTING.md`` 10 forbids.
     """
     candidates: list[Candidate] = []
     for family, names in sorted(families.items()):

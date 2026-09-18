@@ -207,7 +207,7 @@ class UnitOfWork(Protocol):
 
     The daily worker persists state, events and alerts inside one of these, so a
     failure half way through cannot leave a state without its allocation
-    (``CLAUDE_CODE_INITIAL_PROMPT.md`` 5: never push a wrong "normal" state).
+    (``CONTRIBUTING.md`` 5: never push a wrong "normal" state).
     """
 
     observations: MarketObservationRepository

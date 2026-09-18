@@ -110,7 +110,7 @@ def with_retry(
     """Retry a flaky network call with linear backoff.
 
     Deliberately does not fall back to a different provider:
-    ``CLAUDE_CODE_INITIAL_PROMPT.md`` 6.5 forbids inventing a substitute source
+    ``CONTRIBUTING.md`` 6.5 forbids inventing a substitute source
     when the configured one fails.
     """
     if attempts < 1:

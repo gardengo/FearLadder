@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 
 from fear_ladder.constants import (
     ASSET_LEVERAGE,
+    PRODUCTION_PARAMETER_STATUS,
     SCORE_MAX,
     SCORE_MIN,
     UNKNOWN_REGIME,
@@ -230,8 +231,8 @@ class NormalizationSpec(_Base):
             bounds = (self.raw_at_score_min, self.raw_at_score_max)
             if None not in bounds and self.raw_at_score_min == self.raw_at_score_max:
                 raise ConfigError("raw_at_score_min and raw_at_score_max must differ")
-        has_both = self.min_periods is not None and self.window is not None
-        if has_both and self.min_periods > self.window:
+        periods, window = self.min_periods, self.window
+        if periods is not None and window is not None and periods > window:
             raise ConfigError("min_periods cannot exceed window")
         return self
 
@@ -264,7 +265,7 @@ class IndicatorSpec(_Base):
     #: The range this indicator can take *by construction* - RSI is 0-100, a
     #: drawdown is 0-1 - not the range it happened to take in some sample.
     #: Declaring it lets the search offer an absolute scale without inventing a
-    #: threshold, which ``CLAUDE_CODE_INITIAL_PROMPT.md`` 10 forbids. Leave it
+    #: threshold, which ``CONTRIBUTING.md`` 10 forbids. Leave it
     #: out for open-ended series (momentum, VIX level, distance from a moving
     #: average): those have no definitional bounds to map onto.
     definitional_range: tuple[float, float] | None = None
@@ -488,11 +489,11 @@ class TrendFilterSpec(_Base):
 
     @model_validator(mode="after")
     def _reentry_is_above_exit(self) -> Self:
-        both = self.threshold is not None and self.reentry_threshold is not None
-        if both and self.reentry_threshold < self.threshold:
+        exit_at, reentry_at = self.threshold, self.reentry_threshold
+        if exit_at is not None and reentry_at is not None and reentry_at < exit_at:
             raise ConfigError(
-                f"reentry_threshold ({self.reentry_threshold}) is below threshold "
-                f"({self.threshold}); that inverts the band"
+                f"reentry_threshold ({reentry_at}) is below threshold "
+                f"({exit_at}); that inverts the band"
             )
         return self
 
@@ -556,9 +557,10 @@ class CostModelSpec(_Base):
 
     @property
     def total_bps(self) -> float:
-        if not self.is_resolved:
+        legs = (self.commission_bps, self.spread_bps, self.slippage_bps)
+        if any(leg is None for leg in legs):
             raise ResearchParameterError("cost model is not resolved")
-        return float(self.commission_bps) + float(self.spread_bps) + float(self.slippage_bps)
+        return sum(float(leg) for leg in legs if leg is not None)
 
 
 class DatasetSplitSpec(_Base):
@@ -658,7 +660,7 @@ class StrategyConfig(_Base):
     @property
     def is_production_ready(self) -> bool:
         return (
-            self.parameter_status is ParameterStatus.FROZEN
+            self.parameter_status is PRODUCTION_PARAMETER_STATUS
             and not self.unresolved_parameters()
         )
 

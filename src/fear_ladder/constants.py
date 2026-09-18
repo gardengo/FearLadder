@@ -3,7 +3,7 @@
 Only things that are *definitional* live here. Every number that the strategy
 research still has to decide (weights, thresholds, boundaries, allocations)
 belongs in ``config/`` and stays ``null`` until the strategy is frozen.
-See ``CLAUDE_CODE_INITIAL_PROMPT.md`` §7 and §10.
+See ``CONTRIBUTING.md`` §7 and §10.
 """
 
 from __future__ import annotations

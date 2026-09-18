@@ -12,9 +12,11 @@ would inflate every run and invent gaps that never happened.
 per-year series, each have to add back to exactly the same total. If they do
 not, "the gap is five crises" is an assertion rather than a split.
 
-*The variant must not contaminate the frozen config.* Every other number in
-``docs/strategy.md`` is measured against the frozen value; a leak makes the
-comparison a comparison of one thing with itself.
+*The frozen cap must be one of the two measured.* Every other number in
+``docs/strategy.md`` is measured against the frozen value, so a freeze that
+moved off 0.5 would quietly turn this into a comparison of two values neither
+of which is live. (That a variant does not contaminate the frozen config is
+checked once, in ``test_measurement.py``.)
 """
 
 from __future__ import annotations
@@ -223,25 +225,9 @@ def test_era_is_zero_when_the_window_is_empty(harness: ModuleType) -> None:
 # --- the variant must not leak ------------------------------------------------
 
 
-def test_variant_leaves_the_frozen_config_untouched(harness: ModuleType) -> None:
-    config = load_config()
-    before = config.strategy.trend_filter.max_leverage_below
-    changed = harness.variant(config, 0.0)
-    assert changed.strategy.trend_filter.max_leverage_below == 0.0
-    assert config.strategy.trend_filter.max_leverage_below == before
-    assert changed is not config
-
-
-def test_variant_changes_nothing_else_in_the_trend_filter(
-    harness: ModuleType,
-) -> None:
-    config = load_config()
-    changed = harness.variant(config, 0.0)
-    original = config.strategy.trend_filter.model_dump()
-    updated = changed.strategy.trend_filter.model_dump()
-    assert {
-        key: value for key, value in updated.items() if key != "max_leverage_below"
-    } == {key: value for key, value in original.items() if key != "max_leverage_below"}
+def test_the_swept_cap_is_the_live_parameter(harness: ModuleType) -> None:
+    """The script names the family in one place; a rename must break here."""
+    assert hasattr(load_config().strategy.trend_filter, harness.CAP)
 
 
 def test_frozen_cap_is_one_of_the_measured_caps(harness: ModuleType) -> None:

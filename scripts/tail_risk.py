@@ -34,7 +34,6 @@ here means a new freeze, labelled as such.
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from datetime import date
@@ -46,26 +45,21 @@ from pandas import Series
 
 from fear_ladder import paths
 from fear_ladder.config.loader import load_config
+from fear_ladder.config.schema import AppConfig
 from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 from fear_ladder.monitoring.logging import configure_logging
 from fear_ladder.research.backtest_runner import StrategyBacktest
 from fear_ladder.research.data_loader import load_market_data
+from fear_ladder.research.measurement import eras, with_block
 from fear_ladder.research.performance import cash_curve, window_stats
+from fear_ladder.research.reports import write_json_report
 
 logger = logging.getLogger("tail_risk")
 
 OUTPUT = paths.REPORTS_DIR / "tail_risk.json"
 SLEEVES = ("QLD", "TQQQ")
 
-#: Named eras. The split that matters is not research/validation/OOS but
-#: *crash versus calm*, and — separately — *modelled versus real* sleeve prices.
-WINDOWS: tuple[tuple[str, date | None, date | None], ...] = (
-    ("dotcom 1999-2003", date(1999, 3, 10), date(2003, 12, 31)),
-    ("gfc 2007-2009", date(2007, 1, 1), date(2009, 12, 31)),
-    ("real 2010-2026", date(2010, 2, 11), None),
-    ("oos 2021-2026", date(2021, 2, 27), None),
-    ("full 1996-2026", None, None),
-)
+WINDOWS = eras("dotcom", "gfc", "real", "oos", "full")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -83,29 +77,24 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _with_trend_filter(config: object, **changes: object) -> object:
-    """The frozen config with some trend-filter constants replaced.
-
-    Copied, never mutated: the models are frozen and ``config/`` is the
-    freeze's evidence.
-    """
-    strategy = config.strategy  # type: ignore[attr-defined]
-    trend_filter = strategy.trend_filter.model_copy(update=changes)
-    return config.model_copy(  # type: ignore[attr-defined]
-        update={"strategy": strategy.model_copy(update={"trend_filter": trend_filter})}
-    )
-
-
-def _variants(config: object, caps: list[float], depths: list[float]) -> list[tuple[str, object]]:
-    spec = config.strategy.trend_filter  # type: ignore[attr-defined]
-    rows: list[tuple[str, object]] = []
+def _variants(
+    config: AppConfig, caps: list[float], depths: list[float]
+) -> list[tuple[str, AppConfig]]:
+    """One variant per value, the frozen value marked with ``*``."""
+    spec = config.strategy.trend_filter
+    rows: list[tuple[str, AppConfig]] = []
     for cap in caps:
         mark = " *" if cap == spec.max_leverage_below else ""
-        rows.append((f"cap={cap:g}{mark}", _with_trend_filter(config, max_leverage_below=cap)))
+        rows.append(
+            (f"cap={cap:g}{mark}", with_block(config, "trend_filter", max_leverage_below=cap))
+        )
     for depth in depths:
         mark = " *" if depth == spec.min_depth_to_engage else ""
         rows.append(
-            (f"depth={depth:g}{mark}", _with_trend_filter(config, min_depth_to_engage=depth))
+            (
+                f"depth={depth:g}{mark}",
+                with_block(config, "trend_filter", min_depth_to_engage=depth),
+            )
         )
     return rows
 
@@ -118,9 +107,9 @@ def _worst_drawdown(nav: Series) -> tuple[date, date, float]:
     return peak, trough, float(drawdown.min())
 
 
-def _real_sleeve_start(config: object) -> date:
+def _real_sleeve_start(config: AppConfig) -> date:
     """The first day on which no held sleeve is a reconstructed price."""
-    symbols = config.data_sources.price.symbols  # type: ignore[attr-defined]
+    symbols = config.data_sources.price.symbols
     return max(symbols[symbol].inception for symbol in SLEEVES)
 
 
@@ -151,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
                 data, start=start, end=end, include_benchmarks=False
             )
             nav = run.result.nav
-            stats = window_stats(nav / nav.iloc[0], cash_curve(data.cash_rates, list(nav.index)))
+            stats = window_stats(nav, cash_curve(data.cash_rates, list(nav.index)))
             peak, trough, depth = _worst_drawdown(nav)
             rows.append(
                 {
@@ -184,11 +173,7 @@ def main(argv: list[str] | None = None) -> int:
         },
         "windows": windows,
     }
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(
-        json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_json_report(args.out, report)
     logger.info("wrote %s", args.out)
     return 0
 

@@ -76,7 +76,7 @@ def test_every_event_type_has_a_template(placeholder_config) -> None:
 
 
 def test_an_alert_explains_itself_rather_than_naming_a_regime() -> None:
-    # CLAUDE_CODE_INITIAL_PROMPT.md 12 — "Regime = Fear" alone is not enough.
+    # CONTRIBUTING.md 12 — "Regime = Fear" alone is not enough.
     rendered = render(
         "regime_changed",
         _state(),

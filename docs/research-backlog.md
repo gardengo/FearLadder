@@ -1,11 +1,23 @@
-# 남은 검증 과제 (research backlog)
+# 사후 검증 작업 안내 (research backlog)
 
-`docs/strategy.md` §2.10–§2.11 이 전이 장치(`minimum_duration_days`,
-`hysteresis`)를 사후 측정하고 **낙폭 축의 논증을 철회**하면서 남긴 과제들이다.
-이 문서는 **새 세션이 맥락 없이 읽고 바로 시작할 수 있도록** 쓰였다.
+> **열려 있는 과제: 없음.** `docs/strategy.md` §2.10–§2.11 이 남긴 여섯 항목은
+> 2026-09-18 에 전부 측정됐고 (§3), `config/` 는 한 글자도 바뀌지 않았다.
+> 종합 판정은 `docs/strategy.md` §2.18 — **구조를 그대로 둔다.**
 
-전부 **사후 측정**이다. `config/` 는 v1.0-frozen 이고 이 backlog 의 어떤 항목도
-설정을 바꾸지 않는다. 바꿀 근거가 나오면 그때는 **새 freeze** 절차(§4)를 밟는다.
+이 문서가 남아 있는 이유는 backlog 가 비었어도 **다음 측정이 필요해질 때 다시
+밟아야 하는 절차**가 여기 있기 때문이다. 새 세션은 맥락 없이 이것부터 읽으면 된다.
+
+| | |
+| --- | --- |
+| §0 | 시작 전 준비 — 전체 이력 DB, 인코딩, 가상환경. **한 번 여기서 틀린 적이 있다** |
+| §1 | 지켜야 할 규칙 — 테스트가 강제하는 것들 |
+| §2 | 이미 아는 것 — 다시 재지 말 것, 그리고 기준 수치 |
+| §3 | 완료된 여섯 항목의 기록 |
+| §4 | 결과를 기록하는 방법 |
+| §5 | 참고 파일 |
+
+전부 **사후 측정**이다. `config/` 는 v1.0-frozen 이고 여기 어떤 항목도 설정을
+바꾸지 않는다. 바꿀 근거가 나오면 그때는 **새 freeze** 절차(§4)를 밟는다.
 
 ---
 
@@ -59,7 +71,8 @@ cp -r E:/Develop/FearLadder/data/reference/{aaii,cnn} data/reference/
 ### 0.2 Windows 콘솔 인코딩
 
 스크립트 docstring 에 한글과 `–` 가 있어서 cp949 콘솔에서는 `--help` 가
-`UnicodeEncodeError` 로 죽는다. 12개 스크립트 전부 해당된다. 환경변수 하나로 해결된다:
+`UnicodeEncodeError` 로 죽는다. `scripts/` 아래 거의 전부가 해당된다.
+환경변수 하나로 해결된다:
 
 ```powershell
 $env:PYTHONIOENCODING = "utf-8"    # PowerShell
@@ -154,15 +167,14 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 
 ---
 
-## 3. 후보 과제 — **전부 완료 (2026-09-18)**
+## 3. 완료된 과제 (2026-09-18)
 
-여섯 항목이 모두 측정됐고 결과는 `docs/strategy.md` §2.12–§2.17 에 있다.
-**종합 판정은 §2.18 에 있다 — 구조를 그대로 둔다.**
-**`config/` 는 한 글자도 바뀌지 않았다.** 각 항목의 요약과 착수 당시의 기록을
-아래에 남긴다 — 나중에 같은 질문이 다시 떠오를 때 무엇을 이미 재 봤는지
-알 수 있도록.
+여섯 항목이 모두 측정됐고 결과는 `docs/strategy.md` §2.12–§2.17, 종합 판정은
+§2.18 에 있다. 각 항목마다 **요약**과 **착수 당시의 기록**을 남긴다 — 나중에 같은
+질문이 다시 떠오를 때 무엇을 이미 재 봤고 그때 무엇을 알고 싶었는지 알 수 있도록.
 
-새 과제가 생기면 여기 같은 형식으로 덧붙인다.
+새 과제가 생기면 여기 같은 형식으로 덧붙이고, TASKS.md 에도 TASK 번호를 붙여
+기록한다 (`CONTRIBUTING.md` §9).
 
 ### ~~TASK-186 0.0x 와 0.5x 는 실제로 얼마나 다른가~~ — **완료 (2026-09-18)**
 
@@ -364,6 +376,9 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 5. **테스트를 붙인다.** `tests/unit/test_tail_risk.py`,
    `test_transition_sensitivity.py` 가 본보기다. 검증할 것은 보통 두 가지다:
    변형이 고정 설정을 오염시키지 않는가, 그리고 변환이 미래를 보지 않는가.
+   앞의 것은 `fear_ladder.research.measurement` 를 쓰면 이미 보장된다 —
+   `tests/unit/test_measurement.py` 가 한 번 검증한다. 스크립트 쪽 테스트는
+   **그 스크립트만 아는 것**에 집중하라.
 6. **CI 는 `ruff check src tests scripts app` 을 돈다** (`ruff format` 은 아니다).
 
 ---
@@ -376,6 +391,7 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 | 재구성 모델 | `src/fear_ladder/data/collectors/synthetic.py` |
 | 재구성 정확도 측정 | `scripts/reconstruction_accuracy.py` |
 | 재구성 측정 도구 (공용) | `src/fear_ladder/research/reconstruction.py` |
+| 측정 공용 도구 (창·변형·지표) | `src/fear_ladder/research/measurement.py` |
 | 교차시장 재현 | `scripts/cross_market.py` |
 | 지표 제거 실험 | `scripts/indicator_ablation.py` |
 | 이벤트 단위 분석 | `scripts/event_analysis.py` |

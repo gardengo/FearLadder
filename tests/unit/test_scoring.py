@@ -226,7 +226,7 @@ def test_composite_stays_inside_the_domain() -> None:
 
 
 def test_unresolved_weights_block_scoring() -> None:
-    # CLAUDE_CODE_INITIAL_PROMPT.md 10 — no silent default weighting.
+    # CONTRIBUTING.md 10 — no silent default weighting.
     engine = _engine(None)  # type: ignore[arg-type]
     with pytest.raises(ScoringError, match="unresolved research parameter"):
         _ = engine.weights
