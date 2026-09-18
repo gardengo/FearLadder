@@ -156,12 +156,29 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 
 ## 3. 후보 과제 — **전부 완료 (2026-09-18)**
 
-다섯 항목이 모두 측정됐고 결과는 `docs/strategy.md` §2.12–§2.16 에 있다.
+여섯 항목이 모두 측정됐고 결과는 `docs/strategy.md` §2.12–§2.17 에 있다.
+**종합 판정은 §2.18 에 있다 — 구조를 그대로 둔다.**
 **`config/` 는 한 글자도 바뀌지 않았다.** 각 항목의 요약과 착수 당시의 기록을
 아래에 남긴다 — 나중에 같은 질문이 다시 떠오를 때 무엇을 이미 재 봤는지
 알 수 있도록.
 
 새 과제가 생기면 여기 같은 형식으로 덧붙인다.
+
+### ~~TASK-186 0.0x 와 0.5x 는 실제로 얼마나 다른가~~ — **완료 (2026-09-18)**
+
+`docs/strategy.md` §2.17 · `reports/cash_exposure.json` ·
+`python scripts/cash_exposure.py --db <full.db>`
+
+목록에 없던 항목인데 §2.5 를 다시 읽다 나왔다. `max_leverage_below = 0.5` 의
+근거로 적힌 숫자는 research 구간의 "현금 100% 인 날 29.9%" 하나였고, 그것은
+**주장하려는 것을 재는 형태가 아니었다** — 사람이 겪는 것은 비율이 아니라
+연속으로 몇 달을 시장 밖에 있는가다.
+
+두 줄 요약: cap=0.0 이면 42개 구간, 6개월 이상이 넷, **최장 15개월**
+(2000-09 → 2001-12), 최근 것이 11개월(2022-03 → 2023-01)이다. cap=0.5 는
+현금 100% 인 날이 30년간 **0일**. 총합은 0.0 이 앞서지만(+0.133 로그) 그 우위가
+**다섯 해에서 나오고**(위기 5년 +0.660 / 나머지 26년 −0.527), 구간 단위로는
+구별되지 않으며(t +0.31, p 0.320), **2010년 이후로는 0.5 가 연 1.36%p 앞선다.**
 
 ### ~~TASK-181 재구성 모델을 2008년 실물 QLD 로 검증한다~~ — **완료 (2026-09-18)**
 
@@ -355,7 +372,7 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 
 | | |
 | --- | --- |
-| 전략 명세·측정 기록 | `docs/strategy.md` (§2.5 지지도 표, §2.10–§2.16 최근 측정) |
+| 전략 명세·측정 기록 | `docs/strategy.md` (§2.5 지지도 표, §2.10–§2.17 최근 측정, **§2.18 종합 판정**) |
 | 재구성 모델 | `src/fear_ladder/data/collectors/synthetic.py` |
 | 재구성 정확도 측정 | `scripts/reconstruction_accuracy.py` |
 | 재구성 측정 도구 (공용) | `src/fear_ladder/research/reconstruction.py` |
@@ -363,7 +380,8 @@ editable 설치(`__editable__.fear_ladder-0.1.0.pth`)는 `E:\Develop\RegimePilot
 | 지표 제거 실험 | `scripts/indicator_ablation.py` |
 | 이벤트 단위 분석 | `scripts/event_analysis.py` |
 | 비용 모델 측정 | `scripts/cost_model.py` |
+| 현금 이탈 구간 측정 | `scripts/cash_exposure.py` |
 | 전이 장치 측정 | `scripts/transition_sensitivity.py` |
 | 꼬리위험 측정 | `scripts/tail_risk.py` |
 | 전체 이력 DB 생성 | `scripts/collect_full_history.py` |
-| 기존 리포트 | `reports/transition_sweep_{research,validation,pre2010,real_etf,oos}.json`, `reports/tail_risk.json`, `reports/reconstruction_accuracy.json`, `reports/cross_market.json`, `reports/indicator_ablation.json`, `reports/event_analysis.json`, `reports/cost_model.json` |
+| 기존 리포트 | `reports/transition_sweep_{research,validation,pre2010,real_etf,oos}.json`, `reports/tail_risk.json`, `reports/reconstruction_accuracy.json`, `reports/cross_market.json`, `reports/indicator_ablation.json`, `reports/event_analysis.json`, `reports/cost_model.json`, `reports/cash_exposure.json` |
