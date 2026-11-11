@@ -29,6 +29,7 @@ from views.common import (
     Railing,
     Rung,
     band_opacity,
+    carried,
     gates,
     halo,
     ladder,
@@ -92,13 +93,16 @@ def render(version: str | None) -> None:
     report = performance_report()
     rungs = ladder(report)
     history = load("state_history", version, days=STREAK_DAYS)
-    run = streak(history)
+    stored = streak(history)
+    memory = load("regime_memory", state["strategy_version"], state["observation_date"])
+    run = carried(stored, memory)
     readings = _trend_readings(report)
     rail = _railing(state, report, readings)
 
     _headline(state, run, rail)
     _ladder(state, rungs, report)
     _lock(state, rungs, report, run)
+    _caught_up(stored, run)
     _handrail(rail, readings, history, report)
 
     left, right = st.columns([1, 1])
@@ -322,15 +326,35 @@ def _lock(state: dict, rungs: list[Rung], report: dict | None, run) -> None:  # 
             "오늘 기록된 제동 사유가 없습니다 — 저장된 `reason_codes` 를 확인하세요."
         )
     elif run and held is not None:
-        # Entry date and the rung before it, but no second day count. The brake
-        # above already shows the engine's own counter, and that counter can sit
-        # a day ahead of the stored rows — it steps on every scored day, while a
-        # market_states row is only written for a day the worker completed. Two
-        # nearly-equal numbers side by side read as a bug in the page.
+        # Entry date and the rung before it, but no second day count: the brake
+        # above already shows the engine's counter, and repeating it adds nothing.
         st.caption(
             f"`{regime}` 진입 {run.since:%Y-%m-%d}"
             + (f" · 직전 `{run.previous}`" if run.previous else "")
         )
+
+
+def _caught_up(stored, run) -> None:  # type: ignore[no-untyped-def]
+    """Say so when the stored rows show this rung later than the engine entered it.
+
+    The two dates differ when the worker did not run on the day of the change,
+    or when the rows in between were written by a replay that has since been
+    put back on the backtest's path (TASK-188). Either way the chart on the
+    history tab changes colour on one date and the count above starts on
+    another, and a reader deserves to be told that both are right.
+    """
+    if stored is None or run is None or stored.regime != run.regime:
+        return
+    engine_since = pd.Timestamp(run.since)
+    shown_since = pd.Timestamp(stored.since)
+    if engine_since >= shown_since:
+        return
+    st.caption(
+        f"엔진은 **{engine_since:%Y-%m-%d}** 에 `{run.regime}` 로 옮겼고, 유지 기간도 "
+        f"그날부터 셉니다. 저장된 기록에는 {shown_since:%Y-%m-%d} 부터 이 단계로 "
+        "나옵니다 — 그 사이의 기록은 다른 단계를 적어 두었고, 이벤트 탭에 그 "
+        "차이가 한 줄로 남아 있습니다."
+    )
 
 
 def _minimum_duration_outlook(regime: str, report: dict | None, run) -> None:  # type: ignore[no-untyped-def]

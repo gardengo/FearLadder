@@ -201,6 +201,36 @@ CREATE TABLE IF NOT EXISTS track_record (
 CREATE INDEX IF NOT EXISTS idx_track_record_date
     ON track_record (strategy_version, observation_date DESC);
 
+-- ---------------------------------------------------------------- regime_memory
+-- What the transition engine carried out of each day it stepped through: the
+-- rung, the day it was entered, and how long it has been held.
+--
+-- The worker reads the row before the day it is computing and steps forward
+-- from it. Without this table the only way to know the count is to replay the
+-- rules from the start of whatever history is loaded - and the loaded window
+-- slides forward every day, so the same date kept getting a different answer.
+-- One row per stepped day, including days the worker did not run on but walked
+-- through on its next run.
+CREATE TABLE IF NOT EXISTS regime_memory (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    observation_date TEXT NOT NULL,
+    strategy_version TEXT NOT NULL,
+    regime           TEXT NOT NULL,
+    since            TEXT NOT NULL,
+    days_held        INTEGER NOT NULL,
+    pending_regime   TEXT,
+    pending_days     INTEGER NOT NULL DEFAULT 0,
+    created_at       TEXT NOT NULL,
+    updated_at       TEXT NOT NULL,
+    UNIQUE (observation_date, strategy_version),
+    CHECK (regime <> 'UNKNOWN'),
+    CHECK (days_held >= 1),
+    CHECK (since <= observation_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_regime_memory_date
+    ON regime_memory (strategy_version, observation_date DESC);
+
 -- ---------------------------------------------------------------- regime_events
 CREATE TABLE IF NOT EXISTS regime_events (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,

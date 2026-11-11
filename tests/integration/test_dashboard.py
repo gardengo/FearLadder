@@ -290,6 +290,36 @@ def test_a_database_from_before_the_track_record_reads_as_empty(populated: Path)
     assert DashboardQueries(db_path=populated).track_record("v0.0-placeholder").empty
 
 
+def test_the_regime_memory_of_a_day_is_readable(queries: DashboardQueries) -> None:
+    # TASK-188: the page shows the engine's own count, so it has to be able to
+    # read it — for the day the latest state is about, not just any day.
+    state = queries.latest_state()
+    assert state is not None
+    memory = queries.regime_memory(str(state["strategy_version"]), state["observation_date"])
+
+    assert memory is not None
+    assert memory["regime"] == state["regime"]
+    assert int(memory["days_held"]) >= 1  # type: ignore[call-overload]
+    assert str(memory["since"]) <= str(state["observation_date"])
+    assert queries.regime_memory("v-none", state["observation_date"]) is None
+
+
+def test_a_database_from_before_the_regime_memory_reads_as_none(populated: Path) -> None:
+    """The page ships with the code; the table only appears on the next run."""
+    from fear_ladder.data.repositories.connection import connect
+
+    connection = connect(populated)
+    try:
+        connection.execute("DROP TABLE regime_memory")
+    finally:
+        connection.close()
+
+    queries = DashboardQueries(db_path=populated)
+    state = queries.latest_state()
+    assert state is not None
+    assert queries.regime_memory("v0.0-placeholder", state["observation_date"]) is None
+
+
 def test_stored_indicator_readings_come_back_one_column_each(
     queries: DashboardQueries,
 ) -> None:

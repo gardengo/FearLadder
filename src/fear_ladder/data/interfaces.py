@@ -21,6 +21,7 @@ from fear_ladder.data.models import (
     MarketState,
     PipelineRun,
     RegimeEvent,
+    RegimeMemory,
     StrategyVersionRecord,
     TargetAllocation,
     TrackRecordEntry,
@@ -228,6 +229,21 @@ class TrackRecordRepository(Protocol):
 
 
 @runtime_checkable
+class RegimeMemoryRepository(Protocol):
+    """The transition engine's carried state, one row per stepped day."""
+
+    def save(self, entries: list[RegimeMemory]) -> None:
+        """Insert or replace by ``(observation_date, strategy_version)``."""
+        ...
+
+    def latest_before(self, day: date, *, strategy_version: str) -> RegimeMemory | None:
+        """The newest row strictly before ``day`` — where a run for it resumes."""
+        ...
+
+    def get(self, day: date, *, strategy_version: str) -> RegimeMemory | None: ...
+
+
+@runtime_checkable
 class UnitOfWork(Protocol):
     """Transaction boundary shared by the repositories.
 
@@ -242,6 +258,7 @@ class UnitOfWork(Protocol):
     events: EventRepository
     strategies: StrategyRepository
     track_record: TrackRecordRepository
+    regime_memory: RegimeMemoryRepository
 
     def __enter__(self) -> UnitOfWork: ...
 

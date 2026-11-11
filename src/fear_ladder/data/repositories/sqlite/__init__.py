@@ -30,6 +30,9 @@ from fear_ladder.data.repositories.sqlite.indicators import SQLiteIndicatorRepos
 from fear_ladder.data.repositories.sqlite.observations import (
     SQLiteMarketObservationRepository,
 )
+from fear_ladder.data.repositories.sqlite.regime_memory import (
+    SQLiteRegimeMemoryRepository,
+)
 from fear_ladder.data.repositories.sqlite.states import SQLiteMarketStateRepository
 from fear_ladder.data.repositories.sqlite.strategies import SQLiteStrategyRepository
 from fear_ladder.data.repositories.sqlite.track_record import SQLiteTrackRecordRepository
@@ -84,6 +87,7 @@ class SQLiteUnitOfWork:
         self.events = SQLiteEventRepository(self._connection)
         self.strategies = SQLiteStrategyRepository(self._connection)
         self.track_record = SQLiteTrackRecordRepository(self._connection)
+        self.regime_memory = SQLiteRegimeMemoryRepository(self._connection)
 
     # -- explicit control --------------------------------------------------
     @property
@@ -126,6 +130,7 @@ __all__ = [
     "SQLiteIndicatorRepository",
     "SQLiteMarketObservationRepository",
     "SQLiteMarketStateRepository",
+    "SQLiteRegimeMemoryRepository",
     "SQLiteStrategyRepository",
     "SQLiteTrackRecordRepository",
     "SQLiteUnitOfWork",

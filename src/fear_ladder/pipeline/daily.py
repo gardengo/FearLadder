@@ -8,14 +8,23 @@
 Two design decisions are worth stating, because they are what make the operator
 guarantees true rather than merely intended.
 
-**The worker replays the whole history every run.**
-It does not step yesterday's stored transition state forward. It recomputes
-indicators, scores and regime transitions from the beginning each day. That is
-slower, and it buys two things that matter more than speed: the live path and
-the backtest run *identical* code over *identical* inputs, so a regime the
-backtest shows for a past date is the regime the worker would have produced; and
-a re-run is naturally idempotent, because there is no accumulated state to
-double-count.
+**The worker recomputes indicators and scores every run, and resumes the regime.**
+Indicators and scores are rebuilt from the loaded history each day: they only
+look back a bounded number of days, so the same date gets the same score
+whatever the window, and a re-run has no accumulated state to double-count.
+
+The regime rules are different, and until TASK-188 the worker treated them the
+same way. A minimum holding period means the rules never forget their first
+day, and the loaded window begins one day later every day — so replaying them
+from the start of the window gave the same date a different regime depending on
+when it was asked. The worker now resumes instead: from the row it stored for
+the previous day (``regime_memory``), or, the first time, from the frozen
+anchor — the state the backtest's own replay ended in
+(:mod:`fear_ladder.regime.anchor`). The live regime is therefore the backtest's
+replay continued, which is the only sense in which "a regime the backtest shows
+for a past date is the regime the worker would have produced" can be true. A
+re-run stays idempotent: it resumes from the same stored row and steps the same
+days.
 
 **Failure produces UNKNOWN, never a guess.**
 If a mandatory input is missing, stale or dated in the future, the day is
@@ -24,8 +33,8 @@ raised, and any allocation previously stored for that date is removed. A wrong
 "normal" state is the one output this system must never produce
 (``CONTRIBUTING.md`` §5, §14).
 
-**The track record is the one thing that is appended rather than replayed, and
-the one stage allowed to fail.** See :mod:`fear_ladder.pipeline.track_record`
+**The track record is appended rather than replayed too, and is the one stage
+allowed to fail.** See :mod:`fear_ladder.pipeline.track_record`
 for the first half. For the second: by the time it runs the state is stored and
 the alert is out, and an accounting error must not be able to take either back.
 
@@ -67,10 +76,12 @@ from fear_ladder.data.validators.freshness import FreshnessReport, FreshnessVali
 from fear_ladder.indicators.computations import IndicatorError
 from fear_ladder.indicators.engine import IndicatorEngine, IndicatorResult
 from fear_ladder.pipeline.track_record import TrackRecorder, TrackRecordUpdate
-from fear_ladder.regime.classifier import RegimeScale
+from fear_ladder.regime.anchor import RegimeAnchor, load_anchor
+from fear_ladder.regime.classifier import RegimeError, RegimeScale
 from fear_ladder.regime.transition import (
     TransitionDecision,
     TransitionEngine,
+    TransitionState,
     build_regime_event,
 )
 from fear_ladder.scoring.composite import ScoreBreakdown, ScoreEngine
@@ -83,6 +94,20 @@ DEFAULT_LOOKBACK_DAYS = 2000
 
 #: How many indicators to name in an alert.
 TOP_INDICATOR_COUNT = 3
+
+
+class RegimeMemoryError(RuntimeError):
+    """The regime replay has a state to resume from but cannot reach it."""
+
+
+@dataclass(frozen=True, slots=True)
+class _ResumePoint:
+    """Where a run's regime replay picks up: the state at the close of ``as_of``."""
+
+    as_of: date
+    state: TransitionState
+    from_anchor: bool
+
 
 @dataclass(frozen=True, slots=True)
 class DailyResult:
@@ -129,6 +154,11 @@ class DailyPipeline:
     clock: Callable[[], datetime] = lambda: datetime.now(tz=UTC)
     lookback_days: int = DEFAULT_LOOKBACK_DAYS
     collection_service: CollectionService | None = None
+    #: Where the regime replay starts while the database holds no memory of its
+    #: own. Left as ``None`` it is read from ``config/frozen`` for the configured
+    #: strategy version; a version with no anchor file starts from the first
+    #: scored day, as a research profile should.
+    anchor: RegimeAnchor | None = None
 
     # Derived once at construction so an unresolved parameter fails here rather
     # than half way through a run that has already written rows.
@@ -150,6 +180,17 @@ class DailyPipeline:
         self.allocations = AllocationEngine.from_config(self.config)
         self.alerts = AlertEngine(self.config.alerts, self.notifier)
         self.freshness = FreshnessValidator(self.config.data_sources)
+
+        version = self.config.strategy.strategy_version
+        if self.anchor is None:
+            self.anchor = load_anchor(version)
+        if self.anchor is not None:
+            if self.anchor.strategy_version != version:
+                raise RegimeError(
+                    f"regime anchor is for {self.anchor.strategy_version}, "
+                    f"but the configured strategy is {version}"
+                )
+            self.scale.index_of(self.anchor.state.regime)  # raises on a foreign label
 
     # -- entry point -------------------------------------------------------
     def run(
@@ -258,7 +299,14 @@ class DailyPipeline:
         breakdown = self.scores.breakdown(score_frame, observation_date)
 
         run = self._stage(uow, run, "regime")
-        decisions = self.transitions.run(composite)
+        try:
+            decisions = self._replay_regime(uow, composite, observation_date)
+        except RegimeMemoryError as exc:
+            logger.error("%s", exc)
+            return self._data_failure(
+                uow, run, today, freshness, collection,
+                reasons=("REGIME_MEMORY_OUT_OF_WINDOW",),
+            )
         decision = self._decision_for(decisions, observation_date)
         if decision is None or decision.regime == UNKNOWN_REGIME:
             return self._data_failure(
@@ -276,6 +324,18 @@ class DailyPipeline:
             decision, allocation_decision, breakdown, previous, freshness
         )
         uow.states.save_state(state, allocation_decision.allocation)  # type: ignore[attr-defined]
+        # In the same transaction as the state it explains: a stored regime
+        # whose memory was lost would be resumed from an older row tomorrow.
+        uow.regime_memory.save(  # type: ignore[attr-defined]
+            [
+                stepped.state.to_memory(
+                    stepped.observation_date,
+                    strategy_version=self.config.strategy.strategy_version,
+                )
+                for stepped in decisions
+                if stepped.observation_date <= observation_date
+            ]
+        )
         uow.indicators.save_scores(  # type: ignore[attr-defined]
             self.scores.to_domain_scores(score_frame, observation_date),
             strategy_version=self.config.strategy.strategy_version,
@@ -287,6 +347,11 @@ class DailyPipeline:
         run = self._stage(uow, run, "events")
         regime_event = build_regime_event(
             decision,
+            strategy_version=self.config.strategy.strategy_version,
+            previous_score=previous.composite_score if previous else None,
+        ) or self.transitions.missed_change_event(
+            decision,
+            stored_regime=previous.regime if previous else None,
             strategy_version=self.config.strategy.strategy_version,
             previous_score=previous.composite_score if previous else None,
         )
@@ -339,6 +404,67 @@ class DailyPipeline:
             names, start=start, end=today
         )
         return {str(column): frame[column].dropna() for column in frame.columns}
+
+    def _replay_regime(
+        self, uow: object, composite: Series, day: date
+    ) -> list[TransitionDecision]:
+        """The transition decisions this run adds, ending with the one for ``day``.
+
+        Resumed runs return only the days stepped since the resume point —
+        usually just ``day``, more when the worker missed some. A run with
+        nothing to resume from replays the loaded history from its first scored
+        day and returns the last decision alone: that is the only one worth
+        remembering, and the next run resumes from it.
+        """
+        resume = self._resume_point(uow, day)
+        if resume is None:
+            if self.config.strategy.is_production_ready:
+                logger.warning(
+                    "no stored regime memory before %s and no frozen anchor for %s: "
+                    "replaying from the first scored day in the loaded window. The "
+                    "result depends on where that window starts; write an anchor "
+                    "with scripts/make_regime_anchor.py.",
+                    day,
+                    self.config.strategy.strategy_version,
+                )
+            last = self._decision_for(self.transitions.run(composite), day)
+            return [] if last is None or last.state is None else [last]
+
+        if composite.empty or resume.as_of < composite.index.min():
+            raise RegimeMemoryError(
+                f"the regime replay would resume from {resume.as_of}, but the loaded "
+                f"history starts at {None if composite.empty else composite.index.min()}: "
+                "the days in between cannot be stepped. Rebuild the anchor from the "
+                "full history (scripts/make_regime_anchor.py)."
+            )
+        if resume.from_anchor:
+            logger.info(
+                "regime replay resumes from the frozen anchor: %s since %s, as of %s",
+                resume.state.regime,
+                resume.state.since,
+                resume.as_of,
+            )
+        ahead = composite[(composite.index > resume.as_of) & (composite.index <= day)]
+        return self.transitions.run(ahead, state=resume.state)
+
+    def _resume_point(self, uow: object, day: date) -> _ResumePoint | None:
+        """The newest known replay state strictly before ``day``.
+
+        The anchor wins a tie with a stored row of the same date, and any row
+        older than it: the anchor is the backtest's own state, while a row from
+        before it can only have come from a replay that started somewhere else.
+        """
+        stored = uow.regime_memory.latest_before(  # type: ignore[attr-defined]
+            day, strategy_version=self.config.strategy.strategy_version
+        )
+        anchor = self.anchor if self.anchor is not None and self.anchor.as_of < day else None
+        if anchor is not None and (stored is None or stored.observation_date <= anchor.as_of):
+            return _ResumePoint(anchor.as_of, anchor.state, from_anchor=True)
+        if stored is not None:
+            return _ResumePoint(
+                stored.observation_date, TransitionState.from_memory(stored), from_anchor=False
+            )
+        return None
 
     @staticmethod
     def _latest_scored_date(composite: Series, today: date) -> date | None:

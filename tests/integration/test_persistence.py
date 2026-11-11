@@ -21,6 +21,7 @@ from fear_ladder.data.interfaces import (
     IndicatorRepository,
     MarketObservationRepository,
     MarketStateRepository,
+    RegimeMemoryRepository,
     StrategyRepository,
     TrackRecordRepository,
 )
@@ -33,6 +34,7 @@ from fear_ladder.data.models import (
     PipelineRun,
     Provenance,
     RegimeEvent,
+    RegimeMemory,
     StrategyVersionRecord,
     TargetAllocation,
 )
@@ -72,6 +74,7 @@ def test_database_is_created_with_every_required_table(db_path: Path) -> None:
             "pipeline_runs",
             "strategy_versions",
             "track_record",
+            "regime_memory",
         } <= names
         assert current_schema_version(connection) == SCHEMA_VERSION
     finally:
@@ -99,6 +102,7 @@ def test_repositories_satisfy_their_protocols(uow: SQLiteUnitOfWork) -> None:
     assert isinstance(uow.events, EventRepository)
     assert isinstance(uow.strategies, StrategyRepository)
     assert isinstance(uow.track_record, TrackRecordRepository)
+    assert isinstance(uow.regime_memory, RegimeMemoryRepository)
 
 
 # ------------------------------------------------------------- observations
@@ -651,3 +655,59 @@ def test_unit_of_work_is_inert_once_closed(db_path: Path) -> None:
         pass
     with pytest.raises(RuntimeError, match="not active"):
         _ = unit.connection
+
+
+# ------------------------------------------------------------- regime memory
+
+
+def _memory(day: date, **overrides: object) -> RegimeMemory:
+    fields: dict[str, object] = {
+        "observation_date": day,
+        "strategy_version": VERSION,
+        "regime": "Fear",
+        "since": DAY,
+        "days_held": (day - DAY).days + 1,
+    }
+    return RegimeMemory(**{**fields, **overrides})  # type: ignore[arg-type]
+
+
+def test_regime_memory_resumes_from_the_row_before_the_day(uow: SQLiteUnitOfWork) -> None:
+    uow.regime_memory.save([_memory(DAY), _memory(NEXT)])
+
+    # Strictly before: a run for NEXT must not resume from NEXT's own row, or a
+    # re-run would step the same day twice.
+    assert uow.regime_memory.latest_before(NEXT, strategy_version=VERSION) == _memory(DAY)
+    assert uow.regime_memory.latest_before(
+        NEXT + timedelta(days=30), strategy_version=VERSION
+    ) == _memory(NEXT)
+    assert uow.regime_memory.latest_before(DAY, strategy_version=VERSION) is None
+    assert uow.regime_memory.latest_before(NEXT, strategy_version="v-other") is None
+
+
+def test_regime_memory_keeps_everything_the_engine_carries(uow: SQLiteUnitOfWork) -> None:
+    carried = _memory(NEXT, pending_regime="Neutral", pending_days=2)
+    uow.regime_memory.save([carried])
+    assert uow.regime_memory.get(NEXT, strategy_version=VERSION) == carried
+
+
+def test_saving_a_day_again_restates_it_rather_than_duplicating(
+    uow: SQLiteUnitOfWork,
+) -> None:
+    uow.regime_memory.save([_memory(NEXT)])
+    restated = _memory(NEXT, regime="Neutral", since=NEXT, days_held=1)
+    uow.regime_memory.save([restated])
+
+    assert uow.regime_memory.get(NEXT, strategy_version=VERSION) == restated
+    count = uow.connection.execute("SELECT COUNT(*) FROM regime_memory").fetchone()[0]
+    assert count == 1
+
+
+def test_a_regime_memory_that_could_not_exist_is_rejected() -> None:
+    from fear_ladder.data.models import DomainError
+
+    with pytest.raises(DomainError):
+        _memory(NEXT, regime=UNKNOWN_REGIME)
+    with pytest.raises(DomainError):
+        _memory(DAY, since=NEXT)  # entered after the day it is held
+    with pytest.raises(DomainError):
+        _memory(NEXT, days_held=0)

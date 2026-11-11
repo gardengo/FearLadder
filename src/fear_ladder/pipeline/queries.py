@@ -231,6 +231,33 @@ class DashboardQueries:
             )
         return _with_dates(frame)
 
+    def regime_memory(
+        self, strategy_version: str, observation_date: object
+    ) -> dict[str, object] | None:
+        """What the transition engine carried out of one day, as it stored it.
+
+        ``None`` — not an error — when the table or the row is not there yet:
+        the page is deployed with the code, and the worker only starts writing
+        these rows on its next run.
+        """
+        with read_only(self.db_path) as connection:
+            exists = connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'regime_memory'"
+            ).fetchone()
+            if not exists:
+                return None
+            row = connection.execute(
+                "SELECT observation_date, regime, since, days_held, pending_regime, "
+                "pending_days FROM regime_memory "
+                "WHERE strategy_version = ? AND observation_date = ?",
+                (strategy_version, str(observation_date)),
+            ).fetchone()
+        if row is None:
+            return None
+        memory = dict(row)
+        memory["since"] = date.fromisoformat(str(memory["since"]))
+        return memory
+
     # -- events -----------------------------------------------------------
     def regime_events(
         self, strategy_version: str | None = None, *, limit: int = 100

@@ -356,6 +356,32 @@ def test_an_empty_history_has_no_streak() -> None:
     assert common.streak(None) is None
 
 
+def test_the_engines_own_count_replaces_the_row_count_when_it_is_stored() -> None:
+    # TASK-188. The stored rows show Neutral for three days, but the engine
+    # entered it nine stepped days ago: the worker missed some, or the rows in
+    # between were written from another path. The lock is counted from the
+    # engine's date, so that is the one the page must show beside it.
+    from datetime import date
+
+    stored = common.streak(_history(["Greed"] * 4 + ["Neutral"] * 3))
+    memory = {"regime": "Neutral", "since": date(2025, 12, 24), "days_held": 9}
+
+    run = common.carried(stored, memory)
+    assert run is not None
+    assert (run.regime, run.days, run.since) == ("Neutral", 9, date(2025, 12, 24))
+    assert (run.previous, run.previous_days) == ("Greed", 4)
+
+
+def test_without_a_stored_count_the_row_count_stands() -> None:
+    stored = common.streak(_history(["Neutral"] * 5))
+
+    assert common.carried(stored, None) is stored
+    # A memory for some other regime describes a different day's state — the
+    # row for today has not been written yet — and must not be mixed in.
+    assert common.carried(stored, {"regime": "Fear", "since": None, "days_held": 2}) is stored
+    assert common.carried(None, {"regime": "Neutral", "days_held": 2}) is None
+
+
 
 # ------------------------------------------------------------------- theme
 
@@ -397,6 +423,17 @@ def test_a_change_reads_as_a_direction_not_a_code() -> None:
     toward_greed = '["REGIME_CONFIRMED","MOVED_TOWARD_GREED"]'
     assert common.change_direction(toward_fear) == "공포 쪽으로 한 칸"
     assert common.change_direction(toward_greed) == "탐욕 쪽으로 한 칸"
+
+
+def test_a_change_the_record_caught_up_with_says_when_the_engine_moved() -> None:
+    late = '["REGIME_CHANGED_ON:2026-10-02","MOVED_TOWARD_GREED"]'
+    text = common.change_direction(late)
+
+    assert text.startswith("탐욕 쪽으로 한 칸")
+    assert "2026-10-02" in text
+    # And the code reads as a sentence wherever codes are listed one by one.
+    assert "2026-10-02" in common.reason("REGIME_CHANGED_ON:2026-10-02").text
+    assert common.reason("REGIME_MEMORY_OUT_OF_WINDOW").text != "REGIME_MEMORY_OUT_OF_WINDOW"
 
 
 def test_a_change_with_no_direction_still_says_something() -> None:

@@ -357,6 +357,40 @@ class TrackRecordEntry:
         return self.executed_target is None
 
 
+@dataclass(frozen=True, slots=True)
+class RegimeMemory:
+    """What the transition engine carried out of one day.
+
+    The regime rules have memory — a rung is held for a minimum number of days
+    — so today's answer depends on where the count stood yesterday. That count
+    is stored here rather than recomputed, because recomputing it means
+    replaying history from wherever the loaded window happens to begin, and the
+    answer then moves with the window (``ARCHITECTURE.md`` §4.1.1).
+    """
+
+    observation_date: date
+    strategy_version: str
+    regime: str
+    #: The day the engine entered ``regime``. Not necessarily the first stored
+    #: state with that label: the worker may have missed the day itself.
+    since: date
+    days_held: int
+    pending_regime: str | None = None
+    pending_days: int = 0
+
+    def __post_init__(self) -> None:
+        if not self.strategy_version:
+            raise DomainError("strategy_version is required on a regime memory")
+        if not self.regime or self.regime == UNKNOWN_REGIME:
+            raise DomainError("a regime memory must name a known regime")
+        if self.days_held < 1:
+            raise DomainError("days_held starts at 1 on the day a regime is entered")
+        if self.since > self.observation_date:
+            raise DomainError("a regime cannot have been entered after the day it is held")
+        if self.pending_days < 0:
+            raise DomainError("pending_days cannot be negative")
+
+
 # --------------------------------------------------------------------- events
 
 

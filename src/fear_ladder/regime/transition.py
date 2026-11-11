@@ -17,6 +17,15 @@ brakes, all research parameters:
 The engine is a deterministic replay of one day at a time: given the same inputs
 it produces the same outputs, which is what TASK-102's frozen regression and the
 daily worker's idempotency both depend on.
+
+"The same inputs" includes where the replay starts. The minimum duration makes
+the rules remember their first day for good: a rung usually changes on the day
+its hold runs out, so the next hold starts counting from a date the previous one
+fixed, and so on back to the beginning. Two replays of the same scores that
+start a week apart can therefore disagree about every later day (TASK-188). The
+backtest always starts from the first day of history. Anything that starts later
+must resume from a state that replay produced — :meth:`TransitionEngine.run`
+takes one — rather than begin again from wherever its data happens to start.
 """
 
 from __future__ import annotations
@@ -31,7 +40,7 @@ from pandas import DataFrame, Series
 
 from fear_ladder.config.schema import TransitionSpec
 from fear_ladder.constants import UNKNOWN_REGIME
-from fear_ladder.data.models import RegimeEvent
+from fear_ladder.data.models import RegimeEvent, RegimeMemory
 from fear_ladder.regime.classifier import RegimeError, RegimeScale
 
 logger = logging.getLogger(__name__)
@@ -47,6 +56,9 @@ class ReasonCode:
     BLOCKED_MIN_DURATION = "BLOCKED_BY_MIN_DURATION"
     UNKNOWN_INPUT = "UNKNOWN_INPUT"
     HELD = "REGIME_HELD"
+    #: Prefix of ``REGIME_CHANGED_ON:<date>`` — the stored regime differs from
+    #: yesterday's row, but the engine changed rung on that earlier date.
+    CHANGED_EARLIER = "REGIME_CHANGED_ON"
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +73,28 @@ class TransitionState:
 
     def has_pending(self) -> bool:
         return self.pending_regime is not None
+
+    def to_memory(self, day: date, *, strategy_version: str) -> RegimeMemory:
+        """This state as the row stored for ``day``."""
+        return RegimeMemory(
+            observation_date=day,
+            strategy_version=strategy_version,
+            regime=self.regime,
+            since=self.since,
+            days_held=self.days_held,
+            pending_regime=self.pending_regime,
+            pending_days=self.pending_days,
+        )
+
+    @classmethod
+    def from_memory(cls, memory: RegimeMemory) -> Self:
+        return cls(
+            regime=memory.regime,
+            since=memory.since,
+            days_held=memory.days_held,
+            pending_regime=memory.pending_regime,
+            pending_days=memory.pending_days,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,9 +244,17 @@ class TransitionEngine:
         )
 
     # -- whole history -----------------------------------------------------
-    def run(self, scores: Series) -> list[TransitionDecision]:
-        """Replay a score history day by day."""
-        state: TransitionState | None = None
+    def run(
+        self, scores: Series, *, state: TransitionState | None = None
+    ) -> list[TransitionDecision]:
+        """Replay a score history day by day.
+
+        ``state`` resumes a replay instead of starting one: pass what an earlier
+        replay carried out of its last day, and only the scores *after* that
+        day. Resuming gives the decisions the uninterrupted replay would have
+        given; starting over from the same scores does not (see the module
+        docstring).
+        """
         decisions: list[TransitionDecision] = []
         for day, value in scores.sort_index().items():
             score = None if pd.isna(value) else float(value)
@@ -278,6 +320,42 @@ class TransitionEngine:
             "MOVED_TOWARD_FEAR"
             if self.scale.is_more_fearful(new, previous)
             else "MOVED_TOWARD_GREED"
+        )
+
+    def missed_change_event(
+        self,
+        decision: TransitionDecision,
+        *,
+        stored_regime: str | None,
+        strategy_version: str,
+        previous_score: float | None = None,
+    ) -> RegimeEvent | None:
+        """The event for a rung change the stored history never saw happen.
+
+        A transition is recorded on the day it happens. But that day may have no
+        stored row to hang it on: the worker did not run, or the row it wrote
+        came from a replay that has since been put back on the backtest's path.
+        The stored states then step from one regime to another across a day on
+        which nothing "changed", and :func:`build_regime_event` alone would
+        leave that step without an event. This dates it to the day the stored
+        history shows it and names the day the engine actually moved.
+        """
+        if decision.changed or decision.regime == UNKNOWN_REGIME:
+            return None
+        if stored_regime in (None, UNKNOWN_REGIME, decision.regime):
+            return None
+        assert stored_regime is not None
+        return RegimeEvent(
+            event_date=decision.observation_date,
+            previous_regime=stored_regime,
+            new_regime=decision.regime,
+            previous_score=previous_score,
+            new_score=decision.score,
+            reason_codes=(
+                f"{ReasonCode.CHANGED_EARLIER}:{decision.state.since.isoformat()}",
+                self._direction_code(stored_regime, decision.regime),
+            ),
+            strategy_version=strategy_version,
         )
 
 

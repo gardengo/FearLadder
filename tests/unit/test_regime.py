@@ -13,6 +13,7 @@ from fear_ladder.constants import UNKNOWN_REGIME
 from fear_ladder.regime.classifier import RegimeClassifier, RegimeError, RegimeScale
 from fear_ladder.regime.transition import (
     ReasonCode,
+    TransitionDecision,
     TransitionEngine,
     TransitionState,
     build_regime_event,
@@ -321,3 +322,85 @@ def test_the_bootstrap_day_is_not_an_event() -> None:
     # Establishing the first regime is not a transition anyone should be alerted to.
     decision = _engine().step(None, START, 50.0)
     assert build_regime_event(decision, strategy_version="v0") is None
+
+
+# ------------------------------------------------------------------ TASK-188
+# Where a replay starts is part of its input. These pin down both halves of
+# that: starting over gives a different answer, resuming gives the same one.
+
+
+def test_a_replay_that_starts_a_day_later_can_disagree_about_every_later_day() -> None:
+    # The hazard itself. The score flips band every day and a rung is held for
+    # three, so each change lands on the day the previous hold runs out — and
+    # that day is fixed by where the count began, not by the scores.
+    engine = _engine(duration=3)
+    scores = _scores([50.0, 10.0, 50.0, 10.0, 50.0, 10.0, 50.0, 10.0, 50.0])
+
+    from_the_start = engine.run(scores)
+    one_day_late = engine.run(scores.iloc[1:])
+
+    assert from_the_start[-1].observation_date == one_day_late[-1].observation_date
+    assert from_the_start[-1].regime == "Neutral"
+    assert one_day_late[-1].regime == "Capitulation"
+
+
+def test_resuming_from_a_carried_state_equals_the_uninterrupted_replay() -> None:
+    # The cure: wherever the replay is cut, handing the second half the state
+    # the first half ended in reproduces the whole — decisions, counters and
+    # reason codes, not just the labels.
+    engine = _engine(confirmation=2, hysteresis=3.0, duration=3)
+    scores = _scores(
+        [50.0, 10.0, 10.0, None, 10.0, 50.0, 85.0, 85.0, 85.0, 30.0, 30.0, 30.0, 50.0, 70.0]
+    )
+    whole = engine.run(scores)
+
+    for cut in range(1, len(scores)):
+        head = engine.run(scores.iloc[:cut])
+        tail = engine.run(scores.iloc[cut:], state=head[-1].state)
+        assert tail == whole[cut:], f"cut after day {cut}"
+
+
+def test_a_state_survives_being_stored_and_read_back() -> None:
+    engine = _engine(confirmation=3, duration=5)
+    state = engine.run(_scores([50.0, 50.0, 10.0]))[-1].state
+    assert state.pending_regime == "Capitulation"  # the round trip must keep this too
+
+    memory = state.to_memory(START + timedelta(days=2), strategy_version="v0")
+    assert memory.observation_date == START + timedelta(days=2)
+    assert TransitionState.from_memory(memory) == state
+
+
+def test_a_change_the_stored_history_missed_gets_an_event_on_the_day_it_shows() -> None:
+    # The engine moved to Capitulation on day 1; the stored row before day 3
+    # still says Neutral. Day 3 itself changes nothing, but the stored history
+    # steps from one regime to the other there, and that step needs an event.
+    engine = _engine()
+    decision = engine.run(_scores([50.0, 10.0, 10.0, 10.0]))[-1]
+    assert not decision.changed
+
+    event = engine.missed_change_event(
+        decision, stored_regime="Neutral", strategy_version="v0", previous_score=52.0
+    )
+    assert event is not None
+    assert event.event_date == START + timedelta(days=3)
+    assert (event.previous_regime, event.new_regime) == ("Neutral", "Capitulation")
+    assert event.reason_codes == (
+        f"{ReasonCode.CHANGED_EARLIER}:{START + timedelta(days=1)}",
+        "MOVED_TOWARD_FEAR",
+    )
+
+
+def test_no_missed_change_event_when_there_is_nothing_to_catch_up_on() -> None:
+    engine = _engine()
+    held = engine.run(_scores([50.0, 10.0, 10.0]))[-1]
+    changing = engine.run(_scores([50.0, 10.0]))[-1]
+
+    def event(decision: TransitionDecision, stored: str | None) -> object:
+        return engine.missed_change_event(
+            decision, stored_regime=stored, strategy_version="v0"
+        )
+
+    assert event(held, "Capitulation") is None  # the stored row already agrees
+    assert event(held, None) is None  # nothing stored before it
+    assert event(held, UNKNOWN_REGIME) is None  # yesterday was a data failure
+    assert event(changing, "Neutral") is None  # an ordinary change has its own event

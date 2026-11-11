@@ -22,6 +22,13 @@ no longer stored describes nothing.
 
 The window cannot start earlier than the indicators' warm-up allows; the
 observations before it exist to fill the rolling windows, not to be scored.
+
+One limit on "the row the worker would have written". The regime rules carry
+state from day to day (``ARCHITECTURE.md`` §4.1.1), and each replayed day
+resumes from the row stored for the day before it. The first day of a backfill
+has no such row, so unless the frozen anchor precedes it, it starts the rules
+from the first scored day of the loaded history — a coherent path from there on,
+but not the backtest's. Replaying days *after* the anchor follows the backtest.
 """
 
 from __future__ import annotations

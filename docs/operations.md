@@ -444,6 +444,41 @@ PY
 실패하면 코드나 데이터가 바뀐 것이다. **먼저 원인을 찾는다.** 회귀 기준을
 새로 쓰는 것은 원인을 이해한 뒤의 마지막 수단이다.
 
+### 레짐 앵커 (TASK-188)
+
+워커는 레짐을 매일 처음부터 재생하지 않고 어제 저장한 상태(`regime_memory`)에서
+이어받는다. DB 에 그 기억이 없을 때 — 처음 배포한 날, DB 를 새로 만든 날 — 는
+`config/frozen/<version>.regime_anchor.json` 에서 시작한다. 고정 백테스트의 재생이
+끝난 자리다 (ARCHITECTURE.md §4.1.1).
+
+지금 워커가 어디서 이어받고 있는지:
+
+```bash
+sqlite3 data/fear_ladder.db \
+  "SELECT observation_date, regime, since, days_held FROM regime_memory
+   ORDER BY observation_date DESC LIMIT 5"
+```
+
+앵커를 다시 만들어야 하는 경우는 둘뿐이다 — 새 전략을 고정했을 때, 그리고
+`REGIME_MEMORY_OUT_OF_WINDOW` 로 워커가 멈췄을 때(DB 의 기억과 앵커가 모두
+불러온 이력보다 오래됐다는 뜻이다). 전체 이력이 필요하므로 운영 DB 로는 안 된다:
+
+```bash
+python scripts/collect_full_history.py --out ../scratch/full.db
+python scripts/make_regime_anchor.py --db ../scratch/full.db            # 고정 구간의 마지막 날
+python scripts/make_regime_anchor.py --db ../scratch/full.db \
+    --as-of 2027-03-31 --force                                          # 더 최근 날짜로
+```
+
+스크립트는 쓰기 전에 연구 구간을 다시 돌려 고정 당시의 fingerprint 와 맞는지
+확인하고, 맞지 않으면 거부한다. **이미 있는 앵커를 `--force` 로 바꾸는 것은
+실시간 레짐이 따르는 경로를 바꾸는 일이다.** DB 에 더 최근의 기억이 있으면 워커는
+그쪽을 쓰므로 앵커만 바꿔서는 아무 일도 일어나지 않는다 — 그것이 의도다.
+
+`backfill_history.py` 로 **앵커 날짜 이전**을 다시 재생하면 그 구간은 불러온 창의
+첫 점수일에서 시작한 경로를 따른다. 백테스트의 경로가 아니다. 과거 구간을 백테스트
+경로로 다시 쓰려면 전체 이력이 든 DB 에서 재생해야 한다.
+
 ---
 
 ## 7. 하지 말아야 할 것
@@ -456,6 +491,7 @@ PY
 | 교차검증 불일치를 임의 보정 | 미공시 정보를 소급 적용하는 누수다 |
 | DATA_FAILURE 를 무시하고 이전 신호 사용 | 시스템이 판단을 포기한 날이다. 사람이 판단해야 한다 |
 | DB 를 두 프로세스에서 동시에 쓰기 | 워크플로 concurrency 로 막혀 있다. 수동 실행 시 주의 |
+| `regime_anchor.json` 을 손으로 수정하거나 `regime_memory` 행을 지우기 | 실시간 레짐이 백테스트와 다른 경로로 옮겨 간다. 알림 없이 목표 비중이 바뀐다 |
 
 ---
 

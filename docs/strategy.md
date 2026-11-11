@@ -2094,6 +2094,8 @@ config/frozen/v1.0-frozen.manifest.json     ← 파라미터 + 지표 + 근거 +
 config/frozen/v1.0-frozen.regression.json   ← TASK-102 회귀 기준
 config/frozen/v1.0-frozen.indicators.yaml   ← 짝이 되는 지표 절반
 config/frozen/v1.0-frozen.oos.json          ← OOS 를 쓴 뒤 별도로 기록
+config/frozen/v1.0-frozen.regime_anchor.json ← 백테스트 재생의 마지막 상태. 워커가 여기서 잇는다
+                                              (scripts/make_regime_anchor.py, ARCHITECTURE.md §4.1.1)
 ```
 
 `config/indicators.yaml` 은 **덮어쓰지 않는다.** 손으로 관리하는 원본이고

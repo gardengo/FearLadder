@@ -1,0 +1,43 @@
+{
+  "strategy_version": "v1.0-frozen",
+  "as_of": "2026-09-11",
+  "state": {
+    "regime": "Neutral",
+    "since": "2026-06-11",
+    "days_held": 65,
+    "pending_regime": null,
+    "pending_days": 0
+  },
+  "provenance": {
+    "history_start": "1996-01-02",
+    "first_regime_date": "1997-06-12",
+    "days_replayed": 7787,
+    "regime_changes": 93,
+    "recent_transitions": [
+      {
+        "date": "2025-07-24",
+        "from": "Capitulation",
+        "to": "Optimism"
+      },
+      {
+        "date": "2025-11-07",
+        "from": "Optimism",
+        "to": "Neutral"
+      },
+      {
+        "date": "2026-02-24",
+        "from": "Neutral",
+        "to": "Fear"
+      },
+      {
+        "date": "2026-06-11",
+        "from": "Fear",
+        "to": "Neutral"
+      }
+    ],
+    "regression_fingerprint": "b425a9b104b62daaa9be2b4fd2878dd9d86b5982a9339cf2b5972c3407061b95",
+    "data_version": "fdr+reconstructed-1996",
+    "parameter_version": "p1-coordinate-descent-2026-09-13",
+    "recorded_at": "2026-11-11T07:33:10.670890+00:00"
+  }
+}

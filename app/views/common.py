@@ -634,6 +634,14 @@ _REASONS: dict[str, tuple[str, Any]] = {
     "TQQQ_GATE_DISABLED": ("gate", "바닥 확인 게이트가 꺼져 있습니다."),
     "CONFIRMATIONS": ("gate", lambda a: f"바닥 확인 신호 {a}."),
     "REGIME_CONFIRMED": ("change", "**오늘 단계가 바뀌었습니다.**"),
+    "REGIME_CHANGED_ON": (
+        "change",
+        lambda a: f"엔진은 {a} 에 이미 이 단계로 옮겼고, 저장된 기록이 오늘 그것을 따라잡았습니다.",
+    ),
+    "REGIME_MEMORY_OUT_OF_WINDOW": (
+        "info",
+        "단계 판정을 이어갈 기준점이 불러온 이력보다 오래돼 판정하지 않았습니다.",
+    ),
     "MOVED_TOWARD_FEAR": ("change", "공포 쪽으로 한 칸 — 레버리지가 올라갑니다."),
     "MOVED_TOWARD_GREED": ("change", "탐욕 쪽으로 한 칸 — 레버리지가 내려갑니다."),
     "INITIAL_REGIME": ("change", "첫 판정 — 비교할 이전 단계가 없습니다."),
@@ -727,11 +735,26 @@ DIRECTIONS = {
 
 
 def change_direction(raw: object) -> str:
-    """Which way a stored regime change went, in words."""
-    for item in reasons_of(raw):
+    """Which way a stored regime change went, in words.
+
+    A change the stored history only caught up with later (the worker missed
+    the day, or its rows came from a replay since put back on the backtest's
+    path) also says when the engine actually moved — otherwise the log would
+    date the change to a day on which the score did nothing of the kind.
+    """
+    items = reasons_of(raw)
+    moved = next(
+        (
+            f" · 실제 전환 {_split(item.code)[1]}"
+            for item in items
+            if _split(item.code)[0] == "REGIME_CHANGED_ON"
+        ),
+        "",
+    )
+    for item in items:
         if (direction := DIRECTIONS.get(item.code)) is not None:
-            return direction
-    return " · ".join(item.text for item in reasons_of(raw)) or "—"
+            return direction + moved
+    return " · ".join(item.text for item in items) or "—"
 
 
 def regime_event_table(events: Any) -> Any:
@@ -805,4 +828,25 @@ def streak(history: Any) -> Streak | None:
         since=moments[len(moments) - days],
         previous=previous,
         previous_days=previous_days,
+    )
+
+
+def carried(run: Streak | None, memory: dict[str, object] | None) -> Streak | None:
+    """The current run as the engine counts it, when it has stored its count.
+
+    Counting stored rows is a reconstruction: it misses days the worker did not
+    run, and it starts at the first row that *shows* the rung, which is later
+    than the day the engine entered it whenever those two differ. The engine's
+    own ``since`` and ``days_held`` are the numbers the minimum-duration rule
+    actually uses, so when they are stored the page shows those and the two
+    counts on it can no longer disagree.
+    """
+    if run is None or not memory or str(memory.get("regime")) != run.regime:
+        return run
+    return Streak(
+        regime=run.regime,
+        days=int(memory["days_held"]),  # type: ignore[call-overload]
+        since=memory["since"],
+        previous=run.previous,
+        previous_days=run.previous_days,
     )
