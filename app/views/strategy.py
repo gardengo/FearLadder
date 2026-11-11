@@ -11,6 +11,7 @@ import pandas as pd
 import streamlit as st
 
 from views.common import (
+    fixed_at_freeze,
     ladder,
     missing_report_notice,
     percent,
@@ -49,9 +50,10 @@ def render() -> None:
         return
 
     parameters = report["parameters"]
+    fixed_at_freeze(report)
     st.caption(
         f"아래 숫자는 전부 고정된 `{report['strategy_version']}` 의 실제 설정값입니다. "
-        f"고정 시각 {report.get('frozen_at') or '—'}."
+        "오늘 시장이 그 규칙의 어디에 있는지는 **오늘** 탭에 있습니다."
     )
 
     st.markdown(
@@ -195,7 +197,7 @@ def render() -> None:
         f"**대가가 있습니다.** 마지막 조건 때문에 하락의 **첫 "
         f"{percent(trend['min_depth_to_engage'], 0)} 구간을 레버리지를 든 채 통과**합니다. "
         "천천히 갈리는 하락(2008년, 2022년)에서는 이것이 손해입니다. "
-        "빠른 폭락(2000년, 2020년)에서는 이득입니다. 성과 탭에서 두 경우를 "
+        "빠른 폭락(2000년, 2020년)에서는 이득입니다. 백테스트 탭에서 두 경우를 "
         "나눠서 볼 수 있습니다."
     )
 

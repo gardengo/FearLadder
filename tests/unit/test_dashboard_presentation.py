@@ -127,6 +127,131 @@ def test_an_unknown_regime_has_no_gates(report: dict) -> None:
     assert (lines.down, lines.up) == (None, None)
 
 
+# ----------------------------------------------------------------- handrail
+
+TREND = {
+    "indicator": "price_vs_200dma",
+    "threshold": -0.02,
+    "reentry_threshold": 0.02,
+    "max_leverage_below": 0.5,
+    "depth_indicator": "drawdown_52w",
+    "min_depth_to_engage": 0.2,
+}
+
+
+@pytest.fixture
+def trend_report(report: dict) -> dict:
+    report["parameters"]["trend_filter"] = dict(TREND)
+    return report
+
+
+def _rail(report: dict, code: str, distance: float, depth: float, close: float = 100.0):  # type: ignore[no-untyped-def]
+    rail = common.railing(
+        report,
+        f'["REGIME_HELD","{code}"]',
+        {"price_vs_200dma": distance, "drawdown_52w": depth},
+        close,
+    )
+    assert rail is not None
+    return rail
+
+
+def test_the_handrail_agrees_with_the_trend_filter(trend_report: dict) -> None:
+    """The page may not import the filter, so a test holds the two together."""
+    from fear_ladder.allocation.trend_filter import TrendFilter
+
+    engine = TrendFilter(
+        indicator=TREND["indicator"],
+        threshold=TREND["threshold"],
+        max_leverage_below=TREND["max_leverage_below"],
+        reentry_threshold=TREND["reentry_threshold"],
+        depth_indicator=TREND["depth_indicator"],
+        min_depth_to_engage=TREND["min_depth_to_engage"],
+    )
+    for distance in [value / 200 for value in range(-40, 41)]:
+        for depth in [value / 100 for value in range(0, 45)]:
+            rail = _rail(trend_report, "TREND_INTACT:price_vs_200dma=0", distance, depth)
+            _, verdict = engine.apply({}, distance, depth_observed=depth)
+            assert rail.would_engage == verdict.engaged, (
+                f"distance={distance} depth={depth}: page says {rail.would_engage}, "
+                f"filter says {verdict.engaged}"
+            )
+
+
+def test_under_the_line_but_not_deep_enough_is_its_own_state(trend_report: dict) -> None:
+    """2026-11-05: 4.9% under the average, 14.8% off the high, handrail off."""
+    rail = _rail(
+        trend_report, "TREND_INTACT:price_vs_200dma=-0.04945", -0.04945, 0.1482, close=645.0
+    )
+    assert rail.status == "shallow"
+    assert rail.below_line and not rail.deep_enough and not rail.would_engage
+    assert rail.depth_shortfall == pytest.approx(0.0518)
+    # Already past the line, so the price that matters is the depth one.
+    assert rail.trigger_price == pytest.approx(rail.depth_price)
+    assert rail.depth_price == pytest.approx(645.0 / (1 - 0.1482) * 0.8)
+
+
+def test_above_the_line_reads_as_clear_with_room_to_spare(trend_report: dict) -> None:
+    rail = _rail(trend_report, "TREND_INTACT:price_vs_200dma=0.08", 0.08, 0.03, close=108.0)
+    assert rail.status == "clear"
+    assert rail.to_engage == pytest.approx(0.10)
+    assert rail.average == pytest.approx(100.0)
+    assert rail.price_at(rail.engage_below) == pytest.approx(98.0)
+    assert rail.price_at(rail.release_above) == pytest.approx(102.0)
+
+
+def test_engaged_comes_from_the_stored_state_not_from_todays_reading(
+    trend_report: dict,
+) -> None:
+    """Between the two lines the handrail stays wherever it already was."""
+    held = _rail(trend_report, "TREND_BROKEN:price_vs_200dma=0.01", 0.01, 0.05)
+    assert held.status == "engaged"
+    assert not held.would_engage, "today's readings alone would not switch it on"
+    assert held.to_release == pytest.approx(0.01)
+
+    released = _rail(trend_report, "TREND_INTACT:price_vs_200dma=0.01", 0.01, 0.05)
+    assert released.status == "clear"
+
+
+def test_the_distance_survives_without_stored_readings(trend_report: dict) -> None:
+    rail = common.railing(trend_report, '["TREND_INTACT:price_vs_200dma=0.07344"]')
+    assert rail is not None
+    assert rail.distance == pytest.approx(0.07344)
+    assert rail.depth is None and rail.deep_enough, "an unreadable depth counts as deep"
+    assert rail.average is None and rail.trigger_price is None
+
+
+def test_an_unreadable_trend_is_an_engaged_handrail(trend_report: dict) -> None:
+    rail = common.railing(
+        trend_report, '["TREND_UNKNOWN:price_vs_200dma","LEVERAGE_CAPPED_BY_DEFAULT"]'
+    )
+    assert rail is not None
+    assert rail.status == "engaged"
+    assert rail.distance is None
+
+
+def test_no_filter_means_no_handrail(report: dict, trend_report: dict) -> None:
+    assert common.railing(None, "[]") is None
+    assert common.railing(trend_report, '["TREND_FILTER_DISABLED"]') is None
+    del report["parameters"]["trend_filter"]
+    assert common.railing(report, '["TREND_INTACT:price_vs_200dma=0.1"]') is None
+
+
+# ------------------------------------------------------- live versus fixed
+
+
+def test_run_times_are_shown_on_the_readers_clock() -> None:
+    # 14:02 UTC is 23:02 the same day in Seoul; 20:30 UTC is already tomorrow.
+    assert common.local_time("2026-11-10T14:02:56.872962+00:00") == "11-10 23:02 KST"
+    assert common.local_time("2026-11-10T20:30:00+00:00") == "11-11 05:30 KST"
+
+
+def test_a_missing_or_naive_run_time_shows_nothing() -> None:
+    assert common.local_time(None) is None
+    assert common.local_time("not a time") is None
+    assert common.local_time("2026-11-10T14:02:56") is None
+
+
 # ------------------------------------------------------------- reason codes
 
 

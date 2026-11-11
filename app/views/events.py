@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import streamlit as st
 
-from views.common import load, regime_event_table
+from views.common import load, regime_event_table, updated_daily
 
 
 def render(version: str) -> None:
     st.header("이벤트")
+    updated_daily(version)
 
     st.subheader("단계 변경")
     events = load("regime_events", version)

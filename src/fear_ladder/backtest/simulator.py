@@ -145,19 +145,30 @@ class PortfolioSimulator:
         *,
         name: str = "strategy",
         force_rebalance_dates: Iterable[date] = (),
+        initial_book: Weights | None = None,
+        initial_target: Weights | None = None,
     ) -> BacktestResult:
         """Simulate NAV for targets keyed by the date they were *decided*.
 
         ``force_rebalance_dates`` re-executes an unchanged target, which is how
         a calendar-rebalanced benchmark is expressed without a second code path.
+
+        ``initial_book`` and ``initial_target`` resume a run that stopped at the
+        first day's close: the book held there, and the target it was last
+        traded to. Running days 0..n at once and running 0..k, then k..n from
+        what the first run ended with, produce the same NAV — which is what
+        lets the live track record grow a day at a time through this code
+        instead of through a second accounting of its own.
         """
         self._reject_unknown_assets(targets)
         forced = set(force_rebalance_dates)
         days = list(self.closes.index)
 
         nav = self.initial_nav
-        book: dict[Asset, float] | None = None
-        last_target: dict[Asset, float] | None = None
+        book: dict[Asset, float] | None = dict(initial_book) if initial_book else None
+        last_target: dict[Asset, float] | None = (
+            dict(initial_target) if initial_target else None
+        )
         trades: list[Trade] = []
 
         nav_history: list[float] = []
@@ -189,7 +200,10 @@ class PortfolioSimulator:
                     trades.append(trade)
                     last_target = dict(pending)
 
-                if book is not None:
+                # Not on the first day: a book can only exist there if the run
+                # was resumed, and a resumed book is the one held at that day's
+                # close — its open-to-close move is already in the NAV.
+                if position > 0 and book is not None:
                     intraday = self._returns(
                         self.closes, days[position], self.opens, days[position]
                     )

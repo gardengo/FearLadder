@@ -11,7 +11,7 @@ from typing import Protocol, runtime_checkable
 
 from pandas import DataFrame
 
-from fear_ladder.constants import EventType
+from fear_ladder.constants import Asset, EventType
 from fear_ladder.data.models import (
     AlertEvent,
     DataQualityFinding,
@@ -23,6 +23,7 @@ from fear_ladder.data.models import (
     RegimeEvent,
     StrategyVersionRecord,
     TargetAllocation,
+    TrackRecordEntry,
 )
 
 
@@ -140,6 +141,16 @@ class MarketStateRepository(Protocol):
         self, observation_date: date, *, strategy_version: str
     ) -> TargetAllocation | None: ...
 
+    def get_allocations(
+        self,
+        *,
+        strategy_version: str,
+        start: date | None = None,
+        end: date | None = None,
+    ) -> dict[date, dict[Asset, float]]:
+        """Every stored target in a range, keyed by the day it was decided."""
+        ...
+
 
 @runtime_checkable
 class EventRepository(Protocol):
@@ -202,6 +213,21 @@ class StrategyRepository(Protocol):
 
 
 @runtime_checkable
+class TrackRecordRepository(Protocol):
+    """The paper track record. Append-only: a stored day is never rewritten."""
+
+    def append(self, entries: list[TrackRecordEntry]) -> int:
+        """Insert the days not stored yet. Returns how many were new."""
+        ...
+
+    def latest(self, *, strategy_version: str) -> TrackRecordEntry | None: ...
+
+    def history(self, *, strategy_version: str) -> list[TrackRecordEntry]: ...
+
+    def clear(self, *, strategy_version: str) -> int: ...
+
+
+@runtime_checkable
 class UnitOfWork(Protocol):
     """Transaction boundary shared by the repositories.
 
@@ -215,6 +241,7 @@ class UnitOfWork(Protocol):
     states: MarketStateRepository
     events: EventRepository
     strategies: StrategyRepository
+    track_record: TrackRecordRepository
 
     def __enter__(self) -> UnitOfWork: ...
 

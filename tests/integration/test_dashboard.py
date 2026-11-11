@@ -260,6 +260,48 @@ def test_spans_of_an_empty_history_are_empty() -> None:
     assert regime_spans(pd.DataFrame()) == []
 
 
+# ------------------------------------------------------------------ TASK-187
+
+
+def test_the_track_record_is_readable(queries: DashboardQueries) -> None:
+    version = queries.active_strategy_version()
+    assert version is not None
+    track = queries.track_record(version)
+
+    # Five runs: the first writes the opening row, each later one appends a day.
+    assert len(track) == 5
+    assert {"strategy_nav", "benchmark_nav", "turnover", "cost"} <= set(track.columns)
+    assert track["strategy_nav"].iloc[0] == pytest.approx(1.0)
+    assert track["benchmark_nav"].iloc[0] == pytest.approx(1.0)
+    assert track.index.is_monotonic_increasing
+    assert (track[["strategy_nav", "benchmark_nav"]] > 0).all().all()
+
+
+def test_a_database_from_before_the_track_record_reads_as_empty(populated: Path) -> None:
+    """The page ships with the code; the table only appears on the next run."""
+    from fear_ladder.data.repositories.connection import connect
+
+    connection = connect(populated)
+    try:
+        connection.execute("DROP TABLE track_record")
+    finally:
+        connection.close()
+
+    assert DashboardQueries(db_path=populated).track_record("v0.0-placeholder").empty
+
+
+def test_stored_indicator_readings_come_back_one_column_each(
+    queries: DashboardQueries,
+) -> None:
+    readings = queries.indicator_history(("price_vs_200dma", "drawdown_52w"))
+
+    assert list(readings.columns) == ["drawdown_52w", "price_vs_200dma"]
+    assert len(readings) == 5
+    assert readings.index.is_monotonic_increasing
+    assert (readings["drawdown_52w"] >= 0).all(), "depth is stored as a positive fraction"
+    assert queries.indicator_history(()).empty
+
+
 # ------------------------------------------------------------------ TASK-143
 
 
@@ -360,7 +402,22 @@ def test_the_streamlit_page_renders_without_error(
     assert {"오늘의 신호", "기록", "이벤트", "운영"} <= headers
     # The two pages that explain the strategy render without a database row.
     assert "이 전략은 어떻게 동작하는가" in headers
-    assert "성과" in headers
+    assert "백테스트 성과" in headers
+
+    # The four tabs the worker rewrites come first and say so; the two written
+    # once at the freeze come last and say that instead.
+    labels = [tab.label for tab in app.tabs]
+    assert labels == ["오늘", "기록", "이벤트", "운영", "전략 설명", "백테스트"]
+    captions = [caption.value for caption in app.caption]
+    assert sum("매일 갱신" in caption for caption in captions) >= 4
+    assert sum("고정 문서" in caption for caption in captions) == 2
+
+    # The record tab's headline pair: the strategy followed, next to QQQ held.
+    assert {"전략", "QQQ 보유"} <= labels_of(app)
+
+
+def labels_of(app) -> set[str]:  # type: ignore[no-untyped-def]
+    return {metric.label for metric in app.metric}
 
 
 @pytest.mark.dashboard

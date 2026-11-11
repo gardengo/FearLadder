@@ -174,6 +174,63 @@ class DashboardQueries:
         wide.columns.name = None
         return wide.fillna(0.0)
 
+    def indicator_history(
+        self, names: tuple[str, ...], *, days: int = DEFAULT_HISTORY_DAYS
+    ) -> DataFrame:
+        """Stored raw indicator readings, one column per indicator.
+
+        These are the values the worker computed and acted on — the distance
+        from the 200-day average the trend filter compared, not one worked out
+        again from prices on the way to the page.
+        """
+        if not names:
+            return DataFrame()
+        start = (date.today() - timedelta(days=days)).isoformat()
+        placeholders = ",".join("?" for _ in names)
+        with read_only(self.db_path) as connection:
+            frame = pd.read_sql_query(
+                "SELECT indicator_name, observation_date, value FROM indicator_values "
+                f"WHERE indicator_name IN ({placeholders}) AND observation_date >= ? "
+                "ORDER BY observation_date, updated_at",
+                connection,
+                params=(*names, start),
+            )
+        if frame.empty:
+            return DataFrame()
+        # ``last``, not a plain pivot: an indicator whose parameters changed
+        # has two rows for the day, and the page wants the current one.
+        wide = frame.pivot_table(
+            index="observation_date", columns="indicator_name", values="value", aggfunc="last"
+        )
+        wide.index = pd.to_datetime(wide.index)
+        wide.columns.name = None
+        return wide
+
+    def track_record(
+        self, strategy_version: str, *, days: int = DEFAULT_HISTORY_DAYS
+    ) -> DataFrame:
+        """The paper track record: the strategy followed, next to QQQ held.
+
+        Empty — not an error — on a database the worker has not touched since
+        the table was introduced: the page is deployed with the code, and the
+        table only appears on the next daily run.
+        """
+        start = (date.today() - timedelta(days=days)).isoformat()
+        with read_only(self.db_path) as connection:
+            exists = connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'track_record'"
+            ).fetchone()
+            if not exists:
+                return DataFrame()
+            frame = pd.read_sql_query(
+                "SELECT observation_date, strategy_nav, benchmark_nav, turnover, cost "
+                "FROM track_record WHERE strategy_version = ? AND observation_date >= ? "
+                "ORDER BY observation_date",
+                connection,
+                params=(strategy_version, start),
+            )
+        return _with_dates(frame)
+
     # -- events -----------------------------------------------------------
     def regime_events(
         self, strategy_version: str | None = None, *, limit: int = 100

@@ -8,12 +8,17 @@ with a run.
     streamlit run app/streamlit_app.py
 
 One tab per view module under ``app/views``; this file only wires them up.
+
+The tabs come in two kinds, and the order says which is which. The first four
+are rewritten by the daily worker; the last two were written once, when the
+strategy was frozen, and describe it. They used to be interleaved and looked
+the same, so nothing told a reader that "성과" was a fixed report while "기록"
+moved every day.
 """
 
 from __future__ import annotations
 
 import sys
-from datetime import date
 from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parent
@@ -32,7 +37,7 @@ from views import (  # noqa: E402
     strategy,
     today,
 )
-from views.common import load  # noqa: E402
+from views.common import last_batch, load  # noqa: E402
 
 #: A drawn icon rather than an emoji. Streamlit renders an emoji page_icon as
 #: text inside an SVG data URI, so the browser has to own a font covering that
@@ -49,14 +54,18 @@ st.set_page_config(
 )
 
 #: Label, module, and whether the tab needs a stored strategy version.
-TABS = (
+#: Updated daily first, fixed at the freeze last — see the module docstring.
+LIVE_TABS = (
     ("오늘", today, True),
-    ("전략 설명", strategy, False),
-    ("성과", performance, False),
     ("기록", history, True),
     ("이벤트", events, True),
     ("운영", operations, False),
 )
+FIXED_TABS = (
+    ("전략 설명", strategy, False),
+    ("백테스트", performance, False),
+)
+TABS = (*LIVE_TABS, *FIXED_TABS)
 
 
 def main() -> None:
@@ -86,11 +95,22 @@ def main() -> None:
         st.header("FearLadder")
         st.write(f"strategy: `{version or '—'}`")
         st.write(f"db: `{paths.default_db_path().name}`")
-        st.caption(f"오늘: {date.today()}")
+        # The trading day the numbers describe, not the calendar day the page
+        # was opened on — the two differ every morning and all weekend.
+        as_of, finished = last_batch(version)
+        st.caption(
+            f"기준일: **{as_of or '—'}**"
+            + (f"  \n마지막 배치: {finished}" if finished else "")
+        )
         if st.button("새로고침", width="stretch"):
             st.cache_data.clear()
             st.rerun()
         st.divider()
+        st.caption(
+            "**" + " · ".join(label for label, _, _ in LIVE_TABS) + "** 탭은 일일 배치가 "
+            "매일 갱신합니다. **" + " · ".join(label for label, _, _ in FIXED_TABS) + "** "
+            "탭은 전략을 고정할 때 한 번 쓴 문서라 바뀌지 않습니다."
+        )
         st.caption(
             "처음이라면 **전략 설명** 탭부터 보세요. 이 전략이 무엇을 보고 "
             "어떻게 판단하는지 설명합니다."
@@ -107,7 +127,7 @@ def main() -> None:
                 st.info(
                     "아직 저장된 상태가 없습니다. `python scripts/daily_runner.py` 를 "
                     "실행하면 이 탭이 채워집니다. 그 전에도 **전략 설명**과 "
-                    "**성과** 탭은 볼 수 있습니다."
+                    "**백테스트** 탭은 볼 수 있습니다."
                 )
                 continue
             # A statement, not an expression: Streamlit's magic renders the

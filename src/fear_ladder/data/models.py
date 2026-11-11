@@ -320,6 +320,43 @@ class TargetAllocation:
         return self.weights.get(asset, 0.0)
 
 
+@dataclass(frozen=True, slots=True)
+class TrackRecordEntry:
+    """One day of the paper track record: the strategy followed, next to QQQ.
+
+    Both values start at 1.0 on the first day. ``holdings`` and
+    ``executed_target`` are not there to be shown — they are what the next
+    day's entry is computed *from*, so the record can be extended without the
+    prices that produced it.
+    """
+
+    observation_date: date
+    strategy_version: str
+    strategy_nav: float
+    benchmark_nav: float
+    #: The book at this day's close, after drift. Empty before the first trade.
+    holdings: dict[Asset, float] = field(default_factory=dict)
+    #: The target that book was last traded to; ``None`` before the first trade.
+    executed_target: dict[Asset, float] | None = None
+    turnover: float = 0.0
+    cost: float = 0.0
+
+    def __post_init__(self) -> None:
+        if not self.strategy_version:
+            raise DomainError("strategy_version is required on a track record entry")
+        if self.strategy_nav <= 0 or self.benchmark_nav <= 0:
+            raise DomainError("a track record value must be positive")
+
+    @property
+    def is_inception(self) -> bool:
+        """Whether this is the first day, when nothing has been bought yet.
+
+        The strategy and the benchmark both place their first trade on the day
+        after it, so one flag describes both.
+        """
+        return self.executed_target is None
+
+
 # --------------------------------------------------------------------- events
 
 

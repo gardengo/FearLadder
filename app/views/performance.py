@@ -1,8 +1,11 @@
-"""What the strategy has actually done, against the alternatives to it.
+"""What the frozen rules did over thirty years, against the alternatives.
 
 Every number here comes from ``reports/performance.json``, written once by
 ``scripts/make_performance_report.py`` against the frozen profile. The page
-computes nothing.
+computes nothing, and nothing on it moves from one day to the next: it is the
+evidence the strategy was frozen on, not a running score. What has happened
+since is the track record on the history tab — hence the tab's name, which
+used to be plain "성과" and read as if it were the live result.
 
 The comparison is deliberately unkind to the strategy: the benchmarks are
 buy-and-hold mixes of one ETF and cash, which anyone can run without a monitor,
@@ -18,6 +21,7 @@ import streamlit as st
 
 from views.common import (
     STRATEGY_LABEL,
+    fixed_at_freeze,
     missing_report_notice,
     performance_report,
 )
@@ -37,13 +41,19 @@ HIGHLIGHT = (
 
 
 def render() -> None:
-    st.header("성과")
+    st.header("백테스트 성과")
     report = performance_report()
     if report is None:
         missing_report_notice()
         return
+    fixed_at_freeze(report)
 
     window = report["window"]
+    st.info(
+        f"**{window['start']} … {window['end']} 을 한 번 계산한 결과입니다.** "
+        "전략을 고정하기 전까지의 데이터이고, 그 뒤의 날은 들어 있지 않습니다. "
+        "고정 이후 실제로 쌓이고 있는 성과는 **기록** 탭 맨 위에 QQQ 와 나란히 있습니다."
+    )
     st.caption(
         f"`{report['strategy_version']}` · {window['start']} … {window['end']} · "
         "벤치마크는 분기 리밸런싱, Sharpe 는 현금 대비 초과수익 기준. "

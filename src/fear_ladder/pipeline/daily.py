@@ -3,7 +3,7 @@
 ``ARCHITECTURE.md`` §4.1 fixes the stages::
 
     collect → validate → indicators → score → regime → allocation
-    → persistence → event detection → alert
+    → persistence → event detection → alert → track record
 
 Two design decisions are worth stating, because they are what make the operator
 guarantees true rather than merely intended.
@@ -23,6 +23,11 @@ recorded as UNKNOWN with no score and no allocation, a DATA_FAILURE alert is
 raised, and any allocation previously stored for that date is removed. A wrong
 "normal" state is the one output this system must never produce
 (``CONTRIBUTING.md`` §5, §14).
+
+**The track record is the one thing that is appended rather than replayed, and
+the one stage allowed to fail.** See :mod:`fear_ladder.pipeline.track_record`
+for the first half. For the second: by the time it runs the state is stored and
+the alert is out, and an accounting error must not be able to take either back.
 
 This module must not import :mod:`fear_ladder.research` — the production path
 never calls the optimiser (``BACKTEST_SPEC.md`` §28), and a test enforces it.
@@ -61,6 +66,7 @@ from fear_ladder.data.models import (
 from fear_ladder.data.validators.freshness import FreshnessReport, FreshnessValidator
 from fear_ladder.indicators.computations import IndicatorError
 from fear_ladder.indicators.engine import IndicatorEngine, IndicatorResult
+from fear_ladder.pipeline.track_record import TrackRecorder, TrackRecordUpdate
 from fear_ladder.regime.classifier import RegimeScale
 from fear_ladder.regime.transition import (
     TransitionDecision,
@@ -91,6 +97,9 @@ class DailyResult:
     freshness: FreshnessReport | None = None
     breakdown: ScoreBreakdown | None = None
     gate_passed: bool = False
+    #: ``None`` when the day produced no signal, or the record could not be
+    #: extended. Neither stops the run.
+    track_record: TrackRecordUpdate | None = None
 
     @property
     def is_data_failure(self) -> bool:
@@ -291,12 +300,16 @@ class DailyPipeline:
             send=send_alerts,
         )
 
+        run = self._stage(uow, run, "track_record")
+        track_record = self._record_track(uow, observation_date)
+
         finished = run.completed(PipelineStatus.SUCCESS)
         uow.strategies.save_run(finished)  # type: ignore[attr-defined]
 
         result = DailyResult(
             run=finished,
             state=state,
+            track_record=track_record,
             allocation=allocation_decision.allocation,
             regime_event=regime_event,
             alerts=dispatch,
@@ -358,6 +371,27 @@ class DailyPipeline:
             trend_broken=self._trend_broken(indicator_results, day),
         )
         return self.allocations.allocate(decision.regime, day, context=context)
+
+    def _record_track(self, uow: object, day: date) -> TrackRecordUpdate | None:
+        """Extend the paper track record through ``day``.
+
+        The only stage whose failure is swallowed, and deliberately: the signal
+        is already stored and announced, and what is left is bookkeeping about
+        it. The record resumes from its last stored row, so a day lost here is
+        picked up by the next run that succeeds — and the dashboard shows how
+        far the record reaches, so falling behind is visible, not silent.
+        """
+        try:
+            update = TrackRecorder(self.config).extend(uow, through=day)
+        except Exception:
+            logger.exception(
+                "track record not extended through %s; the signal is unaffected "
+                "and the next run resumes from the last stored day",
+                day,
+            )
+            return None
+        logger.info("%s", update.summary())
+        return update
 
     def _register_version(self, uow: object) -> None:
         """Record which strategy produced the rows this run is about to write.

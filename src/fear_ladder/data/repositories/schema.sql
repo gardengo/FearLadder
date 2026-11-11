@@ -169,6 +169,38 @@ CREATE TABLE IF NOT EXISTS target_allocations (
 CREATE INDEX IF NOT EXISTS idx_allocations_date
     ON target_allocations (observation_date DESC);
 
+-- ----------------------------------------------------------------- track_record
+-- What following the stored targets has been worth, one row per trading day,
+-- next to QQQ bought and held over the same days. Both start at 1.0.
+--
+-- Append-only, unlike every other table the worker writes: a row is computed
+-- from the row before it and that day's prices, then never touched again. Raw
+-- prices are pruned after five years (data/retention.py), so this is the only
+-- copy of the early record once they are gone - and a track record that later
+-- data could rewrite would not be one.
+CREATE TABLE IF NOT EXISTS track_record (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    observation_date TEXT NOT NULL,
+    strategy_version TEXT NOT NULL,
+    strategy_nav     REAL NOT NULL,
+    benchmark_nav    REAL NOT NULL,
+    -- The book held at this day's close, after drift (JSON asset -> weight).
+    -- '{}' on the first day, before anything has been bought.
+    holdings         TEXT NOT NULL DEFAULT '{}',
+    -- The target that book was last traded to. The next stored target is only
+    -- executed if it differs from this one (BACKTEST_SPEC.md 16). NULL on the
+    -- first day.
+    executed_target  TEXT,
+    turnover         REAL NOT NULL DEFAULT 0.0,
+    cost             REAL NOT NULL DEFAULT 0.0,
+    created_at       TEXT NOT NULL,
+    UNIQUE (observation_date, strategy_version),
+    CHECK (strategy_nav > 0.0 AND benchmark_nav > 0.0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_track_record_date
+    ON track_record (strategy_version, observation_date DESC);
+
 -- ---------------------------------------------------------------- regime_events
 CREATE TABLE IF NOT EXISTS regime_events (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -16,6 +16,10 @@ Two things make that honest rather than a fabrication:
   the events table, but notifying anyone about it now would be nonsense, so the
   alert rows are marked SKIPPED instead of left PENDING for a later resend.
 
+The paper track record is rebuilt at the end. It is normally append-only, but a
+replay rewrites the targets it was following, and a record of targets that are
+no longer stored describes nothing.
+
 The window cannot start earlier than the indicators' warm-up allows; the
 observations before it exist to fill the rolling windows, not to be scored.
 """
@@ -36,6 +40,7 @@ from fear_ladder.data.repositories.sqlite import SQLiteUnitOfWork
 from fear_ladder.data.retention import required_trading_days
 from fear_ladder.monitoring.logging import configure_logging
 from fear_ladder.pipeline.daily import DailyPipeline
+from fear_ladder.pipeline.track_record import TrackRecorder, TrackRecordError
 
 logger = logging.getLogger("backfill")
 
@@ -145,6 +150,16 @@ def main(argv: list[str] | None = None) -> int:
         ).rowcount
         uow.commit()
         logger.info("marked %d backfilled alert(s) SUPPRESSED", marked)
+
+        latest = uow.states.get_latest_state(strategy_version=version)
+        if todo and latest is not None:
+            try:
+                rebuilt = TrackRecorder(config).rebuild(uow, through=latest.observation_date)
+                logger.info("%s", rebuilt.summary())
+            except TrackRecordError as error:
+                # Past the retention window the stored rows are the only copy;
+                # keeping them is right, and worth saying out loud.
+                logger.warning("track record left as stored: %s", error)
 
         states = uow.connection.execute(
             "SELECT COUNT(*) FROM market_states WHERE strategy_version = ?", (version,)

@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import streamlit as st
 
-from views.common import load
+from views.common import load, updated_daily
 
 
 def render() -> None:
     st.header("운영")
+    updated_daily(None)
 
     st.subheader("최근 실행")
     runs = load("recent_runs")

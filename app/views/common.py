@@ -9,9 +9,12 @@ anywhere under ``app/``.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import streamlit as st
 
@@ -45,9 +48,22 @@ CORE = "#111111"
 #: learns it once: amber means "the score says one rung, the rules hold you on
 #: another". Lifted in dark mode, where the darker amber turns to mud.
 LOCK = {"light": "#8a6d1f", "dark": "#d9b04a"}
+#: The strategy against its benchmark. One hue and one grey, on purpose: the
+#: benchmark is the reference the eye measures from, not a rival series. Both
+#: were checked for contrast against the light and the dark ground.
+STRATEGY_COLOUR = "#2f7ed8"
+BENCHMARK_COLOUR = "#8c8f96"
+#: Where the handrail is on. Red, because this is the one zone on the page
+#: that means "leverage is being taken away".
+RAILING_COLOUR = "#b2182b"
 
 PERFORMANCE_REPORT = paths.REPORTS_DIR / "performance.json"
 STRATEGY_LABEL = "전략"
+BENCHMARK_LABEL = "QQQ"
+
+#: The reader's clock. Run times are stored in UTC, which is the wrong day for
+#: half of every Korean morning.
+LOCAL_ZONE = ZoneInfo("Asia/Seoul")
 
 
 def theme() -> str:
@@ -194,6 +210,61 @@ def weekly_indicators() -> set[str]:
     }
 
 
+# ------------------------------------------------- what updates, what doesn't
+#
+# Four of these tabs are rewritten by the daily worker and two were written
+# once, when the strategy was frozen. They looked identical, so a reader had no
+# way to tell a number that moved yesterday from one that never will. Each tab
+# now opens by saying which kind it is.
+
+
+def local_time(stamp: object) -> str | None:
+    """A stored UTC instant as ``MM-DD HH:MM`` on the reader's clock."""
+    if not stamp:
+        return None
+    try:
+        moment = datetime.fromisoformat(str(stamp))
+    except ValueError:
+        return None
+    if moment.tzinfo is None:
+        return None
+    return f"{moment.astimezone(LOCAL_ZONE):%m-%d %H:%M} KST"
+
+
+def last_batch(version: str | None) -> tuple[str | None, str | None]:
+    """``(as-of trading day, when the worker last finished)``; either may be missing."""
+    state = load("latest_state", version)
+    runs = load("recent_runs", limit=20)
+    finished = None
+    if not runs.empty:
+        done = runs[runs["status"] == "SUCCESS"]
+        if not done.empty:
+            finished = local_time(done["finished_at"].iloc[0])
+    return (str(state["observation_date"]) if state else None), finished
+
+
+def updated_daily(version: str | None) -> None:
+    """Open a tab the daily worker rewrites."""
+    as_of, finished = last_batch(version)
+    parts = [":material/sync: **매일 갱신** — 미국 장 마감 뒤 일일 배치가 쓴 기록입니다."]
+    if as_of:
+        parts.append(f"기준일 **{as_of}**")
+    if finished:
+        parts.append(f"마지막 배치 {finished}")
+    st.caption(" · ".join(parts))
+
+
+def fixed_at_freeze(report: dict[str, Any] | None) -> None:
+    """Open a tab that describes the frozen strategy and never changes."""
+    version = (report or {}).get("strategy_version")
+    frozen = str((report or {}).get("frozen_at") or "")[:10]
+    detail = f" `{version}` 을 고정한 {frozen} 에" if version and frozen else " 전략을 고정할 때"
+    st.caption(
+        f":material/push_pin: **고정 문서** —{detail} 한 번 쓴 내용이며 "
+        "**매일 바뀌지 않습니다.** 매일 갱신되는 것은 «오늘 · 기록 · 이벤트 · 운영» 탭입니다."
+    )
+
+
 def missing_report_notice() -> None:
     st.info(
         "성과 리포트가 없습니다.\n\n"
@@ -295,6 +366,181 @@ def gates(rungs: list[Rung], label: str | None, hysteresis: float) -> Gates:
         down=None if current.index == 0 else current.low - hysteresis,
         up=None if current.index == len(rungs) - 1 else current.high + hysteresis,
     )
+
+
+# ------------------------------------------------------------- the handrail
+
+
+@dataclass(frozen=True, slots=True)
+class Railing:
+    """Where today stands against the trend filter — the ladder's handrail.
+
+    ``engaged`` is read from the stored reason codes and never decided here.
+    The filter has memory: it comes on below one line and goes off above
+    another, so today's readings alone cannot say which state it is in. What
+    this adds is the part the stored state leaves implicit — how far today is
+    from each line, in percent and in dollars.
+    """
+
+    #: ``None`` when the filter left no trace on the day.
+    engaged: bool | None
+    #: Close relative to its 200-day average: ``-0.03`` is 3% below.
+    distance: float | None
+    engage_below: float
+    release_above: float
+    #: The leverage the book is held to while the handrail is on.
+    cap: float
+    #: Depth below the 52-week high, positive: ``0.15`` is 15% down.
+    depth: float | None = None
+    #: How deep that must already be before the handrail may come on.
+    min_depth: float | None = None
+    close: float | None = None
+
+    # -- the two conditions ------------------------------------------------
+    @property
+    def below_line(self) -> bool:
+        return self.distance is not None and self.distance < self.engage_below
+
+    @property
+    def deep_enough(self) -> bool:
+        """Mirrors the filter: an unreadable depth counts as deep."""
+        if self.min_depth is None or self.depth is None:
+            return True
+        return self.depth >= self.min_depth
+
+    @property
+    def would_engage(self) -> bool:
+        """Whether a handrail that is off would come on at these readings."""
+        return self.below_line and self.deep_enough
+
+    @property
+    def status(self) -> str:
+        """``engaged`` / ``shallow`` / ``clear`` / ``unknown``.
+
+        ``shallow`` is the state worth a name: price is under the line, and the
+        handrail is still off because the fall is not deep enough yet.
+        """
+        if self.engaged:
+            return "engaged"
+        if self.distance is None or self.engaged is None:
+            return "unknown"
+        return "shallow" if self.below_line else "clear"
+
+    # -- how far -----------------------------------------------------------
+    @property
+    def to_engage(self) -> float | None:
+        """Room above the engage line, in the indicator's own units."""
+        return None if self.distance is None else self.distance - self.engage_below
+
+    @property
+    def to_release(self) -> float | None:
+        return None if self.distance is None else self.release_above - self.distance
+
+    @property
+    def depth_shortfall(self) -> float | None:
+        """How much further the market must fall for the depth condition."""
+        if self.min_depth is None or self.depth is None:
+            return None
+        return max(self.min_depth - self.depth, 0.0)
+
+    # -- in dollars --------------------------------------------------------
+    @property
+    def average(self) -> float | None:
+        """The 200-day average itself, backed out of the stored ratio."""
+        if self.close is None or self.distance is None or self.distance <= -1:
+            return None
+        return self.close / (1.0 + self.distance)
+
+    def price_at(self, level: float) -> float | None:
+        """The close that would put the ratio at ``level``, at today's average."""
+        return None if self.average is None else self.average * (1.0 + level)
+
+    @property
+    def peak(self) -> float | None:
+        if self.close is None or self.depth is None or self.depth >= 1:
+            return None
+        return self.close / (1.0 - self.depth)
+
+    @property
+    def depth_price(self) -> float | None:
+        """The close at which the fall from the 52-week high is deep enough."""
+        if self.peak is None or self.min_depth is None:
+            return None
+        return self.peak * (1.0 - self.min_depth)
+
+    @property
+    def trigger_price(self) -> float | None:
+        """The close that would satisfy *both* conditions at once.
+
+        The lower of the two, since both must hold. Today's average and today's
+        52-week high are held fixed, so this is a reading, not a forecast: both
+        move a little every day.
+        """
+        line = self.price_at(self.engage_below)
+        if line is None:
+            return None
+        if self.min_depth is None:
+            return line
+        return None if self.depth_price is None else min(line, self.depth_price)
+
+
+def railing(
+    report: dict[str, Any] | None,
+    reason_codes: object,
+    readings: Mapping[str, Any] | None = None,
+    close: object = None,
+) -> Railing | None:
+    """Today against the trend filter, or ``None`` when there is none to show.
+
+    ``readings`` are the stored indicator values for the day. Without them the
+    distance still comes out of the reason code, which carries it to four
+    significant figures — enough to show, and it keeps the panel alive on a
+    database whose indicator table has not been filled.
+    """
+    spec = (report or {}).get("parameters", {}).get("trend_filter") or {}
+    if spec.get("threshold") is None or not spec.get("indicator"):
+        return None
+
+    engaged: bool | None = None
+    quoted: float | None = None
+    for item in reasons_of(reason_codes):
+        name, argument = _split(item.code)
+        if name == "TREND_FILTER_DISABLED":
+            return None
+        if name in {"TREND_BROKEN", "TREND_UNKNOWN"}:
+            engaged = True
+        elif name == "TREND_INTACT":
+            engaged = False
+        else:
+            continue
+        quoted = _number(argument.partition("=")[2])
+
+    readings = readings or {}
+    release = spec.get("reentry_threshold")
+    depth_name = spec.get("depth_indicator")
+    return Railing(
+        engaged=engaged,
+        distance=_first(_number(readings.get(spec["indicator"])), quoted),
+        engage_below=float(spec["threshold"]),
+        release_above=float(spec["threshold"] if release is None else release),
+        cap=float(spec.get("max_leverage_below") or 0.0),
+        depth=_number(readings.get(depth_name)) if depth_name else None,
+        min_depth=_number(spec.get("min_depth_to_engage")) if depth_name else None,
+        close=_number(close),
+    )
+
+
+def _number(value: object) -> float | None:
+    """A finite float, or ``None`` — NaN included, which pandas hands back freely."""
+    try:
+        number = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return number if number == number else None
+
+
+def _first(*values: float | None) -> float | None:
+    return next((value for value in values if value is not None), None)
 
 
 # -------------------------------------------------------------- reason codes

@@ -485,3 +485,82 @@ def test_only_the_cash_weight_earns_the_rate() -> None:
         days, Series(10.0, index=days), weights={Asset.QQQ: 0.5, Asset.CASH: 0.5}
     )
     assert result.nav.iloc[-1] == pytest.approx(_accrued(days, 10.0, 0.5), rel=1e-12)
+
+
+# ----------------------------------------------------------------- resuming
+#
+# The live track record is this simulator, run one day at a time from the book
+# the previous day ended with (fear_ladder.pipeline.track_record). That is only
+# the same accounting as the backtest if stopping and resuming changes nothing.
+
+
+def _wandering_prices(count: int = 40) -> tuple[DataFrame, DataFrame]:
+    rng = np.random.default_rng(5)
+    daily = rng.normal(0.0005, 0.015, count)
+    gaps = rng.normal(0.0, 0.004, count)
+    closes = {
+        Asset.QQQ.value: 100.0 * np.cumprod(1 + daily),
+        Asset.QLD.value: 50.0 * np.cumprod(1 + 2 * daily),
+    }
+    opens = {name: series * (1 + gaps) for name, series in closes.items()}
+    index = pd.Index(_days(count), name="observation_date")
+    return DataFrame(closes, index=index), DataFrame(opens, index=index)
+
+
+@pytest.mark.parametrize("timing", list(ExecutionTiming))
+@pytest.mark.parametrize("cut", [1, 9, 20, 25, 38])
+def test_a_resumed_run_is_the_same_run(timing: ExecutionTiming, cut: int) -> None:
+    """Stop on any day, carry on from that day's book, and the NAV is unchanged.
+
+    Cuts 9 and 25 fall on days a target was decided, so its trade lands on the
+    far side of the join — the case most likely to be executed twice or never.
+    """
+    closes, opens = _wandering_prices()
+    days = list(closes.index)
+    targets = {
+        days[0]: {Asset.QQQ: 1.0},
+        days[9]: {Asset.QLD: 0.75, Asset.QQQ: 0.25},
+        days[25]: {Asset.QQQ: 0.5, Asset.CASH: 0.5},
+    }
+    rates = Series([4.0] * len(days), index=closes.index)
+    costs = CostModel(commission_bps=10.0)
+
+    def simulator(start: int, stop: int | None, nav: float = 1.0) -> PortfolioSimulator:
+        return PortfolioSimulator(
+            closes=closes.iloc[start:stop],
+            opens=opens.iloc[start:stop],
+            cost_model=costs,
+            execution_timing=timing,
+            cash_rates=rates,
+            initial_nav=nav,
+        )
+
+    whole = simulator(0, None).run(targets)
+
+    first = simulator(0, cut + 1).run({d: t for d, t in targets.items() if d <= days[cut]})
+    book = {asset: weight for asset, weight in first.weights.iloc[-1].items() if weight > 0}
+    executed = first.trades[-1].weights_after if first.trades else None
+    rest = simulator(cut, None, nav=float(first.nav.iloc[-1])).run(
+        {d: t for d, t in targets.items() if d >= days[cut]},
+        initial_book=book or None,
+        initial_target=executed,
+    )
+
+    assert rest.nav.tolist() == pytest.approx(whole.nav.iloc[cut:].tolist(), rel=1e-12)
+    assert len(first.trades) + len(rest.trades) == len(whole.trades)
+    assert rest.weights.iloc[-1].tolist() == pytest.approx(
+        whole.weights.iloc[-1].tolist(), rel=1e-12
+    )
+
+
+def test_a_resumed_book_is_not_paid_its_first_day_twice() -> None:
+    # The book handed over is the one held at the first day's *close*. That
+    # day's open-to-close move is already in the NAV it arrives with.
+    closes, opens = _prices(
+        {"QQQ": [110.0, 110.0, 110.0]}, opens={"QQQ": [100.0, 110.0, 110.0]}
+    )
+    resumed = PortfolioSimulator(closes=closes, opens=opens).run(
+        {}, initial_book={Asset.QQQ: 1.0}, initial_target={Asset.QQQ: 1.0}
+    )
+    assert resumed.nav.tolist() == pytest.approx([1.0, 1.0, 1.0])
+    assert resumed.trade_count == 0

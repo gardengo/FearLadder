@@ -114,7 +114,7 @@ def test_the_run_records_each_stage_it_reached(seeded: Path, placeholder_config)
         stored = uow.strategies.get_run(result.run.run_id)
 
     assert stored is not None
-    assert stored.stage == "alert", "the last stage reached is recorded"
+    assert stored.stage == "track_record", "the last stage reached is recorded"
     assert stored.finished_at is not None
 
 
@@ -430,3 +430,45 @@ def test_the_allocation_never_holds_tqqq_without_the_gate(
 
     if result.allocation and result.allocation.weight(Asset.TQQQ) > 0:
         assert result.gate_passed
+
+
+# ------------------------------------------------------------------ TASK-187
+
+
+def test_a_run_extends_the_track_record(seeded: Path, placeholder_config) -> None:
+    version = placeholder_config.strategy.strategy_version
+    with SQLiteUnitOfWork(seeded) as uow:
+        result = _pipeline(placeholder_config).run(uow, as_of=TODAY)
+        history = uow.track_record.history(strategy_version=version)
+
+        assert result.track_record is not None
+        assert result.track_record.appended == 1
+        assert [entry.observation_date for entry in history] == [result.state.observation_date]
+
+        again = _pipeline(placeholder_config).run(uow, as_of=TODAY)
+        assert again.track_record is not None
+        assert again.track_record.appended == 0, "re-running a day must not add to the record"
+        assert uow.track_record.history(strategy_version=version) == history
+
+
+def test_a_broken_track_record_does_not_cost_the_day_its_signal(
+    seeded: Path, placeholder_config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Bookkeeping about the signal must not be able to take the signal back."""
+    from fear_ladder.pipeline import track_record
+
+    def explode(self: object, uow: object, *, through: date) -> None:
+        raise RuntimeError("the accounting fell over")
+
+    monkeypatch.setattr(track_record.TrackRecorder, "extend", explode)
+
+    with SQLiteUnitOfWork(seeded) as uow:
+        result = _pipeline(placeholder_config).run(uow, as_of=TODAY)
+        stored = uow.strategies.get_run(result.run.run_id)
+        version = placeholder_config.strategy.strategy_version
+
+        assert result.track_record is None
+        assert result.run.status is PipelineStatus.SUCCESS
+        assert stored is not None and stored.status is PipelineStatus.SUCCESS
+        assert uow.states.get_state(result.state.observation_date, strategy_version=version)
+        assert uow.states.get_allocation(result.state.observation_date, strategy_version=version)

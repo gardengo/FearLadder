@@ -236,6 +236,7 @@ scripts/daily_runner.py
 8. Event를 생성한다.
 9. SQLite에 저장한다.
 10. 필요한 경우 Telegram 알림을 보낸다.
+11. 모의 성과 기록(`track_record`)을 하루 이어 붙인다 (§4.1.3).
 
 Daily Worker는 주문을 실행하지 않는다.
 
@@ -255,6 +256,29 @@ Daily Worker는 주문을 실행하지 않는다.
 필수 데이터가 결측·낡음·미래일자·손상이면 `Regime = UNKNOWN` 으로 기록하고,
 점수·배분·레버리지를 만들지 않으며, **해당 날짜에 이미 저장돼 있던 배분을
 삭제한다.** 나쁜 데이터가 이전 조언을 그대로 세워두지 않게 하기 위해서다.
+
+### 4.1.3 모의 성과 기록 — 재생하지 않는 유일한 것
+
+`pipeline/track_record.py`. 저장된 목표 비중을 그대로 따른 계좌가 얼마가 됐는지를
+QQQ 보유와 나란히 하루 한 줄씩 적는다. 대시보드 '기록' 탭의 성과 비교가 이
+테이블을 읽는다.
+
+- **계산은 백테스트의 것이다.** 매일 `PortfolioSimulator` 를 그대로 지나간다 —
+  다음 거래일 시가 체결, 단계가 바뀔 때만 매매, 거래마다 고정된 비용. 벤치마크는
+  같은 시뮬레이터에 QQQ 100% 를 넣은 것이다. 두 번째 회계를 따로 두지 않는다.
+- **§4.1.1 의 예외로, 이어 붙이고 재생하지 않는다.** 원시 가격은 5년 창으로
+  잘리므로(§6, `data/retention.py`) 재생하는 기록은 가격이 잘리는 날 앞부분을
+  잃는다. 그래서 각 행이 다음 행에 필요한 것 — 드리프트된 보유 비중과 마지막으로
+  체결한 목표 — 을 들고 있고, 새 날은 마지막 행에서 계산한다. 하루씩 붙인 결과와
+  한 번에 계산한 결과가 같다는 것은 테스트가 강제한다. 한 번 적힌 날은 다시
+  쓰지 않으므로 재실행은 여전히 멱등하고, 나중의 정정이 과거 성과를 고치지 못한다.
+- **신호가 없는 날은 보유다.** 워커가 돌지 않았거나 UNKNOWN 인 날은 직전 보유를
+  그대로 들고 간다.
+- **실패해도 그날의 신호를 막지 않는다.** 파이프라인에서 예외를 삼키는 유일한
+  단계다. 상태 저장과 알림이 끝난 뒤에 돌고, 실패하면 다음 성공한 실행이 마지막
+  행부터 이어 붙인다. 뒤처진 정도는 '기록' 탭에 표시된다.
+- 이력을 일부러 다시 쓰는 `scripts/backfill_history.py` 만 끝에서 기록을
+  재구성한다. 가격이 이미 잘린 구간까지 재구성해야 하면 거부한다.
 
 ---
 
@@ -336,6 +360,7 @@ strategy_versions
 ```text
 schema_migrations       스키마 버전 기록
 data_quality_findings   교차검증 불일치 (TASK-028)
+track_record            목표 비중을 따른 모의 계좌와 QQQ 보유, 하루 한 줄 (§4.1.3)
 ```
 
 `data_quality_findings` 가 필요한 이유는 BACKTEST_SPEC §5.5 때문이다.
@@ -574,46 +599,59 @@ retrieved_at
 탭 하나당 `app/views/` 아래 모듈 하나. 배선은 `app/streamlit_app.py` 의 `TABS` 에만
 있다. 어느 탭도 엔진을 import 하지 않는다 (§4.2).
 
-## 오늘 — `views/today.py`
+탭은 두 종류이고 순서가 그 구분이다. **앞의 넷(오늘 · 기록 · 이벤트 · 운영)은 일일
+워커가 매일 다시 쓰고, 뒤의 둘(전략 설명 · 백테스트)은 전략을 고정할 때 한 번 쓴
+문서라 바뀌지 않는다.** 각 탭은 첫 줄에서 자기가 어느 쪽인지 밝힌다
+(`views/common.py` 의 `updated_daily` / `fixed_at_freeze`) — 어제 움직인 숫자와
+영영 움직이지 않을 숫자가 같은 얼굴을 하고 있으면 안 되기 때문이다.
+
+## 오늘 — `views/today.py` (매일 갱신)
 
 - Current Regime
 - Market Score
 - Target Leverage
+- 200일선 이격과 난간(추세 필터) 상태 — 작동선·해제선까지의 거리, 52주 낙폭 조건
 - Target Allocation
 - Key Indicators
 - Last Update
 
-## 전략 설명 — `views/strategy.py`
+난간 패널은 저장된 `indicator_values` 와 `reason_codes` 만 읽는다. 작동 여부는
+워커가 남긴 코드에서 가져오고(필터에 기억이 있어 오늘 값만으로는 알 수 없다),
+대시보드가 하는 일은 각 선까지의 거리를 % 와 달러로 옮기는 것뿐이다.
+
+## 기록 — `views/history.py` (매일 갱신)
+
+- 전략(모의 계좌) vs QQQ — `track_record` (§4.1.3), 기간 첫날을 100 으로
+- Market Score
+- Regime Transition (점수가 가리킨 칸 vs 실제 칸)
+- Target Allocation + Target Leverage
+
+## 이벤트 — `views/events.py` (매일 갱신)
+
+- Event History
+- 알림 발송 상태
+
+## 운영 — `views/operations.py` (매일 갱신)
+
+- 최근 파이프라인 실행과 그 결과
+- 데이터 신선도 · 교차검증 findings
+- 활성 전략 버전
+
+## 전략 설명 — `views/strategy.py` (고정 문서)
 
 - 사다리 구조와 각 단계의 목표 비중
 - 추세 필터 · TQQQ 게이트가 무엇을 언제 막는가
 
-## 성과 — `views/performance.py`
+## 백테스트 — `views/performance.py` (고정 문서)
 
 `reports/performance.json` 을 읽는다. 대시보드는 백테스트를 돌리지 않는다.
+고정 시점까지의 1996–2026 을 한 번 계산한 증거이고, 고정 이후에 쌓이는 성과는
+여기가 아니라 '기록' 탭에 있다 — 그래서 탭 이름이 '성과' 가 아니다.
 
 - Equity Curve
 - Drawdown
 - CAGR / Sharpe / Sortino / Calmar
 - Benchmark Comparison
-
-## 기록 — `views/history.py`
-
-- QQQ Price + Regime
-- Market Score
-- Target Leverage
-- Regime Transition
-
-## 이벤트 — `views/events.py`
-
-- Event History
-- 알림 발송 상태
-
-## 운영 — `views/operations.py`
-
-- 최근 파이프라인 실행과 그 결과
-- 데이터 신선도 · 교차검증 findings
-- 활성 전략 버전
 
 ---
 

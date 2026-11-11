@@ -22,6 +22,7 @@ from fear_ladder.data.interfaces import (
     MarketObservationRepository,
     MarketStateRepository,
     StrategyRepository,
+    TrackRecordRepository,
 )
 from fear_ladder.data.models import (
     AlertEvent,
@@ -70,6 +71,7 @@ def test_database_is_created_with_every_required_table(db_path: Path) -> None:
             "alert_events",
             "pipeline_runs",
             "strategy_versions",
+            "track_record",
         } <= names
         assert current_schema_version(connection) == SCHEMA_VERSION
     finally:
@@ -96,6 +98,7 @@ def test_repositories_satisfy_their_protocols(uow: SQLiteUnitOfWork) -> None:
     assert isinstance(uow.states, MarketStateRepository)
     assert isinstance(uow.events, EventRepository)
     assert isinstance(uow.strategies, StrategyRepository)
+    assert isinstance(uow.track_record, TrackRecordRepository)
 
 
 # ------------------------------------------------------------- observations

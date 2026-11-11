@@ -1,10 +1,14 @@
 """Today's signal: which rung the ladder is on, and why it is not another one.
 
-The page answers three questions in order — where the score stands, which rung
-is actually held, and what is holding it there. The third is the one the stored
-state answers best and the old page threw away: the transition engine writes its
-reasoning into ``reason_codes`` every day, including the brake that stopped a
-move and how far it has counted.
+The page answers four questions in order — where the score stands, which rung
+is actually held, what is holding it there, and how far the market is from the
+handrail. The third is the one the stored state answers best and the old page
+threw away: the transition engine writes its reasoning into ``reason_codes``
+every day, including the brake that stopped a move and how far it has counted.
+
+The fourth was missing altogether. The trend filter is the rule that takes the
+leverage away, and the only trace of it was one sentence among the reason
+codes. How close the market was to setting it off could not be read anywhere.
 """
 
 from __future__ import annotations
@@ -20,8 +24,11 @@ from fear_ladder.constants import UNKNOWN_REGIME
 from fear_ladder.pipeline.queries import is_signal_stale
 from views.common import (
     CORE,
+    RAILING_COLOUR,
     REGIME_COLOURS,
+    Railing,
     Rung,
+    band_opacity,
     gates,
     halo,
     ladder,
@@ -29,11 +36,13 @@ from views.common import (
     lock_colour,
     locks,
     performance_report,
+    railing,
     readable_on,
     reasons_of,
     regime_palette,
     rung_of,
     streak,
+    updated_daily,
     weekly_indicators,
 )
 
@@ -43,6 +52,14 @@ STREAK_DAYS = 400
 
 HERE = "● 지금 여기"
 
+#: Handrail status -> (the words under the headline number, their colour).
+RAIL_BADGES = {
+    "engaged": ("난간 작동 · {cap:.2f}x 제한", "red"),
+    "shallow": ("작동선 아래 · 미작동", "orange"),
+    "clear": ("난간 해제", "off"),
+    "unknown": ("추세 확인 불가", "off"),
+}
+
 
 def _hysteresis_points(report: dict | None) -> float:
     transition = (report or {}).get("parameters", {}).get("transition", {})
@@ -51,6 +68,7 @@ def _hysteresis_points(report: dict | None) -> float:
 
 def render(version: str | None) -> None:
     st.header("오늘의 신호")
+    updated_daily(version)
     state = load("latest_state", version)
     if state is None:
         st.info(
@@ -75,10 +93,13 @@ def render(version: str | None) -> None:
     rungs = ladder(report)
     history = load("state_history", version, days=STREAK_DAYS)
     run = streak(history)
+    readings = _trend_readings(report)
+    rail = _railing(state, report, readings)
 
-    _headline(state, run)
+    _headline(state, run, rail)
     _ladder(state, rungs, report)
     _lock(state, rungs, report, run)
+    _handrail(rail, readings, history, report)
 
     left, right = st.columns([1, 1])
     with left:
@@ -99,8 +120,8 @@ def render(version: str | None) -> None:
 # ------------------------------------------------------------------ headline
 
 
-def _headline(state: dict, run) -> None:  # type: ignore[no-untyped-def]
-    columns = st.columns(4)
+def _headline(state: dict, run, rail: Railing | None) -> None:  # type: ignore[no-untyped-def]
+    columns = st.columns(5 if rail else 4)
 
     held = f"{run.days}일째" if run and run.regime == state["regime"] else None
     columns[0].metric("Regime", str(state["regime"]), delta=held, delta_color="off")
@@ -124,7 +145,23 @@ def _headline(state: dict, run) -> None:  # type: ignore[no-untyped-def]
         f"{leverage:.2f}x" if leverage is not None else "—",
         help="1·QQQ + 2·QLD + 3·TQQQ. 실현 수익률의 배수를 뜻하지 않습니다.",
     )
-    columns[3].metric("Last Update", str(state["observation_date"]))
+    if rail:
+        # Next to the leverage it can take away, not further down the page:
+        # this is the number that says how safe the one beside it is.
+        columns[3].metric(
+            "200일선 이격",
+            _signed(rail.distance),
+            delta=RAIL_BADGES[rail.status][0].format(cap=rail.cap),
+            delta_color=RAIL_BADGES[rail.status][1],
+            delta_arrow="off",
+            help=(
+                "QQQ 종가가 200일 이동평균보다 얼마나 위/아래인가. "
+                f"{_signed(rail.engage_below, 0)} 아래로 내려가고 52주 고점 대비 낙폭 조건까지 "
+                f"충족되면 난간이 레버리지를 {rail.cap:.2f}x 로 묶습니다. "
+                "자세한 거리는 아래 «난간» 에 있습니다."
+            ),
+        )
+    columns[-1].metric("Last Update", str(state["observation_date"]))
 
 
 # -------------------------------------------------------------------- ladder
@@ -360,6 +397,299 @@ def _countdown(brake) -> None:  # type: ignore[no-untyped-def]
         f"{elapsed} / {required}"
         + (" — 다음 거래일부터 해제 가능" if brake.is_ready else f" — {required - elapsed}일 더")
     )
+
+
+# ------------------------------------------------------------------ handrail
+
+
+def _trend_spec(report: dict | None) -> dict:
+    return (report or {}).get("parameters", {}).get("trend_filter") or {}
+
+
+def _trend_readings(report: dict | None) -> pd.DataFrame:
+    """The stored readings the trend filter compared, day by day."""
+    spec = _trend_spec(report)
+    names = tuple(name for name in (spec.get("indicator"), spec.get("depth_indicator")) if name)
+    return load("indicator_history", names, days=STREAK_DAYS) if names else pd.DataFrame()
+
+
+def _railing(state: dict, report: dict | None, readings: pd.DataFrame) -> Railing | None:
+    if state["regime"] == UNKNOWN_REGIME:
+        return None
+    day = pd.Timestamp(str(state["observation_date"]))
+    row = readings.loc[day].to_dict() if day in readings.index else {}
+    prices = load("price_history", ("QQQ",), days=STREAK_DAYS)
+    close = prices["QQQ"].get(day) if "QQQ" in prices else None
+    rail = railing(report, state["reason_codes"], row, close)
+    if rail is None or (rail.engaged is None and rail.distance is None):
+        return None
+    return rail
+
+
+def _handrail(
+    rail: Railing | None, readings: pd.DataFrame, history: pd.DataFrame, report: dict | None
+) -> None:
+    """How far the market is from the rule that takes the leverage away."""
+    if rail is None:
+        return
+    st.subheader("난간 — 200일선과의 거리")
+    _rail_verdict(rail)
+
+    name = _trend_spec(report).get("indicator")
+    series = readings[name].dropna() if name in readings else pd.Series(dtype=float)
+    _rail_numbers(rail, series)
+
+    if len(series) > 1:
+        engaged = _engaged_days(history).reindex(series.index, fill_value=False).astype(bool)
+        st.plotly_chart(
+            _rail_chart(series, rail, engaged),
+            width="stretch",
+            config={"displayModeBar": False},
+        )
+        st.caption(
+            f"선이 **작동선({_signed(rail.engage_below, 0)})** 아래로 내려가고 낙폭 조건까지 "
+            f"충족되면 난간이 작동하고, 그 뒤로는 **해제선({_signed(rail.release_above, 0)})** "
+            "위로 올라와야 해제됩니다. 두 선 사이에서는 직전 상태가 그대로 갑니다. "
+            + (
+                "굵은 붉은 선이 실제로 난간이 작동하던 날입니다."
+                if engaged.any()
+                else "이 기간에는 난간이 작동한 날이 없었습니다 — 선 아래로 내려간 날이 "
+                "있어도 낙폭 조건이 맞지 않으면 작동하지 않습니다."
+            )
+        )
+
+
+def _rail_verdict(rail: Railing) -> None:
+    """One sentence: is the handrail on, and what would change that."""
+    cap = f"{rail.cap:.2f}x"
+    if rail.status == "engaged":
+        if rail.distance is None:
+            st.error(
+                f"**난간 작동 중 — 레버리지를 {cap} 로 묶고 있습니다.** 추세 지표를 "
+                "읽지 못해 방어적으로 묶은 상태입니다."
+            )
+            return
+        left = rail.to_release or 0.0
+        st.error(
+            f"**난간 작동 중 — 레버리지를 {cap} 로 묶고 있습니다.** QQQ 는 200일선 대비 "
+            f"{_signed(rail.distance)}. 해제선 {_signed(rail.release_above, 0)} 위로 올라와야 "
+            "풀립니다"
+            + (
+                f" — **{left * 100:.1f}%p 남았습니다** "
+                f"(QQQ 종가 약 {_dollars(rail.price_at(rail.release_above), markdown=True)})."
+                if left > 0
+                else " — 선은 이미 넘었고, 다음 배치에서 해제 여부가 확정됩니다."
+            )
+        )
+        return
+
+    depth_rule = ""
+    if rail.min_depth is not None and rail.depth is not None:
+        depth_rule = (
+            f"52주 고점 대비 낙폭이 {rail.min_depth * 100:.0f}% 에 닿아야 하는데 "
+            f"지금은 {rail.depth * 100:.1f}% 입니다"
+        )
+
+    if rail.status == "shallow":
+        st.warning(
+            f"**작동선 아래({_signed(rail.distance)})지만 난간은 아직 작동하지 않습니다.** "
+            f"작동선 {_signed(rail.engage_below, 0)} 은 넘었는데, "
+            f"{depth_rule or '깊이 조건이 남았습니다'}. "
+            + (
+                f"낙폭이 **{(rail.depth_shortfall or 0) * 100:.1f}%p 더** 깊어지면 "
+                f"(QQQ 종가 약 {_dollars(rail.depth_price, markdown=True)}) 레버리지가 "
+                f"{cap} 로 묶입니다."
+                if rail.depth_shortfall
+                else f"조건이 맞으면 레버리지가 {cap} 로 묶입니다."
+            )
+        )
+        return
+
+    side = "위" if (rail.distance or 0.0) >= 0 else "아래"
+    message = (
+        f"**난간 해제 — QQQ 는 200일선보다 {abs(rail.distance or 0.0) * 100:.1f}% {side}.** "
+        f"작동선 {_signed(rail.engage_below, 0)} 까지 **{(rail.to_engage or 0) * 100:.1f}%p** "
+        "남았습니다. "
+    )
+    if depth_rule and not rail.deep_enough:
+        message += f"선을 넘더라도 {depth_rule} — 두 조건이 다 맞아야 {cap} 로 묶입니다."
+    elif rail.min_depth is not None:
+        message += f"낙폭 조건은 이미 충족돼 있어, 선만 넘으면 레버리지가 {cap} 로 묶입니다."
+    else:
+        message += f"선을 넘으면 레버리지가 {cap} 로 묶입니다."
+    # Green only while price is actually above its average. Below it and still
+    # "clear" is true, but it is not the day to be told everything is fine.
+    (st.success if (rail.distance or 0.0) >= 0 else st.info)(message)
+
+
+def _rail_numbers(rail: Railing, series: pd.Series) -> None:
+    columns = st.columns(4)
+
+    columns[0].metric("QQQ 종가", _dollars(rail.close))
+    columns[0].caption(f"200일선 {_dollars(rail.average, markdown=True)}")
+
+    change = None
+    if rail.distance is not None and len(series) > 1:
+        change = f"{(rail.distance - float(series.iloc[-2])) * 100:+.1f}%p"
+    columns[1].metric(
+        "200일선 이격", _signed(rail.distance), delta=change,
+        help="종가 ÷ 200일 이동평균 − 1. 변화는 직전 거래일 대비.",
+    )
+
+    if rail.status == "engaged":
+        columns[2].metric(
+            "해제선까지",
+            "—" if rail.to_release is None else f"{max(rail.to_release, 0) * 100:.1f}%p",
+        )
+        columns[2].caption(
+            f"해제선 {_signed(rail.release_above, 0)} = "
+            f"{_dollars(rail.price_at(rail.release_above), markdown=True)}"
+        )
+    else:
+        room = rail.to_engage
+        columns[2].metric(
+            "작동선까지",
+            "—" if room is None else (f"{room * 100:.1f}%p" if room >= 0 else "이미 넘음"),
+        )
+        columns[2].caption(
+            f"작동선 {_signed(rail.engage_below, 0)} = "
+            f"{_dollars(rail.price_at(rail.engage_below), markdown=True)}"
+        )
+
+    columns[3].metric(
+        "52주 고점 대비 낙폭",
+        "—" if rail.depth is None else f"{rail.depth * 100:.1f}%",
+        help="난간이 작동하려면 200일선 조건과 함께 이 낙폭 조건도 맞아야 합니다.",
+    )
+    if rail.min_depth and rail.depth is not None:
+        columns[3].progress(min(rail.depth / rail.min_depth, 1.0))
+        columns[3].caption(
+            f"조건 {rail.min_depth * 100:.0f}% 이상 = "
+            f"{_dollars(rail.depth_price, markdown=True)} 이하"
+        )
+
+    if rail.status != "engaged" and rail.trigger_price and rail.close:
+        st.caption(
+            "두 조건이 함께 맞는 QQQ 종가는 약 "
+            f"**{_dollars(rail.trigger_price, markdown=True)}** "
+            f"(오늘 종가 대비 {_signed(rail.trigger_price / rail.close - 1)}) 입니다. "
+            "오늘의 200일선과 52주 고점을 그대로 둔 값이라 매일 조금씩 움직입니다."
+        )
+
+
+def _engaged_days(history: pd.DataFrame) -> pd.Series:
+    """Which stored days the handrail was on, read off the reason codes."""
+    codes = history.get("reason_codes") if history is not None else None
+    if codes is None:
+        return pd.Series(dtype=bool)
+    return codes.astype(str).str.contains("TREND_BROKEN|LEVERAGE_CAPPED_BY_DEFAULT")
+
+
+def _rail_chart(distance: pd.Series, rail: Railing, on: pd.Series) -> go.Figure:
+    """The distance from the 200-day average over time, against its two lines.
+
+    ``on`` marks the days the handrail was engaged, on ``distance``'s index.
+    """
+    figure = go.Figure()
+    figure.add_trace(
+        go.Scatter(
+            x=distance.index,
+            y=distance,
+            name="200일선 이격",
+            line={"width": 2},
+            hovertemplate="%{y:+.1%}<extra>200일선 이격</extra>",
+        )
+    )
+    if on.any():
+        # Drawn on the line rather than shaded behind it: the handrail stays on
+        # between the two lines, which a band keyed to the engage line cannot
+        # show and a recoloured stretch of the line shows without a word.
+        figure.add_trace(
+            go.Scatter(
+                x=distance.index,
+                y=distance.where(on),
+                name="난간이 작동하던 날",
+                mode="lines+markers",
+                line={"color": RAILING_COLOUR, "width": 4},
+                marker={"size": 4, "color": RAILING_COLOUR},
+                connectgaps=False,
+                hoverinfo="skip",
+            )
+        )
+
+    low = min(float(distance.min()), rail.engage_below)
+    high = max(float(distance.max()), rail.release_above)
+    pad = (high - low) * 0.12 or 0.01
+    low, high = low - pad, high + pad
+
+    alpha = band_opacity() * 0.6
+    figure.add_hrect(
+        y0=low, y1=rail.engage_below, fillcolor=RAILING_COLOUR,
+        opacity=alpha, line_width=0, layer="below",
+    )
+    if rail.release_above > rail.engage_below:
+        figure.add_hrect(
+            y0=rail.engage_below, y1=rail.release_above, fillcolor="#9e9e9e",
+            opacity=alpha, line_width=0, layer="below",
+        )
+
+    # Each label on the side of its line that it describes: the engage line's
+    # under it, in the zone it opens; the release line's over it. Three labels
+    # stacked on the same side sat on top of one another.
+    rules = [(0.0, "200일선", "bottom", {"color": "#8c8f96", "width": 1})]
+    rules.append(
+        (rail.engage_below, f"작동선 {_signed(rail.engage_below, 0)} — 이 아래가 작동 구간",
+         "top", {"color": RAILING_COLOUR, "width": 1.5, "dash": "dash"})
+    )
+    if rail.release_above != rail.engage_below:
+        rules.append(
+            (rail.release_above, f"해제선 {_signed(rail.release_above, 0)}",
+             "bottom", {"color": "#8c8f96", "width": 1.5, "dash": "dash"})
+        )
+    for level, label, anchor, line in rules:
+        figure.add_hline(y=level, line=line)
+        figure.add_annotation(
+            x=0.0, xref="x domain", xanchor="left", y=level, yanchor=anchor,
+            text=label, showarrow=False, font={"size": 10},
+        )
+
+    # Today, marked so it survives either theme: a dark point with a light rim.
+    last_day, last_value = distance.index[-1], float(distance.iloc[-1])
+    figure.add_trace(
+        go.Scatter(
+            x=[last_day], y=[last_value], mode="markers", showlegend=False,
+            marker={"size": 9, "color": CORE, "line": {"color": "#f5f5f5", "width": 2}},
+            hoverinfo="skip",
+        )
+    )
+    figure.add_annotation(
+        x=last_day, y=last_value, xanchor="left", xshift=10,
+        text=f"<b>{_signed(last_value)}</b>", showarrow=False,
+        font={"size": 13, "color": "#ffffff"}, bgcolor=CORE, borderpad=3,
+    )
+
+    figure.update_yaxes(range=[low, high], tickformat="+.0%")
+    figure.update_layout(
+        height=300,
+        margin={"l": 8, "r": 72, "t": 10, "b": 8},
+        hovermode="x unified",
+        showlegend=bool(on.any()),
+        legend={"orientation": "h", "y": 1.12, "x": 0},
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    return figure
+
+
+def _signed(value: float | None, digits: int = 1) -> str:
+    return "—" if value is None else f"{value * 100:+.{digits}f}%"
+
+
+def _dollars(value: float | None, *, markdown: bool = False) -> str:
+    """A price. Escaped for markdown, where a pair of ``$`` starts a formula."""
+    if value is None:
+        return "—"
+    prefix = "\\$" if markdown else "$"
+    return f"{prefix}{value:,.2f}"
 
 
 # ---------------------------------------------------------------- allocation

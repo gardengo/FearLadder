@@ -185,6 +185,26 @@ class SQLiteMarketStateRepository(_Base):
             regime=rows[0]["regime"],
         )
 
+    def get_allocations(
+        self,
+        *,
+        strategy_version: str,
+        start: date | None = None,
+        end: date | None = None,
+    ) -> dict[date, dict[Asset, float]]:
+        """Every stored target in a range, keyed by the day it was decided."""
+        clause, params = self._range("observation_date", start, end)
+        rows = self._connection.execute(
+            "SELECT observation_date, asset, weight FROM target_allocations "
+            f"WHERE strategy_version = ?{clause} ORDER BY observation_date",
+            [strategy_version, *params],
+        ).fetchall()
+        targets: dict[date, dict[Asset, float]] = {}
+        for row in rows:
+            day = from_db_date(row["observation_date"])
+            targets.setdefault(day, {})[Asset(row["asset"])] = row["weight"]
+        return targets
+
 
 def _state_from_row(row: sqlite3.Row) -> MarketState:
     return MarketState(
