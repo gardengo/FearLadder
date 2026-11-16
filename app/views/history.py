@@ -23,8 +23,10 @@ from plotly.subplots import make_subplots
 from fear_ladder.constants import UNKNOWN_REGIME
 from fear_ladder.pipeline.queries import regime_spans
 from views.common import (
+    ASSET_ROWS,
     BENCHMARK_COLOUR,
     BENCHMARK_LABEL,
+    SLEEVE_COLOURS,
     STRATEGY_COLOUR,
     STRATEGY_LABEL,
     UNKNOWN_COLOUR,
@@ -32,6 +34,7 @@ from views.common import (
     band_opacity,
     halo,
     ladder,
+    late_changes,
     load,
     lock_colour,
     locks,
@@ -52,20 +55,23 @@ PERIODS: tuple[tuple[str, int], ...] = (
     ("3년", 365 * 3),
     ("전체", 365 * 40),
 )
-DEFAULT_PERIOD = 2  # 1년
+DEFAULT_PERIOD = "1년"
+SINCE_FREEZE = "고정 이후"
 
 SECTIONS = ("차트", "단계별 일지", "잠금 통계")
 
-#: Sleeves from the most aggressive down, so the stack reads the way the
-#: ladder table does. Shaded by leverage rather than by an arbitrary palette:
-#: denser means more exposure.
-ASSET_ROWS = {"TQQQ": "TQQQ 3x", "QLD": "QLD 2x", "QQQ": "QQQ 1x", "CASH": "현금"}
-SLEEVE_COLOURS = {
-    "TQQQ": "#7b3294",
-    "QLD": "#c2a5cf",
-    "QQQ": "#a6dba0",
-    "CASH": "#cfcfcf",
-}
+#: The leverage axis, fixed. Left to plotly it fitted the window and labelled
+#: itself 0.87, 1.056, 1.241 — the ladder's rungs are thirds and quarters, and
+#: no rung is at any of those. Zero to three is the whole range the sleeves can
+#: produce (all cash to all TQQQ), so the same height means the same leverage
+#: whichever period is chosen.
+LEVERAGE_RANGE = (0.0, 3.0)
+LEVERAGE_STEP = 0.5
+
+#: How much of the performance panel's height the regime ribbon takes, and how
+#: far the wash behind the lines is turned down from the bands elsewhere.
+RIBBON_SHARE = 0.035
+WASH = 0.45
 
 LOCK_LABELS = {
     "min_duration": "최소 유지 기간",
@@ -78,20 +84,23 @@ def render(version: str) -> None:
     st.header("기록")
     updated_daily(version)
 
-    labels = [label for label, _ in PERIODS]
+    periods = _periods()
+    labels = list(periods)
     chosen = st.radio(
-        "기간", labels, index=DEFAULT_PERIOD, horizontal=True, label_visibility="collapsed"
+        "기간",
+        labels,
+        index=labels.index(DEFAULT_PERIOD),
+        horizontal=True,
+        label_visibility="collapsed",
     )
-    days = dict(PERIODS)[chosen]
+    days = periods[chosen]
 
     history = load("state_history", version, days=days)
     if history.empty:
         st.info("저장된 이력이 없습니다.")
         return
 
-    st.caption(
-        f"{history.index[0]:%Y-%m-%d} … {history.index[-1]:%Y-%m-%d} · {len(history)}거래일"
-    )
+    st.caption(_window_caption(history, load("price_history", ("QQQ",), days=days)))
 
     # Deliberately not st.tabs: a dataframe first painted inside a *nested*
     # tab is laid out while its panel is hidden and comes back collapsed to a
@@ -110,6 +119,50 @@ def render(version: str) -> None:
     unknown_days = int((history["regime"] == UNKNOWN_REGIME).sum())
     if unknown_days:
         st.warning(f"이 기간에 신호를 만들지 못한 날이 {unknown_days}일 있습니다.")
+
+
+def _periods() -> dict[str, int]:
+    """The presets, plus one that starts where the live record does.
+
+    The freeze is the line between the replayed record and the one that was
+    actually signalled, and the only preset that could isolate the second was
+    whichever happened to be about the right length that month.
+    """
+    periods = dict(PERIODS)
+    frozen = _frozen_on()
+    if frozen is None:
+        return periods
+    # Back to the last weekday on or before the freeze: that close is the
+    # base the live record is measured from.
+    base = frozen
+    while base.weekday() >= 5:
+        base -= pd.Timedelta(days=1)
+    span = (pd.Timestamp.today().normalize() - base).days
+    return {SINCE_FREEZE: max(span, 1), **periods}
+
+
+def _window_caption(history: pd.DataFrame, prices: pd.DataFrame) -> str:
+    """The window's dates and day count, and any day the worker never recorded.
+
+    The count used to be the number of stored states, printed as "거래일". It
+    read 248 beside a performance note that said 250, because three sessions
+    have a price and no state: the worker did not run for them.
+    """
+    first, last = history.index[0], history.index[-1]
+    text = f"{first:%Y-%m-%d} … {last:%Y-%m-%d}"
+    sessions = prices.index[(prices.index >= first) & (prices.index <= last)]
+    if sessions.empty:
+        return f"{text} · 신호 기록 {len(history)}일"
+    missing = sessions.difference(history.index)
+    text += f" · {len(sessions)}거래일"
+    if missing.empty:
+        return text
+    named = " · ".join(f"{day:%Y-%m-%d}" for day in missing[:5])
+    more = f" 외 {len(missing) - 5}일" if len(missing) > 5 else ""
+    return (
+        f"{text} — 그중 {len(missing)}일은 배치가 돌지 않아 신호 기록이 없습니다 "
+        f"({named}{more}). 차트에서는 앞날의 값이 이어집니다."
+    )
 
 
 # -------------------------------------------------------------------- charts
@@ -162,6 +215,7 @@ def _charts(version: str, history: pd.DataFrame, days: int) -> None:
 
     if tracked:
         _performance(figure, history, track, palette, spans)
+        _mark_the_catch_ups(figure, track.index, _catch_ups(version))
     else:
         _price_alone(figure, history, prices, palette, spans)
     _score(figure, history, palette)
@@ -195,6 +249,7 @@ def _charts(version: str, history: pd.DataFrame, days: int) -> None:
             "양쪽 모두 넣지 않았습니다. 일일 배치가 하루씩 이어 붙이며, 한 번 적힌 날은 "
             "다시 계산하지 않습니다."
         )
+        _explain_the_catch_ups(track.index, _catch_ups(version))
 
 
 # ------------------------------------------------------------- performance
@@ -244,16 +299,20 @@ def _scorecard(track: pd.DataFrame, history: pd.DataFrame) -> None:
         help="이 기간 안에서 고점 대비 가장 깊이 내려간 폭.",
     )
 
-    notes = [
-        f"{track.index[0]:%Y-%m-%d} 종가 → {track.index[-1]:%Y-%m-%d} 종가 · "
-        f"{len(track) - 1}거래일"
-    ]
+    notes = [f"{track.index[0]:%Y-%m-%d} 종가 → {track.index[-1]:%Y-%m-%d} 종가"]
     frozen = _frozen_on()
     if frozen is not None:
         before = track[track.index <= frozen]
         after = track[track.index > frozen]
         if before.empty:
             notes.append(f"전부 전략 고정({frozen:%Y-%m-%d}) 이후의 **실시간 기록**입니다")
+        elif len(before) == 1 and not after.empty:
+            # The window starts on the base day itself: everything it measures
+            # is live, and the figures above already are the live figures.
+            notes.append(
+                f"전략 고정({frozen:%Y-%m-%d}) 직전 종가에서 출발한 "
+                f"**실시간 {len(after)}거래일**의 기록입니다"
+            )
         elif not after.empty:
             base = before.iloc[-1]
             live_strategy = float(after["strategy_nav"].iloc[-1] / base["strategy_nav"] - 1.0)
@@ -312,7 +371,7 @@ def _performance(
     # After the traces, never before: a shape resolves ``row``/``col`` against
     # the axes the subplot already has, and on an empty panel it matches
     # nothing and is silently dropped.
-    _shade(figure, spans, palette, bounds, row=1)
+    _shade(figure, spans, palette, bounds, row=1, wash=WASH, ribbon=True)
     if spans:
         _name_the_bands(
             figure, spans, palette, total=history.index[-1] - history.index[0], row=1
@@ -336,6 +395,55 @@ def _mark_the_freeze(figure: go.Figure, days: pd.Index) -> None:
         text="전략 고정 · 여기부터 실시간", showarrow=False, font={"size": 10},
         row=1, col=1,
     )
+
+
+def _catch_ups(version: str) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+    """Days the stored path was put back on the engine's, with the engine's date."""
+    return [
+        (pd.Timestamp(recorded), pd.Timestamp(engine))
+        for recorded, engine in late_changes(load("regime_events", version))
+    ]
+
+
+def _mark_the_catch_ups(
+    figure: go.Figure, days: pd.Index, catch_ups: list[tuple[pd.Timestamp, pd.Timestamp]]
+) -> None:
+    """Draw the day the paper account's signals changed hands.
+
+    Before it the account followed the path the record held at the time; from
+    it on, the engine's own. The line does not jump there, but what it is a
+    record *of* does, and a reader comparing it with the backtest needs to know
+    which stretch is which.
+    """
+    for recorded, engine in catch_ups:
+        if not (days[0] < recorded < days[-1]):
+            continue
+        figure.add_shape(
+            type="line", x0=recorded, x1=recorded, y0=0, y1=1, yref="y domain",
+            line={"color": lock_colour(), "width": 1.2, "dash": "dot"}, row=1, col=1,
+        )
+        figure.add_annotation(
+            # One line of text above the freeze label: the two marks are often
+            # within a few weeks of each other and would print over one another.
+            x=recorded, y=0.11, yref="y domain", yanchor="bottom", xanchor="right",
+            xshift=-5, showarrow=False, font={"size": 10},
+            text=f"경로 정정 · 엔진은 {engine:%m-%d} 에 전환", row=1, col=1,
+        )
+
+
+def _explain_the_catch_ups(
+    days: pd.Index, catch_ups: list[tuple[pd.Timestamp, pd.Timestamp]]
+) -> None:
+    for recorded, engine in catch_ups:
+        if not (days[0] <= recorded <= days[-1]):
+            continue
+        st.caption(
+            f"**{recorded:%Y-%m-%d} 에 경로를 정정했습니다.** 엔진의 규칙대로면 단계는 "
+            f"{engine:%Y-%m-%d} 에 바뀌었어야 하는데, 그때의 기록은 이전 단계를 적고 "
+            "있었습니다 (이벤트 탭). 모의 계좌는 그날그날 저장된 신호를 따랐으므로, "
+            f"{engine:%m-%d} ~ {recorded:%m-%d} 구간의 전략 선은 **실제로 나갔던 신호**의 "
+            "성과이고 백테스트 경로의 성과가 아닙니다. 정정 이후는 둘이 같습니다."
+        )
 
 
 def _price_alone(
@@ -484,16 +592,35 @@ def _sleeves(figure: go.Figure, history: pd.DataFrame, allocations: pd.DataFrame
             col=1,
             secondary_y=True,
         )
+    # Ticks at 0 / 50 / 100% so each gridline also sits on a leverage tick
+    # (0, 1.5, 3.0): the two scales share one set of lines instead of two.
     figure.update_yaxes(
-        title_text="비중", range=[0, 1], tickformat=".0%", row=4, col=1, secondary_y=False
+        title_text="비중", range=[0, 1], tickformat=".0%", tickvals=[0, 0.5, 1.0],
+        row=4, col=1, secondary_y=False,
     )
     figure.update_yaxes(
-        title_text="레버리지 (x)", row=4, col=1, secondary_y=True, showgrid=False
+        title_text="레버리지 (x)",
+        range=list(LEVERAGE_RANGE),
+        tickmode="linear",
+        tick0=LEVERAGE_RANGE[0],
+        dtick=LEVERAGE_STEP,
+        tickformat=".1f",
+        row=4,
+        col=1,
+        secondary_y=True,
+        showgrid=False,
     )
 
 
 def _shade(
-    figure: go.Figure, spans: list, palette: dict, bounds: tuple[float, float], *, row: int = 1
+    figure: go.Figure,
+    spans: list,
+    palette: dict,
+    bounds: tuple[float, float],
+    *,
+    row: int = 1,
+    wash: float = 1.0,
+    ribbon: bool = False,
 ) -> None:
     """Paint one band per regime run, behind the traces.
 
@@ -501,17 +628,26 @@ def _shade(
     and on the "below" layer. Both matter: Streamlit ships its own plotly.js,
     which is older than the ``layer="between"`` this wants and silently drops a
     shape that asks for it — the bands were built every run and never appeared.
+
+    ``wash`` turns the bands down where lines have to be read over them. At
+    full strength the Neutral band is a grey a few shades from the QQQ line,
+    and the line the panel exists to compare against vanished into it for
+    months at a time. ``ribbon`` then puts the colour back at full strength in
+    a strip along the top edge, where no line runs, so the stage is still
+    readable at a glance without the whole panel being tinted to say so.
     """
-    alpha = band_opacity()
+    alpha = band_opacity() * wash
     low, high = bounds
+    edge = high - (high - low) * RIBBON_SHARE
     for start, end, regime in spans:
+        fill = palette.get(regime, UNKNOWN_COLOUR)
         figure.add_shape(
             type="rect",
             x0=start,
             x1=end,
             y0=low,
             y1=high,
-            fillcolor=palette.get(regime, UNKNOWN_COLOUR),
+            fillcolor=fill,
             opacity=alpha,
             line_width=0,
             layer="below",
@@ -519,6 +655,12 @@ def _shade(
             col=1,
             secondary_y=False,
         )
+        if ribbon:
+            figure.add_shape(
+                type="rect", x0=start, x1=end, y0=edge, y1=high, fillcolor=fill,
+                opacity=0.95, line_width=0, layer="below", row=row, col=1,
+                secondary_y=False,
+            )
 
 
 def _name_the_bands(  # type: ignore[no-untyped-def]

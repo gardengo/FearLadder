@@ -341,6 +341,8 @@ def test_event_and_alert_history_are_readable(queries: DashboardQueries) -> None
     alerts = queries.alert_events()
 
     assert set(events.columns) >= {"event_date", "previous_regime", "new_regime"}
+    # The leverage on either side of each change, read from the stored states.
+    assert {"previous_leverage", "new_leverage"} <= set(events.columns)
     assert set(alerts.columns) >= {"event_type", "delivery_status", "title"}
 
 
@@ -358,6 +360,40 @@ def test_operations_views_are_readable(queries: DashboardQueries) -> None:
 
     assert queries.open_findings().empty
     assert isinstance(queries.strategy_versions().shape[0], int)
+
+
+def test_the_records_the_worker_keeps_report_how_far_they_got(
+    queries: DashboardQueries, populated: Path
+) -> None:
+    """One run writes the signal, the track record and the regime memory."""
+    version = queries.active_strategy_version()
+    state = queries.latest_state(version)
+    assert state is not None
+    progress = queries.record_progress(version)
+
+    assert str(progress["signal"]) == str(state["observation_date"])
+    assert progress["regime_memory"] == progress["signal"]
+    assert set(progress) == {"signal", "track_record", "regime_memory"}
+    # An unknown version, and no version at all, have reached nowhere.
+    assert set(queries.record_progress("v-none").values()) == {None}
+    assert set(queries.record_progress(None).values()) == {None}
+
+
+def test_progress_survives_a_database_from_before_the_newer_tables(populated: Path) -> None:
+    from fear_ladder.data.repositories.connection import connect
+
+    connection = connect(populated)
+    try:
+        connection.execute("DROP TABLE regime_memory")
+        connection.execute("DROP TABLE track_record")
+    finally:
+        connection.close()
+
+    queries = DashboardQueries(db_path=populated)
+    progress = queries.record_progress(queries.active_strategy_version())
+    assert progress["signal"] is not None
+    assert progress["track_record"] is None
+    assert progress["regime_memory"] is None
 
 
 def test_an_empty_database_reads_as_empty(db_path: Path) -> None:
@@ -426,7 +462,10 @@ def test_the_streamlit_page_renders_without_error(
     assert not app.error, [item.value for item in app.error]
 
     labels = {metric.label for metric in app.metric}
-    assert {"Regime", "Market Score", "Target Leverage", "Last Update"} <= labels
+    assert {"단계", "종합점수", "목표 레버리지"} <= labels
+    # The last slot says when the minimum hold ends, or that it has; it falls
+    # back to the as-of date only when the engine's count is not stored.
+    assert labels & {"잠금 해제까지", "최소 유지 기간", "기준일"}
 
     headers = {header.value for header in app.header}
     assert {"오늘의 신호", "기록", "이벤트", "운영"} <= headers

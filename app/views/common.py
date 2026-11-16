@@ -11,12 +11,13 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import streamlit as st
+from pandas import DataFrame, Timestamp
 
 from fear_ladder import paths
 from fear_ladder.constants import UNKNOWN_REGIME
@@ -58,6 +59,7 @@ BENCHMARK_COLOUR = "#8c8f96"
 RAILING_COLOUR = "#b2182b"
 
 PERFORMANCE_REPORT = paths.REPORTS_DIR / "performance.json"
+EQUITY_CURVE = paths.REPORTS_DIR / "equity_curve.json"
 STRATEGY_LABEL = "전략"
 BENCHMARK_LABEL = "QQQ"
 
@@ -158,6 +160,20 @@ def performance_report(path: str | None = None) -> dict[str, Any] | None:
     return json.loads(target.read_text(encoding="utf-8"))
 
 
+
+
+@st.cache_data(ttl=CACHE_SECONDS)
+def equity_curve(path: str | None = None) -> dict[str, Any] | None:
+    """The frozen backtest's weekly equity and drawdown path, or ``None``.
+
+    Written by ``scripts/make_equity_curve.py``, which refuses to write a path
+    whose end does not match the totals in the performance report. Optional:
+    the page states the totals without it and draws them with it.
+    """
+    target = Path(path) if path else EQUITY_CURVE
+    if not target.is_file():
+        return None
+    return json.loads(target.read_text(encoding="utf-8"))
 
 
 @st.cache_data(ttl=CACHE_SECONDS)
@@ -288,6 +304,27 @@ def ratio(value: float | None, digits: int = 2) -> str:
 #: sleeve to the least — "TQQQ 17 · QLD 83", never the other way round.
 ASSET_ORDER = {"TQQQ": 3, "QLD": 2, "QQQ": 1, "CASH": 0}
 ASSET_LABELS = {"CASH": "현금"}
+
+#: The sleeves from the most aggressive down, named with what they multiply.
+ASSET_ROWS = {"TQQQ": "TQQQ 3x", "QLD": "QLD 2x", "QQQ": "QQQ 1x", "CASH": "현금"}
+
+#: One colour per sleeve, wherever a sleeve is drawn. The today tab used
+#: plotly's Set2 (QLD teal, QQQ orange) and the history tab its own four
+#: (QLD lilac, QQQ green), so the same holding changed colour between tabs.
+#:
+#: The three funds are one violet ramp, darker with leverage: the order is the
+#: information, and violet is the one hue no regime band, the strategy line or
+#: the lock already uses. Cash is a neutral because it is the absence of
+#: exposure rather than a fourth amount of it. Checked with the dataviz
+#: validator: the ramp is monotone with visible steps on both grounds, and the
+#: lightest step stays 19 dE from the cash grey (the old green and grey were
+#: 9.9 apart, under the 15 at which two fills read as different).
+SLEEVE_COLOURS = {
+    "TQQQ": "#5140b8",
+    "QLD": "#8172e0",
+    "QQQ": "#b0a7f0",
+    "CASH": "#7d8085",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -729,13 +766,27 @@ def band_opacity() -> float:
 #: also writes REGIME_CONFIRMED on every one of these rows, which says nothing
 #: a table of confirmed changes has not already said.
 DIRECTIONS = {
-    "MOVED_TOWARD_FEAR": "공포 쪽으로 한 칸",
-    "MOVED_TOWARD_GREED": "탐욕 쪽으로 한 칸",
+    "MOVED_TOWARD_FEAR": "공포 쪽으로",
+    "MOVED_TOWARD_GREED": "탐욕 쪽으로",
 }
 
 
-def change_direction(raw: object) -> str:
-    """Which way a stored regime change went, in words.
+def rungs_between(previous: object, new: object) -> int | None:
+    """How many rungs apart two regimes are, or ``None`` if either is unknown."""
+    order = regime_order()
+    if previous not in order or new not in order:
+        return None
+    return abs(order.index(str(new)) - order.index(str(previous)))
+
+
+def change_direction(raw: object, rungs: int | None = None) -> str:
+    """Which way a stored regime change went and how far, in words.
+
+    The distance is not in the reason codes — the engine records a direction —
+    so the caller supplies it from the two regimes. It used to be written as
+    "한 칸" on every row, which was wrong whenever the minimum hold released a
+    move the score had been pointing at for weeks: Optimism to Capitulation on
+    2025-04-07 is four rungs, not one.
 
     A change the stored history only caught up with later (the worker missed
     the day, or its rows came from a replay since put back on the backtest's
@@ -743,6 +794,7 @@ def change_direction(raw: object) -> str:
     date the change to a day on which the score did nothing of the kind.
     """
     items = reasons_of(raw)
+    distance = "" if not rungs else (" 한 칸" if rungs == 1 else f" {rungs}칸")
     moved = next(
         (
             f" · 실제 전환 {_split(item.code)[1]}"
@@ -753,8 +805,39 @@ def change_direction(raw: object) -> str:
     )
     for item in items:
         if (direction := DIRECTIONS.get(item.code)) is not None:
-            return direction + moved
+            return direction + distance + moved
     return " · ".join(item.text for item in items) or "—"
+
+
+def late_changes(events: Any) -> list[tuple[date, date]]:
+    """``(day the record changed, day the engine had changed)`` for each catch-up.
+
+    These are the days on which the stored path was put back on the engine's.
+    The paper account followed the stored path, so its line before such a day
+    is the result of a different sequence of signals than the engine's own.
+    """
+    if events is None or events.empty:
+        return []
+    found = []
+    for recorded, raw in zip(events["event_date"], events["reason_codes"], strict=True):
+        for item in reasons_of(raw):
+            name, argument = _split(item.code)
+            if name != "REGIME_CHANGED_ON":
+                continue
+            try:
+                found.append((date.fromisoformat(str(recorded)[:10]), date.fromisoformat(argument)))
+            except ValueError:
+                continue
+    return sorted(found)
+
+
+def _leverage_move(previous: object, new: object) -> str:
+    before, after = _number(previous), _number(new)
+    if before is None or after is None:
+        return "—"
+    if abs(before - after) < 5e-3:
+        return f"{after:.2f}x 그대로"
+    return f"{before:.2f}x → {after:.2f}x"
 
 
 def regime_event_table(events: Any) -> Any:
@@ -765,19 +848,297 @@ def regime_event_table(events: Any) -> Any:
     """
     if events is None or events.empty:
         return events
-    return (
-        events.assign(사유=lambda frame: frame["reason_codes"].map(change_direction))
-        .drop(columns=["reason_codes"])
-        .rename(
-            columns={
-                "event_date": "날짜",
-                "previous_regime": "이전 단계",
-                "new_regime": "새 단계",
-                "previous_score": "이전 점수",
-                "new_score": "새 점수",
-            }
+    reasons = [
+        change_direction(raw, rungs_between(previous, new))
+        for raw, previous, new in zip(
+            events["reason_codes"], events["previous_regime"], events["new_regime"], strict=True
         )
+    ]
+    table = events.assign(사유=reasons).drop(columns=["reason_codes"])
+    if {"previous_leverage", "new_leverage"} <= set(table.columns):
+        # One column, written the way the alert says it: what it was, what it is.
+        table.insert(
+            3,
+            "목표 레버리지",
+            [
+                _leverage_move(previous, new)
+                for previous, new in zip(
+                    table["previous_leverage"], table["new_leverage"], strict=True
+                )
+            ],
+        )
+        table = table.drop(columns=["previous_leverage", "new_leverage"])
+    return table.rename(
+        columns={
+            "event_date": "날짜",
+            "previous_regime": "이전 단계",
+            "new_regime": "새 단계",
+            "previous_score": "이전 점수",
+            "new_score": "새 점수",
+        }
     )
+
+
+# ---------------------------------------------------------- today's action
+
+
+@dataclass(frozen=True, slots=True)
+class Rebalance:
+    """What changed between yesterday's target and today's, sleeve by sleeve."""
+
+    moves: tuple[tuple[str, float, float], ...]
+    holding: tuple[tuple[str, float], ...]
+
+    @property
+    def needed(self) -> bool:
+        return bool(self.moves)
+
+    def describe_moves(self) -> str:
+        return " · ".join(
+            f"{ASSET_LABELS.get(asset, asset)} {before * 100:.0f}% → {after * 100:.0f}%"
+            for asset, before, after in self.moves
+        )
+
+    def describe_holding(self) -> str:
+        return " · ".join(
+            f"{ASSET_LABELS.get(asset, asset)} {weight * 100:.0f}%"
+            for asset, weight in self.holding
+        )
+
+
+def rebalance(
+    previous: Mapping[str, float] | None,
+    current: Mapping[str, float] | None,
+    *,
+    tolerance: float = 5e-3,
+) -> Rebalance | None:
+    """Compare two target allocations; ``None`` when there is nothing to compare.
+
+    The strategy trades only when its target changes, so "is today's target
+    yesterday's?" is the whole of what a reader has to do today. Everything
+    else on the page explains the answer.
+    """
+    if not previous or not current:
+        return None
+
+    def ordered(names: set[str]) -> list[str]:
+        return sorted(names, key=lambda name: -ASSET_ORDER.get(name, 0))
+
+    moves = tuple(
+        (asset, float(previous.get(asset, 0.0)), float(current.get(asset, 0.0)))
+        for asset in ordered(set(previous) | set(current))
+        if abs(float(previous.get(asset, 0.0)) - float(current.get(asset, 0.0))) > tolerance
+    )
+    holding = tuple(
+        (asset, float(current[asset]))
+        for asset in ordered(set(current))
+        if float(current[asset]) > tolerance
+    )
+    return Rebalance(moves=moves, holding=holding)
+
+
+# ------------------------------------------------- when the minimum hold ends
+
+
+def _market_holidays() -> Any:
+    """NYSE full-day closures, as rules rather than a table that goes stale."""
+    from pandas.tseries.holiday import (
+        AbstractHolidayCalendar,
+        GoodFriday,
+        Holiday,
+        USLaborDay,
+        USMartinLutherKingJr,
+        USMemorialDay,
+        USPresidentsDay,
+        USThanksgivingDay,
+        nearest_workday,
+    )
+
+    class _Exchange(AbstractHolidayCalendar):
+        rules = [  # noqa: RUF012 - pandas reads this as a class attribute
+            Holiday("New Year", month=1, day=1, observance=nearest_workday),
+            USMartinLutherKingJr,
+            USPresidentsDay,
+            GoodFriday,
+            USMemorialDay,
+            Holiday(
+                "Juneteenth", month=6, day=19, start_date="2022-06-19",
+                observance=nearest_workday,
+            ),
+            Holiday("Independence Day", month=7, day=4, observance=nearest_workday),
+            USLaborDay,
+            USThanksgivingDay,
+            Holiday("Christmas", month=12, day=25, observance=nearest_workday),
+        ]
+
+    return _Exchange()
+
+
+def trading_day_after(start: date, sessions: int) -> date | None:
+    """The date ``sessions`` US trading days after ``start``.
+
+    An estimate, and labelled as one where it is shown: the rules above cover
+    the scheduled closures, not an unscheduled one, and the engine counts the
+    days it actually scored rather than the days the exchange was open.
+    """
+    if sessions <= 0:
+        return None
+    from pandas.tseries.offsets import CustomBusinessDay
+
+    step = CustomBusinessDay(calendar=_market_holidays())
+    return (Timestamp(start) + sessions * step).date()
+
+
+@dataclass(frozen=True, slots=True)
+class HoldRelease:
+    """How long the minimum hold still keeps the current rung in place."""
+
+    held: int
+    required: int
+    remaining: int
+    expected: date | None
+
+    @property
+    def released(self) -> bool:
+        return self.remaining <= 0
+
+
+def hold_release(
+    run: Streak | None, required: object, as_of: object
+) -> HoldRelease | None:
+    """When the rung held today stops being protected by the minimum hold."""
+    days = _number(required)
+    if run is None or not days:
+        return None
+    needed = int(days)
+    remaining = max(needed - int(run.days), 0)
+    try:
+        start = date.fromisoformat(str(as_of)[:10])
+    except ValueError:
+        return None
+    return HoldRelease(
+        held=int(run.days),
+        required=needed,
+        remaining=remaining,
+        expected=trading_day_after(start, remaining),
+    )
+
+
+# --------------------------------------------------------------- operations
+
+RUN_STATUS = {
+    "SUCCESS": "성공",
+    "DATA_FAILURE": "데이터 실패",
+    "FAILED": "실패",
+    "SKIPPED": "건너뜀",
+}
+
+STAGES = {
+    "collect": "수집",
+    "validate": "신선도 검사",
+    "indicators": "지표 계산",
+    "score": "점수",
+    "regime": "단계 판정",
+    "allocation": "배분",
+    "persistence": "저장",
+    "events": "이벤트",
+    "alert": "알림",
+    "track_record": "모의 성과",
+}
+
+RECORDS = {
+    "signal": "신호",
+    "track_record": "모의 성과",
+    "regime_memory": "단계 기억",
+}
+
+
+def _elapsed(started: object, finished: object) -> str:
+    try:
+        seconds = (
+            datetime.fromisoformat(str(finished)) - datetime.fromisoformat(str(started))
+        ).total_seconds()
+    except (TypeError, ValueError):
+        return "—"
+    return f"{seconds:.0f}초" if seconds >= 10 else f"{seconds:.1f}초"
+
+
+def run_table(runs: Any) -> Any:
+    """The run log as a person reads it, not as it is stored.
+
+    Stored: UTC instants to the microsecond, an English status, the name of the
+    last stage reached, and ``None`` where nothing went wrong. A reader wants to
+    know when it ran on their own clock, how long it took and whether it
+    worked — and, only when it did not, where it stopped and why.
+    """
+    if runs is None or runs.empty:
+        return runs
+    failed = runs["status"] != "SUCCESS"
+    stopped = runs["stage"].map(lambda stage: STAGES.get(str(stage), str(stage)))
+    return DataFrame(
+        {
+            "실행일 (UTC)": runs["run_date"].astype(str),
+            "시작 (KST)": runs["started_at"].map(
+                lambda stamp: (local_time(stamp) or "—").removesuffix(" KST")
+            ),
+            "걸린 시간": [
+                _elapsed(started, finished)
+                for started, finished in zip(runs["started_at"], runs["finished_at"], strict=True)
+            ],
+            "결과": runs["status"].map(lambda status: RUN_STATUS.get(str(status), str(status))),
+            "멈춘 단계": stopped.where(failed, "—"),
+            # A missing message arrives as None from SQLite and as NaN once
+            # pandas has held it, and NaN is truthy.
+            "오류": runs["error_message"].map(
+                lambda text: text if isinstance(text, str) and text else "—"
+            ),
+        }
+    )
+
+
+def coverage_table(coverage: Any) -> Any:
+    """Stored inputs per source, with the grade column named for what it counts."""
+    if coverage is None or coverage.empty:
+        return coverage
+    return coverage.rename(
+        columns={
+            "symbol": "소스",
+            "rows": "행 수",
+            "first": "처음",
+            "latest": "최신",
+            "flagged": "재구성 등급 행",
+        }
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class RecordProgress:
+    """Whether the worker's three records have all reached the same day."""
+
+    signal: date | None
+    behind: tuple[tuple[str, date | None], ...]
+
+    @property
+    def level(self) -> bool:
+        return self.signal is not None and not self.behind
+
+
+def record_progress(progress: dict[str, date | None] | None) -> RecordProgress:
+    """Compare the paper track record and the regime memory against the signal.
+
+    The signal is the reference because it is what a reader acts on; the other
+    two exist to explain it. One of them falling behind does not make the
+    signal wrong today, but it does mean tomorrow's is computed, or reported,
+    from something stale.
+    """
+    progress = progress or {}
+    signal = progress.get("signal")
+    behind = tuple(
+        (RECORDS[name], progress.get(name))
+        for name in ("track_record", "regime_memory")
+        if signal is not None and (progress.get(name) is None or progress[name] < signal)
+    )
+    return RecordProgress(signal=signal, behind=behind)
 
 
 # ------------------------------------------------------------------ streaks

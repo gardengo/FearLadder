@@ -50,7 +50,9 @@ st.set_page_config(
     page_title="FearLadder",
     page_icon=str(FAVICON) if FAVICON.is_file() else "📈",
     layout="wide",
-    initial_sidebar_state="expanded",
+    # "auto", not "expanded": on a phone an expanded sidebar opens over the
+    # page and the first thing a reader sees is the legend, not the signal.
+    initial_sidebar_state="auto",
 )
 
 #: Label, module, and whether the tab needs a stored strategy version.

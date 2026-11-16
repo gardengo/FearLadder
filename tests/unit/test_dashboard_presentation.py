@@ -421,13 +421,27 @@ def test_every_regime_colour_gets_a_readable_label() -> None:
 def test_a_change_reads_as_a_direction_not_a_code() -> None:
     toward_fear = '["REGIME_CONFIRMED","MOVED_TOWARD_FEAR"]'
     toward_greed = '["REGIME_CONFIRMED","MOVED_TOWARD_GREED"]'
-    assert common.change_direction(toward_fear) == "공포 쪽으로 한 칸"
-    assert common.change_direction(toward_greed) == "탐욕 쪽으로 한 칸"
+    # The codes carry a direction and nothing else.
+    assert common.change_direction(toward_fear) == "공포 쪽으로"
+    assert common.change_direction(toward_greed) == "탐욕 쪽으로"
+    # The distance comes from the two regimes, and is not always one.
+    assert common.change_direction(toward_fear, 1) == "공포 쪽으로 한 칸"
+    assert common.change_direction(toward_fear, 4) == "공포 쪽으로 4칸"
+
+
+def test_the_distance_of_a_change_is_counted_in_rungs() -> None:
+    """Optimism to Panic on 2025-03-03 was written as "한 칸". It is three."""
+    assert common.rungs_between("Neutral", "Optimism") == 1
+    assert common.rungs_between("Optimism", "Panic") == 3
+    # Optimism sits between them: the hold released a move two rungs wide.
+    assert common.rungs_between("Greed", "Neutral") == 2
+    assert common.rungs_between("Neutral", "no-such-regime") is None
+    assert common.rungs_between(None, "Neutral") is None
 
 
 def test_a_change_the_record_caught_up_with_says_when_the_engine_moved() -> None:
     late = '["REGIME_CHANGED_ON:2026-10-02","MOVED_TOWARD_GREED"]'
-    text = common.change_direction(late)
+    text = common.change_direction(late, 1)
 
     assert text.startswith("탐욕 쪽으로 한 칸")
     assert "2026-10-02" in text
@@ -458,7 +472,143 @@ def test_the_event_log_is_relabelled_for_a_reader() -> None:
     assert list(table.columns) == ["날짜", "이전 단계", "새 단계", "이전 점수", "새 점수", "사유"]
     # The stored JSON array must not survive into the page.
     assert "reason_codes" not in table.columns
-    assert table["사유"].iloc[0] == "공포 쪽으로 한 칸"
+    # Greed to Neutral passes over Optimism. This row used to say "한 칸".
+    assert table["사유"].iloc[0] == "공포 쪽으로 2칸"
+
+
+def test_the_event_log_shows_the_leverage_on_either_side() -> None:
+    import pandas as pd
+
+    events = pd.DataFrame(
+        {
+            "event_date": ["2026-11-10", "2025-03-03", "2024-02-01"],
+            "previous_regime": ["Neutral", "Optimism", "Fear"],
+            "new_regime": ["Optimism", "Panic", "Neutral"],
+            "previous_score": [19.2, 30.0, 40.0],
+            "new_score": [19.0, 20.0, 45.0],
+            "reason_codes": [
+                '["REGIME_CHANGED_ON:2026-10-02","MOVED_TOWARD_GREED"]',
+                '["REGIME_CONFIRMED","MOVED_TOWARD_FEAR"]',
+                '["REGIME_CONFIRMED","MOVED_TOWARD_GREED"]',
+            ],
+            "previous_leverage": [1.75, 1.3333333333, 0.5],
+            "new_leverage": [1.3333333333, 2.5, None],
+        }
+    )
+    table = common.regime_event_table(events)
+
+    assert list(table.columns) == [
+        "날짜", "이전 단계", "새 단계", "목표 레버리지", "이전 점수", "새 점수", "사유",
+    ]
+    assert table["목표 레버리지"].tolist() == ["1.75x → 1.33x", "1.33x → 2.50x", "—"]
+    assert table["사유"].iloc[0] == "탐욕 쪽으로 한 칸 · 실제 전환 2026-10-02"
+    assert table["사유"].iloc[1] == "공포 쪽으로 3칸"
+
+
+def test_the_days_the_record_was_put_back_on_the_engines_path_are_found() -> None:
+    from datetime import date
+
+    import pandas as pd
+
+    events = pd.DataFrame(
+        {
+            "event_date": ["2026-11-10", "2026-08-21"],
+            "reason_codes": [
+                '["REGIME_CHANGED_ON:2026-10-02","MOVED_TOWARD_GREED"]',
+                '["REGIME_CONFIRMED","MOVED_TOWARD_FEAR"]',
+            ],
+        }
+    )
+    assert common.late_changes(events) == [(date(2026, 11, 10), date(2026, 10, 2))]
+    assert common.late_changes(pd.DataFrame()) == []
+    assert common.late_changes(None) == []
+
+
+# ------------------------------------------------------------ today's action
+
+
+def test_an_unchanged_target_asks_for_nothing() -> None:
+    same = common.rebalance(
+        {"QLD": 0.3333333333, "QQQ": 0.6666666667},
+        {"QLD": 0.3333333333, "QQQ": 0.6666666667, "CASH": 0.0},
+    )
+    assert same is not None
+    assert not same.needed
+    # Most aggressive sleeve first, the way the ladder table reads; a sleeve
+    # held at zero is not a holding.
+    assert same.describe_holding() == "QLD 33% · QQQ 67%"
+
+
+def test_a_changed_target_says_which_sleeves_moved_and_by_how_much() -> None:
+    change = common.rebalance(
+        {"QLD": 0.75, "QQQ": 0.25}, {"QLD": 0.3333333333, "QQQ": 0.6666666667}
+    )
+    assert change is not None
+    assert change.needed
+    assert change.describe_moves() == "QLD 75% → 33% · QQQ 25% → 67%"
+
+
+def test_a_sleeve_that_appears_or_disappears_is_a_move() -> None:
+    change = common.rebalance({"QQQ": 0.9166666667, "CASH": 0.0833333333}, {"TQQQ": 1.0})
+    assert change is not None
+    assert change.describe_moves() == "TQQQ 0% → 100% · QQQ 92% → 0% · 현금 8% → 0%"
+    # With nothing to compare against there is no answer, not "nothing to do".
+    assert common.rebalance(None, {"QQQ": 1.0}) is None
+    assert common.rebalance({"QQQ": 1.0}, {}) is None
+
+
+# ------------------------------------------------- when the minimum hold ends
+
+
+def test_the_release_date_skips_weekends_and_exchange_holidays() -> None:
+    from datetime import date
+
+    # Thanksgiving 2026 is Thursday 11-26; Christmas falls on a Friday.
+    assert common.trading_day_after(date(2026, 11, 25), 1) == date(2026, 11, 27)
+    assert common.trading_day_after(date(2026, 12, 24), 1) == date(2026, 12, 28)
+    # Good Friday is an exchange holiday that no federal calendar lists.
+    assert common.trading_day_after(date(2026, 4, 2), 1) == date(2026, 4, 6)
+    # Veterans Day is a federal holiday the exchange trades through.
+    assert common.trading_day_after(date(2026, 11, 10), 1) == date(2026, 11, 11)
+    assert common.trading_day_after(date(2026, 11, 13), 0) is None
+
+
+def test_the_hold_release_counts_down_from_the_engines_own_number() -> None:
+    from datetime import date
+
+    run = common.Streak(
+        regime="Optimism", days=31, since=date(2026, 10, 2), previous="Neutral",
+        previous_days=65,
+    )
+    release = common.hold_release(run, 75, "2026-11-13")
+
+    assert release is not None
+    assert (release.held, release.required, release.remaining) == (31, 75, 44)
+    assert not release.released
+    # 44 sessions on, past Thanksgiving, Christmas, New Year and MLK day.
+    assert release.expected == date(2027, 1, 20)
+
+
+def test_a_hold_already_served_is_released() -> None:
+    from datetime import date
+
+    run = common.Streak(
+        regime="Neutral", days=90, since=date(2026, 6, 11), previous="Fear",
+        previous_days=75,
+    )
+    release = common.hold_release(run, 75, "2026-10-01")
+    assert release is not None
+    assert release.released
+    assert release.expected is None
+    # Without the engine's count, or without the rule, there is nothing to say.
+    assert common.hold_release(None, 75, "2026-10-01") is None
+    assert common.hold_release(run, None, "2026-10-01") is None
+
+
+def test_every_sleeve_has_one_colour_for_every_chart() -> None:
+    """The today donut and the history stack used two unrelated palettes."""
+    assert set(common.SLEEVE_COLOURS) == set(common.ASSET_ORDER) == set(common.ASSET_ROWS)
+    assert len(set(common.SLEEVE_COLOURS.values())) == len(common.SLEEVE_COLOURS)
 
 
 def test_an_empty_event_log_passes_through() -> None:
@@ -467,6 +617,99 @@ def test_an_empty_event_log_passes_through() -> None:
     empty = pd.DataFrame()
     assert common.regime_event_table(empty).empty
     assert common.regime_event_table(None) is None
+
+
+# --------------------------------------------------------------- operations
+
+
+def test_the_run_log_is_shown_on_the_readers_clock_with_a_duration() -> None:
+    """The stored row is UTC to the microsecond, in English, with a literal None."""
+    import pandas as pd
+
+    runs = pd.DataFrame(
+        {
+            "run_date": ["2026-11-14", "2026-11-13"],
+            "status": ["SUCCESS", "DATA_FAILURE"],
+            "stage": ["track_record", "validate"],
+            "started_at": [
+                "2026-11-14T12:48:02.476121+00:00",
+                "2026-11-13T13:43:51.296192+00:00",
+            ],
+            "finished_at": [
+                "2026-11-14T12:48:09.051025+00:00",
+                "2026-11-13T13:44:21.296192+00:00",
+            ],
+            "error_message": [None, "STALE:QQQ"],
+            "strategy_version": ["v1.0-frozen", "v1.0-frozen"],
+        }
+    )
+    table = common.run_table(runs)
+
+    assert list(table.columns) == [
+        "실행일 (UTC)", "시작 (KST)", "걸린 시간", "결과", "멈춘 단계", "오류",
+    ]
+    done, failed = table.iloc[0], table.iloc[1]
+    # 12:48 UTC is 21:48 in Seoul, the same day.
+    assert done["시작 (KST)"] == "11-14 21:48"
+    assert done["걸린 시간"] == "6.6초"
+    assert (done["결과"], done["멈춘 단계"], done["오류"]) == ("성공", "—", "—")
+    # A run that worked reached the last stage; saying so is noise. One that
+    # did not is exactly when the stage is worth a column.
+    assert (failed["결과"], failed["멈춘 단계"]) == ("데이터 실패", "신선도 검사")
+    assert failed["걸린 시간"] == "30초"
+    assert failed["오류"] == "STALE:QQQ"
+
+
+def test_an_empty_run_log_passes_through() -> None:
+    import pandas as pd
+
+    assert common.run_table(pd.DataFrame()).empty
+    assert common.run_table(None) is None
+    assert common.coverage_table(None) is None
+
+
+def test_the_grade_column_is_not_called_flagged() -> None:
+    """Every CNN row is REVIEW-grade by construction; "flagged" read as 1254 errors."""
+    import pandas as pd
+
+    coverage = pd.DataFrame(
+        {
+            "symbol": ["CNN_FEAR_GREED"],
+            "rows": [1254],
+            "first": ["2021-11-15"],
+            "latest": ["2026-11-13"],
+            "flagged": [1254],
+        }
+    )
+    assert list(common.coverage_table(coverage).columns) == [
+        "소스", "행 수", "처음", "최신", "재구성 등급 행",
+    ]
+
+
+def test_the_three_records_are_level_when_they_reach_the_same_day() -> None:
+    from datetime import date
+
+    day = date(2026, 11, 13)
+    level = common.record_progress(
+        {"signal": day, "track_record": day, "regime_memory": day}
+    )
+    assert level.level
+    assert level.behind == ()
+
+
+def test_a_record_that_fell_behind_the_signal_is_named() -> None:
+    """The signal carrying on while the memory stops is the case worth a warning."""
+    from datetime import date
+
+    day = date(2026, 11, 13)
+    late = common.record_progress(
+        {"signal": day, "track_record": date(2026, 11, 12), "regime_memory": None}
+    )
+    assert not late.level
+    assert late.behind == (("모의 성과", date(2026, 11, 12)), ("단계 기억", None))
+    # Nothing recorded at all is not "behind": there is nothing to compare with.
+    assert common.record_progress(None).signal is None
+    assert not common.record_progress({}).behind
 
 
 def test_bands_are_painted_harder_on_the_dark_ground(

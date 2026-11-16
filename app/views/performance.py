@@ -15,12 +15,20 @@ complexity.
 
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
+from plotly.subplots import make_subplots
 
 from views.common import (
+    BENCHMARK_COLOUR,
+    BENCHMARK_LABEL,
+    STRATEGY_COLOUR,
     STRATEGY_LABEL,
+    equity_curve,
     fixed_at_freeze,
     missing_report_notice,
     performance_report,
@@ -63,14 +71,42 @@ def render() -> None:
     overall = report["overall"]
     strategy = overall[STRATEGY_LABEL]
 
+    # Each headline number with the same number for simply holding QQQ under
+    # it. On their own they had no scale: 18.88% a year is impressive or
+    # ordinary depending entirely on what the index did over the same years.
+    held = overall.get(BENCHMARK_LABEL)
+
+    def beside(text: str) -> dict[str, object]:
+        if held is None:
+            return {}
+        return {
+            "delta": f"{BENCHMARK_LABEL} 보유 {text}",
+            "delta_color": "off",
+            "delta_arrow": "off",
+        }
+
     columns = st.columns(4)
-    columns[0].metric("연 수익률 (CAGR)", f"{strategy['cagr'] * 100:.2f}%")
+    columns[0].metric(
+        "연 수익률 (CAGR)",
+        f"{strategy['cagr'] * 100:.2f}%",
+        **beside(f"{held['cagr'] * 100:.2f}%" if held else ""),
+    )
     columns[1].metric(
         "최대낙폭", f"{strategy['max_drawdown'] * 100:.1f}%",
         help="고점 대비 가장 깊이 내려간 폭. 실제로 견뎌야 하는 숫자입니다.",
+        **beside(f"{held['max_drawdown'] * 100:.1f}%" if held else ""),
     )
-    columns[2].metric("Sharpe", f"{strategy['sharpe']:.2f}", help="현금 대비 초과수익 / 변동성")
-    columns[3].metric("최종 배수", f"{strategy['multiple']:.0f}x")
+    columns[2].metric(
+        "Sharpe", f"{strategy['sharpe']:.2f}", help="현금 대비 초과수익 / 변동성",
+        **beside(f"{held['sharpe']:.2f}" if held else ""),
+    )
+    columns[3].metric(
+        "최종 배수",
+        f"{strategy['multiple']:.0f}x",
+        **beside(f"{held['multiple']:.0f}x" if held else ""),
+    )
+
+    _curves(report)
 
     st.divider()
     _risk_matched(report)
@@ -80,6 +116,99 @@ def render() -> None:
     _episodes(report)
     st.divider()
     _full_grid(overall)
+
+
+def _curves(report: dict) -> None:
+    """The path behind the four numbers above: growth, and the falls on the way.
+
+    Two rows on one time axis rather than one chart with two scales. The upper
+    row is logarithmic — over thirty years a linear axis shows the last five
+    and flattens everything before 2015 into the floor, including the two
+    crashes this strategy was calibrated on.
+    """
+    curve = equity_curve()
+    if curve is None or curve.get("strategy_version") != report.get("strategy_version"):
+        return
+    dates = pd.to_datetime(curve["dates"])
+    series = (
+        (BENCHMARK_LABEL, BENCHMARK_COLOUR, 1.6),
+        (STRATEGY_LABEL, STRATEGY_COLOUR, 2.2),
+    )
+
+    # The deepest point of each line is named in the row's title rather than
+    # beside the trough: both bottomed in the same month, and two labels there
+    # sat on top of each other and of the lines.
+    troughs = []
+    for name, colour, _ in reversed(series):
+        falls = curve["drawdown"].get(name)
+        if falls:
+            worst = min(range(len(falls)), key=falls.__getitem__)
+            troughs.append(
+                f"<span style='color:{colour}'>●</span> {name} {falls[worst] * 100:.1f}% "
+                f"({dates[worst]:%Y-%m})"
+            )
+
+    figure = make_subplots(
+        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.62, 0.38],
+        subplot_titles=(
+            "1 을 넣었다면 (로그 축)",
+            "고점 대비 낙폭 — 가장 깊었던 곳: " + " · ".join(troughs),
+        ),
+    )
+    for name, colour, width in series:
+        equity = curve["equity"].get(name)
+        falls = curve["drawdown"].get(name)
+        if not equity or not falls:
+            continue
+        figure.add_trace(
+            go.Scatter(
+                x=dates, y=equity, name=name, line={"color": colour, "width": width},
+                hovertemplate="%{y:.1f}x<extra>" + name + "</extra>",
+            ),
+            row=1, col=1,
+        )
+        # Named at the end of the line it belongs to, with where it ended up.
+        figure.add_annotation(
+            # On a log axis an annotation's y is the exponent, not the value:
+            # given 202 it is placed at 10^202 and the axis stretches to reach it.
+            x=dates[-1], y=math.log10(equity[-1]), yref="y", xanchor="left", xshift=6,
+            text=f"{name} {equity[-1]:.0f}x", showarrow=False,
+            font={"size": 12}, row=1, col=1,
+        )
+        figure.add_trace(
+            go.Scatter(
+                x=dates, y=falls, name=name, showlegend=False,
+                line={"color": colour, "width": width},
+                hovertemplate="%{y:.1%}<extra>" + name + "</extra>",
+            ),
+            row=2, col=1,
+        )
+        worst = min(range(len(falls)), key=falls.__getitem__)
+        figure.add_trace(
+            go.Scatter(
+                x=[dates[worst]], y=[falls[worst]], mode="markers", showlegend=False,
+                marker={"size": 9, "color": colour, "line": {"color": "#f5f5f5", "width": 2}},
+                hoverinfo="skip",
+            ),
+            row=2, col=1,
+        )
+
+    figure.update_yaxes(type="log", tickvals=[1, 3, 10, 30, 100, 300], ticksuffix="x",
+                        row=1, col=1)
+    figure.update_yaxes(tickformat=".0%", range=[-1.0, 0.02], row=2, col=1)
+    figure.update_layout(
+        height=560, hovermode="x unified", showlegend=False,
+        # Room on the right for the two end-of-line labels.
+        margin={"l": 8, "r": 84, "t": 40, "b": 8},
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    st.plotly_chart(figure, width="stretch")
+    st.caption(
+        "주 단위로 그렸습니다 — 위 칸은 그 주의 마지막 값, 아래 칸은 그 주의 **가장 깊은** "
+        "낙폭이라 바닥의 깊이는 일별 계산과 같습니다. 낙폭은 각자의 직전 고점에서 잰 "
+        "것이므로, 아래 칸에서 전략 선이 QQQ 보다 위에 있는 구간이 덜 빠진 구간이고 "
+        "아래에 있는 구간이 레버리지의 대가를 치른 구간입니다."
+    )
 
 
 def _risk_matched(report: dict) -> None:

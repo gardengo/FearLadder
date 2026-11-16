@@ -262,17 +262,31 @@ class DashboardQueries:
     def regime_events(
         self, strategy_version: str | None = None, *, limit: int = 100
     ) -> DataFrame:
+        # The leverage on either side of the change is what a reader acts on,
+        # and it is not a property of the two regimes alone: the trend filter
+        # can cap it. So it is read from the states stored for the day of the
+        # change and for the last day before it.
         sql = (
-            "SELECT event_date, previous_regime, new_regime, previous_score, "
-            "new_score, reason_codes FROM regime_events"
+            "SELECT e.event_date, e.previous_regime, e.new_regime, e.previous_score, "
+            "e.new_score, e.reason_codes, "
+            "(SELECT s.target_leverage FROM market_states s "
+            " WHERE s.strategy_version = e.strategy_version "
+            " AND s.observation_date < e.event_date "
+            " ORDER BY s.observation_date DESC LIMIT 1) AS previous_leverage, "
+            "(SELECT s.target_leverage FROM market_states s "
+            " WHERE s.strategy_version = e.strategy_version "
+            " AND s.observation_date = e.event_date) AS new_leverage "
+            "FROM regime_events e"
         )
         params: list[object] = []
         if strategy_version:
-            sql += " WHERE strategy_version = ?"
+            sql += " WHERE e.strategy_version = ?"
             params.append(strategy_version)
         with read_only(self.db_path) as connection:
             return pd.read_sql_query(
-                sql + " ORDER BY event_date DESC LIMIT ?", connection, params=[*params, limit]
+                sql + " ORDER BY e.event_date DESC LIMIT ?",
+                connection,
+                params=[*params, limit],
             )
 
     def alert_events(self, *, limit: int = 100) -> DataFrame:
@@ -295,6 +309,43 @@ class DashboardQueries:
                 connection,
                 params=(limit,),
             )
+
+    def record_progress(self, strategy_version: str | None) -> dict[str, date | None]:
+        """How far each record the worker keeps has got: its newest date.
+
+        The signal, the paper track record and the regime memory are written by
+        the same run but in separate steps, and the last two were added after
+        the database was already in service. One of them stopping while the
+        signal carries on is exactly the failure a status page exists to show.
+        A table that does not exist yet reads as ``None``, like an empty one.
+        """
+        sources = {
+            "signal": ("market_states", "AND regime != 'UNKNOWN'"),
+            "track_record": ("track_record", ""),
+            "regime_memory": ("regime_memory", ""),
+        }
+        progress: dict[str, date | None] = dict.fromkeys(sources)
+        if not strategy_version:
+            return progress
+        with read_only(self.db_path) as connection:
+            tables = {
+                row[0]
+                for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                )
+            }
+            for name, (table, extra) in sources.items():
+                if table not in tables:
+                    continue
+                row = connection.execute(
+                    # The table names are the three literals above, never input.
+                    f"SELECT MAX(observation_date) FROM {table} "
+                    f"WHERE strategy_version = ? {extra}",
+                    (strategy_version,),
+                ).fetchone()
+                if row and row[0]:
+                    progress[name] = date.fromisoformat(str(row[0]))
+        return progress
 
     def open_findings(self) -> DataFrame:
         with read_only(self.db_path) as connection:

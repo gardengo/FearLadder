@@ -23,15 +23,20 @@ import streamlit as st
 from fear_ladder.constants import UNKNOWN_REGIME
 from fear_ladder.pipeline.queries import is_signal_stale
 from views.common import (
+    ASSET_LABELS,
+    ASSET_ORDER,
     CORE,
     RAILING_COLOUR,
     REGIME_COLOURS,
+    SLEEVE_COLOURS,
+    HoldRelease,
     Railing,
     Rung,
     band_opacity,
     carried,
     gates,
     halo,
+    hold_release,
     ladder,
     load,
     lock_colour,
@@ -40,6 +45,7 @@ from views.common import (
     railing,
     readable_on,
     reasons_of,
+    rebalance,
     regime_palette,
     rung_of,
     streak,
@@ -98,8 +104,11 @@ def render(version: str | None) -> None:
     run = carried(stored, memory)
     readings = _trend_readings(report)
     rail = _railing(state, report, readings)
+    release = hold_release(run, _minimum_duration(report), state["observation_date"])
 
-    _headline(state, run, rail)
+    if state["regime"] != UNKNOWN_REGIME and not is_signal_stale(state):
+        _action(version, history)
+    _headline(state, run, rail, release)
     _ladder(state, rungs, report)
     _lock(state, rungs, report, run)
     _caught_up(stored, run)
@@ -124,11 +133,58 @@ def render(version: str | None) -> None:
 # ------------------------------------------------------------------ headline
 
 
-def _headline(state: dict, run, rail: Railing | None) -> None:  # type: ignore[no-untyped-def]
+def _minimum_duration(report: dict | None) -> object:
+    return (report or {}).get("parameters", {}).get("transition", {}).get(
+        "minimum_duration_days"
+    )
+
+
+def _action(version: str | None, history: pd.DataFrame) -> None:
+    """The one line a reader came for: is there anything to do today?
+
+    Everything below it explains a signal; none of it said whether the signal
+    asks for a trade. The strategy trades only when its target changes, so the
+    answer is a comparison of the last two stored targets.
+    """
+    if not version:
+        return
+    allocations = load("allocation_history", version, days=STREAK_DAYS)
+    if len(allocations) < 2:
+        return
+    change = rebalance(
+        allocations.iloc[-2].to_dict(), allocations.iloc[-1].to_dict()
+    )
+    if change is None:
+        return
+    if not change.needed:
+        st.success(
+            f"**할 일 없음** — 목표 비중이 직전 거래일과 같습니다 "
+            f"({change.describe_holding()}).",
+            icon=":material/check_circle:",
+        )
+        return
+
+    leverage = ""
+    if len(history) >= 2:
+        before, after = history["target_leverage"].iloc[-2], history["target_leverage"].iloc[-1]
+        if pd.notna(before) and pd.notna(after):
+            leverage = f" · 레버리지 {before:.2f}x → {after:.2f}x"
+    st.warning(
+        f"**목표 비중이 바뀌었습니다** — {change.describe_moves()}{leverage}. "
+        "백테스트와 모의 계좌는 이 변경을 **다음 거래일 시가**에 체결한 것으로 계산합니다.",
+        icon=":material/swap_vert:",
+    )
+
+
+def _headline(  # type: ignore[no-untyped-def]
+    state: dict, run, rail: Railing | None, release: HoldRelease | None
+) -> None:
     columns = st.columns(5 if rail else 4)
 
     held = f"{run.days}일째" if run and run.regime == state["regime"] else None
-    columns[0].metric("Regime", str(state["regime"]), delta=held, delta_color="off")
+    columns[0].metric(
+        "단계", str(state["regime"]), delta=held, delta_color="off", delta_arrow="off"
+    )
 
     score = state["composite_score"]
     previous = state["previous_score"]
@@ -136,7 +192,7 @@ def _headline(state: dict, run, rail: Railing | None) -> None:  # type: ignore[n
     if score is not None and previous is not None:
         change = f"{score - float(previous):+.1f}"
     columns[1].metric(
-        "Market Score",
+        "종합점수",
         f"{score:.1f}" if score is not None else "—",
         delta=change,
         delta_color="off",
@@ -145,7 +201,7 @@ def _headline(state: dict, run, rail: Railing | None) -> None:  # type: ignore[n
 
     leverage = state["target_leverage"]
     columns[2].metric(
-        "Target Leverage",
+        "목표 레버리지",
         f"{leverage:.2f}x" if leverage is not None else "—",
         help="1·QQQ + 2·QLD + 3·TQQQ. 실현 수익률의 배수를 뜻하지 않습니다.",
     )
@@ -165,7 +221,43 @@ def _headline(state: dict, run, rail: Railing | None) -> None:  # type: ignore[n
                 "자세한 거리는 아래 «난간» 에 있습니다."
             ),
         )
-    columns[-1].metric("Last Update", str(state["observation_date"]))
+    _release_metric(columns[-1], release, state)
+
+
+def _release_metric(column, release: HoldRelease | None, state: dict) -> None:  # type: ignore[no-untyped-def]
+    """When the rung held today stops being protected by the minimum hold.
+
+    This slot used to repeat the as-of date, which the line under the page
+    title already gives. The date a reader cannot get anywhere else is the one
+    on which the ladder becomes free to move.
+    """
+    if release is None:
+        # No engine count to go by: fall back to the date rather than guess.
+        column.metric("기준일", str(state["observation_date"]))
+        return
+    explanation = (
+        f"한 번 들어간 단계는 최소 {release.required}거래일을 지킵니다. 그 전에는 점수가 "
+        "어디를 가리켜도 단계가 바뀌지 않습니다 (난간은 예외로, 언제든 레버리지를 묶을 "
+        "수 있습니다). 날짜는 미국 정규 휴장일을 반영한 추정입니다."
+    )
+    if release.released:
+        column.metric(
+            "최소 유지 기간",
+            "충족",
+            delta=f"{release.held} / {release.required}거래일",
+            delta_color="off",
+            delta_arrow="off",
+            help=explanation + " 지금은 점수가 경계선을 넘으면 단계가 바뀔 수 있습니다.",
+        )
+        return
+    column.metric(
+        "잠금 해제까지",
+        f"{release.remaining}거래일",
+        delta=f"{release.expected:%Y-%m-%d} 무렵" if release.expected else None,
+        delta_color="off",
+        delta_arrow="off",
+        help=explanation,
+    )
 
 
 # -------------------------------------------------------------------- ladder
@@ -734,12 +826,21 @@ def _allocation(version: str | None, state: dict, rungs: list[Rung]) -> None:
             "아래와 같이 바뀌었습니다."
         )
 
-    held = allocation[allocation["weight"] > 0]
+    held = allocation[allocation["weight"] > 0].assign(
+        sleeve=lambda frame: frame["asset"].map(lambda name: ASSET_LABELS.get(name, name)),
+        rank=lambda frame: frame["asset"].map(lambda name: -ASSET_ORDER.get(name, 0)),
+    ).sort_values("rank")
     st.plotly_chart(
         px.pie(
-            held, names="asset", values="weight", hole=0.45,
-            color_discrete_sequence=px.colors.qualitative.Set2,
-        ).update_traces(textinfo="label+percent"),
+            held, names="sleeve", values="weight", hole=0.45, color="asset",
+            # The same colour a sleeve has on the history tab's stack.
+            color_discrete_map=SLEEVE_COLOURS,
+        ).update_traces(
+            textinfo="label+percent", sort=False,
+            # A two-pixel gap in the page's own ground, so neighbouring slices
+            # are told apart by an edge as well as by a shade.
+            marker={"line": {"color": "rgba(0,0,0,0)", "width": 2}},
+        ),
         width="stretch",
     )
     st.dataframe(
