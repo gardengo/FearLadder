@@ -193,6 +193,114 @@ def test_days_the_worker_missed_are_stepped_on_its_next_run(
     assert _memory_days(twin) == [_day(offset).isoformat() for offset in (3, 2, 1, 0)]
 
 
+# ------------------------------------------------- days no run had recorded
+
+
+def _state(db: Path, config: AppConfig, day: date):  # type: ignore[no-untyped-def]
+    with SQLiteUnitOfWork(db) as uow:
+        row = uow.connection.execute(
+            "SELECT regime, composite_score, target_leverage, reason_codes "
+            "FROM market_states WHERE strategy_version = ? AND observation_date = ?",
+            (config.strategy.strategy_version, day.isoformat()),
+        ).fetchone()
+    return None if row is None else tuple(row)
+
+
+def test_a_skipped_day_that_changed_nothing_gets_its_row(
+    seeded: Path, twin: Path, placeholder_config
+) -> None:
+    """TASK-193. Three sessions in the first two months have no state at all.
+
+    The feed was a day late, the run that morning found nothing new, and the
+    next run recorded the day after. The skipped day was scored and stepped
+    through; it just never got a row.
+    """
+    for offset in (3, 2, 1, 0):
+        _run(seeded, placeholder_config, _day(offset))
+    _run(twin, placeholder_config, _day(3))
+    late = _run(twin, placeholder_config, TODAY)
+
+    # What the every-day worker stored says which skipped days carried no
+    # change: the same regime and the same leverage as the day before them.
+    expected: list[date] = []
+    last = _state(seeded, placeholder_config, _day(3))
+    for offset in (2, 1):
+        row = _state(seeded, placeholder_config, _day(offset))
+        if row is None or row[0] != last[0] or row[2] != pytest.approx(last[2]):
+            break
+        expected.append(_day(offset))
+        last = row
+    assert expected, "premise of the test: the first skipped day changed nothing"
+
+    assert list(late.recorded_late) == expected
+    for day in expected:
+        stored, on_time = _state(twin, placeholder_config, day), _state(
+            seeded, placeholder_config, day
+        )
+        assert stored is not None
+        # The same judgement the on-time run made …
+        assert stored[0] == on_time[0]
+        assert stored[1] == pytest.approx(on_time[1])
+        assert stored[2] == pytest.approx(on_time[2])
+        # … and it says who wrote it, and when.
+        assert f"RECORDED_LATE:{TODAY}" in stored[3]
+        assert "RECORDED_LATE" not in on_time[3]
+
+    # Today is unaffected by having been preceded by a late row or an on-time one.
+    assert _state(twin, placeholder_config, TODAY)[:3] == pytest.approx(
+        _state(seeded, placeholder_config, TODAY)[:3]
+    )
+    # A day on which nothing changed produces no event and no alert.
+    with SQLiteUnitOfWork(twin) as uow:
+        marks = ", ".join("?" for _ in expected)
+        dated = [day.isoformat() for day in expected]
+        assert uow.connection.execute(
+            f"SELECT COUNT(*) FROM regime_events WHERE event_date IN ({marks})", dated
+        ).fetchone()[0] == 0
+        assert uow.connection.execute(
+            f"SELECT COUNT(*) FROM alert_events WHERE event_date IN ({marks})", dated
+        ).fetchone()[0] == 0
+
+
+def test_a_skipped_day_that_changed_the_signal_is_left_for_today_to_announce(
+    seeded: Path, placeholder_config
+) -> None:
+    """Filling it in would make today look like a day on which nothing happened.
+
+    The change has to reach the reader, and what announces it is today's state
+    compared with the last stored one. The paper account has the same stake:
+    stored with its new target, the skipped day would have it trade at an open
+    that came before any run knew the signal.
+    """
+    before = _run(seeded, placeholder_config, _day(3))
+    assert before.state.regime not in (LOCKED, UNKNOWN_REGIME), "premise of the test"
+
+    # The engine has been in another regime since the last stored day: every
+    # skipped day differs from what is stored.
+    result = _run(seeded, placeholder_config, TODAY, _anchor(placeholder_config, as_of=_day(3)))
+
+    assert result.state.regime == LOCKED
+    assert result.recorded_late == ()
+    assert _state(seeded, placeholder_config, _day(2)) is None
+    assert _state(seeded, placeholder_config, _day(1)) is None
+    # So the change is still an event dated today, naming the engine's own day,
+    # and still an alert.
+    event = result.regime_event
+    assert event is not None
+    assert event.event_date == TODAY
+    assert event.reason_codes[0].startswith(f"{ReasonCode.CHANGED_EARLIER}:")
+    assert EventType.REGIME_CHANGED in {alert.event_type for alert in result.alerts.created}
+    # The regime rules stepped through the skipped days all the same.
+    assert _memory_days(seeded) == [_day(offset).isoformat() for offset in (3, 2, 1, 0)]
+
+
+def test_running_every_day_records_nothing_late(seeded: Path, placeholder_config) -> None:
+    for offset in (2, 1, 0):
+        assert _run(seeded, placeholder_config, _day(offset)).recorded_late == ()
+    # And a second run of the same day has nothing between it and the day before.
+    assert _run(seeded, placeholder_config, TODAY).recorded_late == ()
+
+
 # ----------------------------------------------------------------- the anchor
 
 

@@ -73,6 +73,21 @@ PY
 3. `Verify the database is still readable` 통과
 4. DB 가 바뀌었으면 `chore(data): daily state ...` 커밋
 
+### 하루가 늦게 기록됐다
+
+가격 피드가 하루 늦은 날(2026-09-22 는 다음 날 19:34 KST 에도 봉이 없었다)에는
+그날 아침의 실행들이 물러나고, 다음 날의 실행이 두 날을 함께 기록한다. `Daily run`
+로그에 이렇게 남는다:
+
+```
+stored 1 earlier session(s) no run had recorded, none of which changed the signal: 2026-09-22
+```
+
+뒤늦게 쓴 행은 사유에 `RECORDED_LATE:<기록한 날>` 이 붙는다. **신호가 바뀌지 않은
+날만** 이렇게 채워진다. 건너뛴 날에 단계나 목표 레버리지가 바뀌었다면 그날은
+비워 두고, 변경은 기록한 날의 이벤트(`실제 전환 <날짜>`)와 알림으로 나간다 —
+'기록' 탭 위쪽 줄에 "신호 기록이 없습니다" 로 그 날짜가 적힌다. 둘 다 정상이다.
+
 ### 네 번 모두 건너뛰었다
 
 `Is there anything to do?` 스텝의 로그에 이유가 한 줄로 있다.

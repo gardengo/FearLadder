@@ -47,7 +47,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
 
 import pandas as pd
@@ -95,6 +95,13 @@ DEFAULT_LOOKBACK_DAYS = 2000
 #: How many indicators to name in an alert.
 TOP_INDICATOR_COUNT = 3
 
+#: Marks a state stored by a later run than the one that should have written
+#: it, followed by the day that run recorded: ``RECORDED_LATE:2026-09-23``.
+RECORDED_LATE = "RECORDED_LATE"
+
+#: Two target leverages closer than this are the same target.
+_SAME_LEVERAGE = 1e-9
+
 
 class RegimeMemoryError(RuntimeError):
     """The regime replay has a state to resume from but cannot reach it."""
@@ -125,6 +132,9 @@ class DailyResult:
     #: ``None`` when the day produced no signal, or the record could not be
     #: extended. Neither stops the run.
     track_record: TrackRecordUpdate | None = None
+    #: Earlier sessions this run stored a state for because no run had: see
+    #: :meth:`DailyPipeline._record_skipped_days`.
+    recorded_late: tuple[date, ...] = ()
 
     @property
     def is_data_failure(self) -> bool:
@@ -320,6 +330,19 @@ class DailyPipeline:
         previous = uow.states.get_previous_state(  # type: ignore[attr-defined]
             observation_date, strategy_version=self.config.strategy.strategy_version
         )
+        skipped = self._record_skipped_days(
+            uow,
+            decisions,
+            indicator_results,
+            score_frame,
+            previous,
+            freshness,
+            observation_date,
+        )
+        if skipped:
+            # The day before today is now one of those, and it is the one
+            # today's change in score is measured from.
+            previous = skipped[-1]
         state = self._build_state(
             decision, allocation_decision, breakdown, previous, freshness
         )
@@ -382,6 +405,7 @@ class DailyPipeline:
             freshness=freshness,
             breakdown=breakdown,
             gate_passed=bool(allocation_decision.gate and allocation_decision.gate.allowed),
+            recorded_late=tuple(late.observation_date for late in skipped),
         )
         logger.info("%s", result.summary())
         return result
@@ -497,6 +521,95 @@ class DailyPipeline:
             trend_broken=self._trend_broken(indicator_results, day),
         )
         return self.allocations.allocate(decision.regime, day, context=context)
+
+    def _record_skipped_days(
+        self,
+        uow: object,
+        decisions: list[TransitionDecision],
+        indicator_results: dict[str, IndicatorResult],
+        score_frame: DataFrame,
+        previous: MarketState | None,
+        freshness: FreshnessReport,
+        observation_date: date,
+    ) -> list[MarketState]:
+        """Store a state for sessions between the last stored one and today.
+
+        A run records one day: the newest it can score. When the price feed is
+        a day late, that morning's run finds nothing new, and the next one
+        finds two days and records the second. The first was scored, and the
+        regime rules stepped through it, but it never got a row — three
+        sessions were lost this way in the first two months (2026-09-15, 09-16
+        and 09-22), and the history showed a hole on each.
+
+        Only days on which **nothing changed** are stored here: the same regime
+        and the same target leverage as the last stored state. That limit is
+        the point, not a shortcut.
+
+        * The paper track record trades on the stored target of each day, at
+          the next open. A skipped day stored with a *new* target would have
+          the account trade on a signal that nobody had yet — the run that
+          computed it came after that open.
+        * A change on a skipped day has to be announced, and what announces it
+          is the comparison between today and the last stored state. Filling
+          the day in between would make today look like a day on which nothing
+          happened.
+
+        So filling stops at the first skipped day that differs, and from there
+        the existing path takes over: today's state is stored against the last
+        stored one, the event says when the engine actually moved
+        (``REGIME_CHANGED_ON``), and the alert goes out today.
+
+        The rows are marked ``RECORDED_LATE`` with the day that stored them.
+        Their inputs are today's, and a source may have revised them since.
+        """
+        if previous is None or previous.target_leverage is None:
+            return []
+        version = self.config.strategy.strategy_version
+        stored: list[MarketState] = []
+        last = previous
+        for decision in decisions:
+            day = decision.observation_date
+            if not previous.observation_date < day < observation_date:
+                continue
+            if decision.score is None or decision.is_unknown_input:
+                continue  # dated by a source, but not a session that was scored
+            allocation = self._allocate(decision, indicator_results, day)
+            leverage = allocation.target_leverage
+            if (
+                decision.regime != last.regime
+                or leverage is None
+                or last.target_leverage is None
+                or abs(leverage - last.target_leverage) > _SAME_LEVERAGE
+            ):
+                break
+            state = self._build_state(
+                decision,
+                allocation,
+                self.scores.breakdown(score_frame, day),
+                last,
+                freshness,
+            )
+            state = replace(
+                state,
+                reason_codes=(*state.reason_codes, f"{RECORDED_LATE}:{observation_date}"),
+            )
+            uow.states.save_state(state, allocation.allocation)  # type: ignore[attr-defined]
+            uow.indicators.save_scores(  # type: ignore[attr-defined]
+                self.scores.to_domain_scores(score_frame, day), strategy_version=version
+            )
+            uow.indicators.save_values(  # type: ignore[attr-defined]
+                [result.to_domain(day) for result in indicator_results.values()]
+            )
+            stored.append(state)
+            last = state
+        if stored:
+            logger.info(
+                "stored %d earlier session(s) no run had recorded, none of which "
+                "changed the signal: %s",
+                len(stored),
+                ", ".join(str(state.observation_date) for state in stored),
+            )
+        return stored
 
     def _record_track(self, uow: object, day: date) -> TrackRecordUpdate | None:
         """Extend the paper track record through ``day``.

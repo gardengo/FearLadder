@@ -450,6 +450,13 @@ def test_a_change_the_record_caught_up_with_says_when_the_engine_moved() -> None
     assert common.reason("REGIME_MEMORY_OUT_OF_WINDOW").text != "REGIME_MEMORY_OUT_OF_WINDOW"
 
 
+def test_a_row_stored_by_a_later_run_says_so() -> None:
+    late = common.reason("RECORDED_LATE:2026-09-23")
+    assert late.kind == "info"
+    assert "2026-09-23" in late.text
+    assert late.text != "RECORDED_LATE:2026-09-23"
+
+
 def test_a_change_with_no_direction_still_says_something() -> None:
     assert common.change_direction("[]") == "—"
     assert "바뀌었습니다" in common.change_direction('["REGIME_CONFIRMED"]')

@@ -683,6 +683,11 @@ _REASONS: dict[str, tuple[str, Any]] = {
     "MOVED_TOWARD_GREED": ("change", "탐욕 쪽으로 한 칸 — 레버리지가 내려갑니다."),
     "INITIAL_REGIME": ("change", "첫 판정 — 비교할 이전 단계가 없습니다."),
     "REGIME_HELD": ("info", "점수가 같은 칸에 머물러 단계를 유지했습니다."),
+    "RECORDED_LATE": (
+        "info",
+        lambda a: f"이 날의 기록은 {a} 의 배치가 뒤늦게 채웠습니다 — 제날짜의 배치가 "
+        "돌았을 때는 입력이 다 모이지 않았고, 신호는 바뀌지 않은 날입니다.",
+    ),
     "UNKNOWN_INPUT": ("info", "필수 데이터를 믿을 수 없어 판정하지 않았습니다."),
     "REGIME_MAPPING": ("info", lambda a: f"{a} 단계의 배분표를 적용했습니다."),
     "TARGET_LEVERAGE": ("info", lambda a: f"목표 레버리지 {a}x."),

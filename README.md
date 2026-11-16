@@ -268,7 +268,7 @@ tests/          823개
 | 탐색 · 검증 · 최종 구간 | 전부 소비됨 |
 | 일일 파이프라인 | 동작 확인 완료 |
 | 대시보드 | 6개 탭 |
-| 테스트 | 900개 (`pytest -m "not network"`) |
+| 테스트 | 904개 (`pytest -m "not network"`) |
 
 고정된 설정은 `config/strategy.yaml`과 `config/frozen/v1.0-frozen.*`에 있습니다.
 **손으로 고치면 안 됩니다** — manifest가 그 숫자들에 대한 증거이고, 편집하면
