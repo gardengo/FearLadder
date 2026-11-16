@@ -11,19 +11,34 @@ name: daily-monitor
 # published the 11th as if it were current. The same bar was present by 05:15
 # UTC.
 #
-# So the run now happens the *morning after* each trading day: 06:00 UTC is
-# 02:00 EDT and 01:00 EST. Days 2-6 (Tue-Sat UTC) are the mornings that follow
-# Mon-Fri in New York. Running late costs nothing but freshness, and the
-# staleness tolerances have days of slack; running early costs a stale signal
-# that nothing flags.
+# So the run happens the *morning after* each trading day. Days 2-6 (Tue-Sat
+# UTC) are the mornings that follow Mon-Fri in New York.
 #
-# The job is a no-op on non-trading days by construction: the pipeline finds no
-# new data, reports the last trading day it already has, and the database ends
-# up unchanged, so nothing is committed.
+# TASK-189 — why there are four schedules and not one. A single `0 6 * * 2-6`
+# never started at 06:00: across its 45 runs from 2026-09-15 to 2026-11-14
+# GitHub started it 3.9 to 8.4 hours late (09:56-14:23 UTC, 5.7 hours on
+# average), and on 2026-11-12 it finished at 14:24 UTC, five minutes before the
+# US open that the signal is meant to be acted on. The
+# delay is GitHub's and cannot be configured, so the workflow is offered
+# several times, off the hour, and the first attempt that finds the day
+# complete does the work. The "Is there anything to do?" step is what keeps
+# four schedules from meaning four runs: see src/fear_ladder/pipeline/gate.py.
+#
+# Nothing earlier than 00:00 UTC is worth scheduling. The price feed is asked
+# for bars up to today's date and returns those that began before 00:00 UTC of
+# it, so a run on the same UTC date as the session cannot see that session.
+#
+# The last schedule is the one that runs no matter what the feeds carry. On a
+# market holiday it is the only one that does anything: the pipeline finds no
+# new data, reports the last trading day it already has, and commits a
+# database that differs only by the run it logged.
 
 on:
   schedule:
-    - cron: "0 6 * * 2-6" # the morning after each US trading day
+    - cron: "17 1 * * 2-6"
+    - cron: "17 3 * * 2-6"
+    - cron: "17 5 * * 2-6"
+    - cron: "17 8 * * 2-6" # the last attempt: keep in step with LAST_ATTEMPT_CRON
   workflow_dispatch:
     inputs:
       date:
@@ -52,6 +67,9 @@ permissions:
 
 env:
   PYTHONUTF8: "1"
+  # github.event.schedule carries the cron string that fired, which is the only
+  # way a run can tell which of the schedules above it is.
+  LAST_ATTEMPT_CRON: "17 8 * * 2-6"
 
 jobs:
   monitor:
@@ -72,8 +90,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
+      # Read-only, and before anything that takes time. An attempt that stands
+      # down must leave the database exactly as it found it, or it would be
+      # committed. Every step below is conditioned on this one; the condition
+      # is `!= 'false'` rather than `== 'true'` so that a gate which wrote
+      # nothing at all cannot be the reason the market went unmonitored.
+      - name: Is there anything to do?
+        id: gate
+        continue-on-error: true
+        run: |
+          python scripts/batch_gate.py \
+            ${{ github.event_name == 'workflow_dispatch' && '--manual' || '' }} \
+            ${{ github.event.schedule == env.LAST_ATTEMPT_CRON && '--last-attempt' || '' }}
+
+      - name: Stand down
+        if: steps.gate.outputs.run == 'false'
+        env:
+          REASON: ${{ steps.gate.outputs.reason }}
+        run: echo "::notice title=Nothing to do::$REASON"
+
       - name: Preflight — is the strategy frozen?
         id: preflight
+        if: steps.gate.outputs.run != 'false'
         run: |
           python - <<'PY' >> "$GITHUB_OUTPUT"
           from fear_ladder.config.loader import load_config
@@ -92,6 +130,7 @@ jobs:
       # wrong — and operating on it would emit a signal nobody researched.
       - name: Refuse to run on an unfrozen strategy
         if: >-
+          steps.gate.outputs.run != 'false' &&
           steps.preflight.outputs.ready != 'true' &&
           inputs.profile != 'placeholder'
         run: |
@@ -116,6 +155,7 @@ jobs:
       # a dashboard module must also survive being imported without the
       # `dashboard` extra. `pytest.importorskip` in those modules does that.
       - name: Run the tests that guard the pipeline
+        if: steps.gate.outputs.run != 'false'
         run: |
           pip install -e ".[dev]"
           pytest -m "not network and not dashboard" -q
@@ -126,6 +166,7 @@ jobs:
       # without them and has to fetch them each time.
       - name: Refresh the reference datasets
         id: reference
+        if: steps.gate.outputs.run != 'false'
         continue-on-error: true
         run: python scripts/fetch_reference.py
 
@@ -134,7 +175,7 @@ jobs:
       # did read. That is a quieter outcome than a crash and therefore the one
       # worth announcing — the live signal stops matching the backtested one.
       - name: Say so when a reference dataset is missing
-        if: steps.reference.outcome != 'success'
+        if: steps.gate.outputs.run != 'false' && steps.reference.outcome != 'success'
         run: |
           echo "::warning title=Reference data not refreshed::\
           scripts/fetch_reference.py failed, so AAII sentiment (5.6% of the \
@@ -144,6 +185,7 @@ jobs:
 
       - name: Daily run
         id: run
+        if: steps.gate.outputs.run != 'false'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
