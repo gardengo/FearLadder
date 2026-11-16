@@ -268,14 +268,16 @@ tests/          823개
 | 탐색 · 검증 · 최종 구간 | 전부 소비됨 |
 | 일일 파이프라인 | 동작 확인 완료 |
 | 대시보드 | 6개 탭 |
-| 테스트 | 823개 (`pytest -m "not network"`) |
+| 테스트 | 900개 (`pytest -m "not network"`) |
 
 고정된 설정은 `config/strategy.yaml`과 `config/frozen/v1.0-frozen.*`에 있습니다.
 **손으로 고치면 안 됩니다** — manifest가 그 숫자들에 대한 증거이고, 편집하면
 증거가 무효가 됩니다. 바꾸려면 탐색을 다시 하고 새 버전을 고정해야 합니다.
 
-일일 워커는 GitHub Actions 에서 미국 거래일 다음 날 아침(06:00 UTC)에 돌고 있고,
-바뀐 DB 를 스스로 커밋합니다 (`.github/workflows/daily_monitor.yml`).
+일일 워커는 GitHub Actions 에서 미국 거래일 다음 날 아침에 돌고 있고, 바뀐 DB 를
+스스로 커밋합니다 (`.github/workflows/daily_monitor.yml`). GitHub 가 예약 실행을
+몇 시간씩 늦게 시작하기 때문에 01:17 ~ 08:17 UTC 사이에 네 번 예약되어 있고,
+그날의 입력이 다 모인 것을 처음 확인한 실행 하나만 일을 합니다.
 
 ### 남은 것
 
