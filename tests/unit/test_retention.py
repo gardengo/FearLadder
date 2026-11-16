@@ -50,12 +50,32 @@ def test_a_weekly_source_counts_its_window_in_weeks(placeholder_config) -> None:
     assert required_trading_days(placeholder_config) >= spec.normalization.window * 5
 
 
-def test_the_shipped_strategy_needs_more_than_four_years() -> None:
+def test_the_shipped_strategy_needs_three_years_of_history() -> None:
     config = load_config()
-    assert required_trading_days(config) > TRADING_DAYS_PER_YEAR * 2
+    # 12-month momentum (252) ranked over a 504-day window: the two stack.
+    assert required_trading_days(config) == 252 + 504
     assert minimum_years(config) == pytest.approx(
         required_trading_days(config) * SAFETY_FACTOR / TRADING_DAYS_PER_YEAR
     )
+
+
+def test_an_indicators_own_lookback_is_added_to_its_normalisation_window() -> None:
+    """The larger of the two was taken, which left the burn-in out.
+
+    A value needs its lookback to exist at all; its score needs a full window
+    of such values. With one or the other the first scores are ranks within a
+    window that is still filling, and they change when more history is loaded.
+    """
+    config = load_config()
+    spans = {
+        name: (spec.normalization.window or 0, spec.params or {})
+        for name, spec in config.indicators.enabled_indicators.items()
+    }
+    window, params = spans["momentum_12m"]
+    assert required_trading_days(config) >= window + params["window"]
+    # A slope of an average chains two lookbacks before the window starts.
+    window, params = spans["ma_200_slope"]
+    assert required_trading_days(config) >= window + params["window"] + params["lookback"]
 
 
 def test_the_workflows_five_year_window_clears_the_floor() -> None:

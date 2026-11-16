@@ -28,18 +28,44 @@ TRADING_DAYS_PER_YEAR = 252
 #: Sources published once a week rather than once a trading day. Their windows
 #: are counted in weekly observations, so they span five times as many days.
 WEEKLY_SOURCES = frozenset({"AAII_SENTIMENT"})
-#: Margin over the bare requirement. A window sized exactly to the longest
-#: lookback leaves the oldest indicator with no burn-in at all.
-SAFETY_FACTOR = 2.0
+#: Margin over the requirement, for the days a calendar window does not
+#: deliver: holidays, a feed that skipped a session, a source that starts late.
+#:
+#: It was 2.0 while :func:`_span_of` took the *larger* of an indicator's own
+#: lookback and its normalisation window, and the doubling was standing in for
+#: the burn-in that formula left out. The span now counts the burn-in itself,
+#: so the margin only has to cover missing days.
+SAFETY_FACTOR = 1.25
 
 
 def _span_of(spec: IndicatorSpec) -> int:
-    """Longest trailing span this indicator reads, in trading days."""
+    """Trailing days this indicator needs before its score is the settled one.
+
+    The two windows stack. A 12-month momentum needs 252 days to produce one
+    value, and its score is that value's rank among the last 504 values — each
+    of which needed its own 252 days. So the first day whose score no longer
+    depends on where the history starts is day 252 + 504, not day 504.
+
+    Taking the larger of the two said 520 for the shipped strategy (AAII's 104
+    weekly observations) where the answer is 756, and it was measured: the same
+    date scored differently from 700 days of history than from 1,300. The
+    operational window (five years) was never short enough to show it, but the
+    first weeks of ``scripts/backfill_history.py``'s 2024 replay were.
+
+    Every integer parameter is counted, not just the largest, because they
+    chain as well: a 21-day slope of a 200-day average reads 221 days back.
+    That overstates a pair that overlaps (the 50- and 200-day averages of one
+    ratio) by the shorter of the two, which errs towards keeping more.
+    """
     window = spec.normalization.window or 0
     if spec.source in WEEKLY_SOURCES:
         window *= 5
-    params = [value for value in (spec.params or {}).values() if isinstance(value, int)]
-    return max([window, *params], default=0)
+    lookback = sum(
+        value
+        for value in (spec.params or {}).values()
+        if isinstance(value, int) and not isinstance(value, bool)
+    )
+    return window + lookback
 
 
 def required_trading_days(config: AppConfig) -> int:
