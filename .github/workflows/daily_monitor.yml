@@ -209,8 +209,11 @@ jobs:
           # research gate is what makes that possible. The scheduled path never
           # takes this branch.
           FEAR_LADDER_ALLOW_RESEARCH_PARAMS: ${{ inputs.profile == 'placeholder' && '1' || '' }}
+        # TASK-196: an attempt nobody asked for never rewrites a day already
+        # recorded. Only a person's dispatch recomputes one.
         run: |
           python scripts/daily_runner.py \
+            ${{ (github.event_name == 'schedule' || (inputs.attempt || 'manual') != 'manual') && '--keep-recorded' || '' }} \
             --profile "${{ inputs.profile || 'operational' }}" \
             ${{ inputs.date && format('--date {0}', inputs.date) || '' }} \
             ${{ inputs.dry_run && '--dry-run' || '' }} \

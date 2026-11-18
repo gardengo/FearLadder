@@ -68,6 +68,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="compute and persist, but do not send notifications",
     )
+    parser.add_argument(
+        "--keep-recorded",
+        action="store_true",
+        help=(
+            "leave the newest scorable day as stored if it already has a state "
+            "(scheduled attempts; a person re-running a day leaves this off)"
+        ),
+    )
     parser.add_argument("--verbose", "-v", action="store_true")
     return parser
 
@@ -142,6 +150,7 @@ def main(argv: list[str] | None = None) -> int:
             as_of=args.date,
             collect=not args.no_collect,
             send_alerts=not args.dry_run,
+            keep_recorded=args.keep_recorded,
         )
         retried = _deliver_pending(config, notifier, uow)
         if retried:

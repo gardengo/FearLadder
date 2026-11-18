@@ -56,6 +56,16 @@ def test_the_last_attempt_is_either_the_last_schedule_or_an_external_last(
     ) in gate
 
 
+def test_only_a_person_s_run_may_rewrite_a_recorded_day(workflow: dict[str, Any]) -> None:
+    """TASK-196: every attempt nobody asked for keeps what is recorded."""
+    [step] = [s for s in workflow["jobs"]["monitor"]["steps"] if s.get("id") == "run"]
+    command = " ".join(step["run"].split())
+    assert (
+        "(github.event_name == 'schedule' || (inputs.attempt || 'manual') != 'manual')"
+        " && '--keep-recorded'"
+    ) in command
+
+
 def test_the_last_attempt_cron_is_the_latest_schedule(workflow: dict[str, Any]) -> None:
     crons = [entry["cron"] for entry in workflow["on"]["schedule"]]
     last = workflow["env"]["LAST_ATTEMPT_CRON"]

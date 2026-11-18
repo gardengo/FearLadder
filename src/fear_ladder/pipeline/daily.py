@@ -135,6 +135,9 @@ class DailyResult:
     #: Earlier sessions this run stored a state for because no run had: see
     #: :meth:`DailyPipeline._record_skipped_days`.
     recorded_late: tuple[date, ...] = ()
+    #: The newest scorable day was already recorded and this run left it as it
+    #: was (``keep_recorded``); ``state`` is the stored one.
+    kept: bool = False
 
     @property
     def is_data_failure(self) -> bool:
@@ -151,7 +154,8 @@ class DailyResult:
         return (
             f"{self.state.observation_date}: {self.state.regime} "
             f"(score {score:.1f}, leverage {leverage:.2f}x)"
-            + (" [regime changed]" if self.state.regime_changed else "")
+            + (" [regime changed]" if self.state.regime_changed and not self.kept else "")
+            + (" [already recorded; kept]" if self.kept else "")
         )
 
 
@@ -210,12 +214,21 @@ class DailyPipeline:
         as_of: date | None = None,
         collect: bool = True,
         send_alerts: bool = True,
+        keep_recorded: bool = False,
     ) -> DailyResult:
         """Execute one day. ``uow`` is an active :class:`UnitOfWork`.
 
         Passing ``as_of`` in the past is a replay. The stored history then runs
         past the day being computed, which is normal for a replay and a clock
         error for today's run, so the freshness check is told which this is.
+
+        ``keep_recorded`` is for the scheduled attempts (TASK-196). When the
+        newest day the inputs can score already has a state, the run stops
+        after the freshness check and leaves that state as it is. The day has
+        been announced; its inputs have moved since (CNN revises a day's value
+        for a day or two), and recomputing it could change a signal after the
+        fact, without an alert, under a paper account that trades on it. A
+        person re-running a day leaves this off.
         """
         today = as_of or self.clock().date()
         replaying = as_of is not None and as_of < self.clock().date()
@@ -238,6 +251,7 @@ class DailyPipeline:
                 collect=collect,
                 send_alerts=send_alerts,
                 replaying=replaying,
+                keep_recorded=keep_recorded,
             )
         except Exception as exc:
             # TASK-133: record the failure, never a plausible-looking state.
@@ -257,6 +271,7 @@ class DailyPipeline:
         collect: bool,
         send_alerts: bool,
         replaying: bool = False,
+        keep_recorded: bool = False,
     ) -> DailyResult:
         observations = uow.observations  # type: ignore[attr-defined]
         self._register_version(uow)
@@ -305,6 +320,28 @@ class DailyPipeline:
             return self._data_failure(
                 uow, run, today, freshness, collection, reasons=("NO_COMPUTABLE_SCORE",)
             )
+
+        if keep_recorded:
+            stored = uow.states.get_state(  # type: ignore[attr-defined]
+                observation_date, strategy_version=self.config.strategy.strategy_version
+            )
+            if stored is not None and not stored.is_unknown:
+                logger.info(
+                    "%s is already recorded and nothing newer can be scored; "
+                    "keeping the stored state as it was",
+                    observation_date,
+                )
+                finished = run.completed(PipelineStatus.SUCCESS)
+                uow.strategies.save_run(finished)  # type: ignore[attr-defined]
+                result = DailyResult(
+                    run=finished,
+                    state=stored,
+                    collection=collection,
+                    freshness=freshness,
+                    kept=True,
+                )
+                logger.info("%s", result.summary())
+                return result
 
         breakdown = self.scores.breakdown(score_frame, observation_date)
 

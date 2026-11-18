@@ -1341,3 +1341,32 @@ Actions 읽기·쓰기만; 11:07 · 13:07 · 15:07 `scheduled`, 18:07 `last`, �
 **확인.** GitHub 표현식은 로컬에서 돌릴 수 없으므로, 게이트 스텝의 표현식과 입력
 정의, `LAST_ATTEMPT_CRON` 이 예약 중 가장 늦은 것인지를 테스트로 고정했다.
 실제 동작은 배포 뒤 `gh workflow run daily_monitor.yml -f attempt=scheduled` 로 본다.
+
+---
+
+## TASK-196 자동 시도는 이미 기록된 날을 다시 쓰지 않는다 — 완료 (2026-11-18)
+
+`src/fear_ladder/pipeline/daily.py` (`keep_recorded`, `DailyResult.kept`),
+`scripts/daily_runner.py` (`--keep-recorded`), `.github/workflows/daily_monitor.yml`,
+`tests/integration/test_keep_recorded.py`, `tests/unit/test_workflow_triggers.py`,
+`ARCHITECTURE.md` §5.1, `docs/operations.md` §1.
+
+**증상.** 마지막 시도는 피드에 새 날짜가 없어도 돈다 (휴장일과 멈춘 피드를 드러내는
+것이 그 역할이다). 그러면 파이프라인은 채점할 수 있는 가장 최근 날 — 이미 기록되고
+알린 날 — 을 그사이 고쳐진 입력으로 다시 계산해 덮어썼다. 2026-11-18 오전에
+cron-job.org 의 마지막 작업을 시험 실행하자 11/16 의 점수가 13.877 → 13.941 로
+바뀌었다 (CNN 정정분, 단계 · 레버리지는 그대로). 점수가 단계 경계에 있었다면 이미
+알린 단계나 목표 레버리지가 바뀌었을 것이다. 알림은 날짜로 중복 제거되므로 알림
+없이, 그리고 모의 계좌는 바뀐 목표로 다음 시가에 거래한다. 휴장일 다음 날마다
+(외부와 GitHub 의 마지막 시도 둘 다), 피드가 하루 늦은 날마다 일어날 일이었다.
+
+**고친 것.** 사람이 시키지 않은 시도(GitHub 예약, 외부 `scheduled` / `last`)는
+`--keep-recorded` 로 돈다. 채점할 수 있는 가장 최근 날에 이미 상태가 있으면 신선도
+검사와 실행 기록만 남기고 저장된 상태를 그대로 둔다. 요약 줄에
+`[already recorded; kept]` 가 붙는다. 새 날이 있으면 평소대로 기록한다. 사람의 수동
+실행(`attempt: manual`)과 `--date` 재실행은 지금처럼 다시 계산한다.
+
+**확인.** 하루를 기록한 뒤 그날의 입력을 고치고 다시 돌리면: `keep_recorded` 로는
+상태 · 이벤트 · 알림이 그대로이고 실행 기록만 하나 는다. 없이 돌리면 점수가 바뀐다
+(시험의 전제). 운영 DB 복사본에서 `--keep-recorded` 로 돌리면 11/16 행이 바이트까지
+같다. 테스트 912 -> 916.
