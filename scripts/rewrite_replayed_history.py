@@ -13,7 +13,8 @@ The stored history has two parts, and they are not the same kind of thing.
 * **After the freeze** it is a record: what the worker actually announced each
   morning. Part of that was wrong too, and it stays exactly as it is. A record
   of what was signalled that has been edited to say what should have been
-  signalled is not a record.
+  signalled is not a record. (Nobody traded on that part either, and the owner
+  later had it put on the engine's path: ``scripts/realign_live_window.py``.)
 
 So this rewrites the first part and leaves the second alone. Up to the anchor
 (the last day of the frozen backtest) every stored state, allocation, score,

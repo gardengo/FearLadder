@@ -549,7 +549,8 @@ python scripts/make_regime_anchor.py --db ../scratch/full.db \
 따르고 있었다 (676일 중 226일만 일치).
 
 `scripts/rewrite_replayed_history.py` 는 앞부분만 다시 쓴다. 고정 이후의 행은
-틀렸던 날을 포함해 그대로 둔다 — 실제로 나갔던 신호의 기록이기 때문이다.
+틀렸던 날을 포함해 그대로 둔다. 고정 이후에 틀렸던 구간은 아래의 TASK-194 가
+따로 맞춘다.
 
 ```bash
 python scripts/collect_full_history.py --out ../scratch/full.db
@@ -581,6 +582,35 @@ python scripts/rewrite_replayed_history.py --full-db ../scratch/full.db \
 **운영 DB 에 적용할 때는 봇의 커밋과 겹치지 않아야 한다.** DB 는 바이너리라 병합이
 안 된다. 예약 실행이 없는 시간대(한국 시간 토요일 저녁 ~ 화요일 오전 10시)에
 `git pull` → 적용 → 커밋 → 푸시를 한 번에 한다.
+
+### 고정 이후의 틀렸던 구간을 엔진 경로로 맞추기 (TASK-194)
+
+TASK-188 이전의 워커는 고정 시점의 상태에서 레짐 규칙을 이어받지 않아, 저장된
+경로가 엔진과 어긋났다. 수정 후 첫 실행이 따라잡기 이벤트(`REGIME_CHANGED_ON:<엔진이
+옮긴 날>`)로 경로를 되돌렸지만, 그 사이의 날들은 어긋난 경로를 그대로 적고 있었다
+(2026-10-02 ~ 11-09, 27거래일, Neutral 1.75x — 엔진은 Optimism 1.33x).
+
+그 신호로 실제 운용한 적이 없으므로 소유자가 엔진 경로로 맞추기로 했다
+(2026-11-18). `scripts/realign_live_window.py` 가 따라잡기 이벤트마다:
+
+1. 엔진이 옮긴 날부터 따라잡은 날 전날까지의 상태를 파이프라인으로 다시 기록한다.
+   레짐 규칙은 그 전날의 `regime_memory` 에서 이어받는다 — 엔진의 경로다.
+2. 변경은 엔진이 옮긴 날의 평범한 이벤트가 되고, 그 알림은 `SUPPRESSED` 로 들어간다.
+3. 따라잡기 이벤트를 지우고, 따라잡은 날의 상태를 전날에 다시 잇는다. 그날의 단계 ·
+   점수 · 목표는 이미 엔진의 것이라 그대로다. 실제로 전송된 알림은 기록에 남긴다.
+4. `regime_memory` 를 원래대로 되돌리고, 다시 쓴 모든 날의 단계가 그날의 기억과 같은지,
+   다른 날의 상태가 한 행도 바뀌지 않았는지 확인한 뒤에야 대상 DB 를 바꾼다.
+5. 모의 성과를 처음부터 다시 만든다.
+
+```bash
+cp data/fear_ladder.db ../scratch/realign.db
+python scripts/realign_live_window.py --db ../scratch/realign.db       # 리허설
+python scripts/realign_live_window.py --db data/fear_ladder.db --operational
+```
+
+따라잡기 이벤트가 없으면 아무것도 하지 않는다. 앞으로 생기는 따라잡기(놓친 날에
+단계가 바뀐 경우, TASK-193)도 같은 스크립트로 맞출 수 있지만, 그것은 실제로 나간
+신호를 고쳐 쓰는 일이므로 운용을 시작한 뒤에는 쓰지 않는다.
 
 ### 백테스트 탭의 누적 곡선 (TASK-190)
 
