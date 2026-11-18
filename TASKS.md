@@ -1309,3 +1309,35 @@ CNN 정정분이다), 11/13 의 상태 · `regime_memory` · 모의 성과는 �
 
 리허설과 운영 적용 결과가 모든 표에서 같았고, 적용한 DB 복사본에서 11-16 을 다시
 돌리면 같은 상태(Optimism 13.9, 1.33x)가 나온다.
+
+---
+
+## TASK-195 외부 스케줄러가 워크플로를 시작시킨다 — 완료 (2026-11-18)
+
+`.github/workflows/daily_monitor.yml`, `tests/unit/test_workflow_triggers.py`,
+`ARCHITECTURE.md` §5.1, `docs/operations.md` §1, `README.md`.
+
+**증상.** TASK-189 로 예약을 네 번으로 나눈 첫날(2026-11-17)에도 GitHub 는 네 번
+모두 7.9 ~ 9.3시간 늦게 시작했다 (예약 10:17 KST → 실제 18:13). 하루의 일은
+18:14 KST 에 끝났지만, 지연이 한 시간만 더 늘어도 미국 개장(23:30 KST)을 넘긴다.
+
+**고친 것.** `workflow_dispatch` 는 예약 실행과 달리 요청한 때 바로 시작한다. 그래서
+cron-job.org 가 REST API 로 워크플로를 시작시킨다. 서버는 필요 없다. 수동 실행에
+입력 `attempt` 를 더했다.
+
+- `manual` (기본값): 지금까지의 수동 실행 — 게이트를 거치지 않고 항상 실행한다.
+  사람이 "Run workflow" 를 누르면 이것이다.
+- `scheduled`: 외부 스케줄러의 시도. GitHub 예약과 같은 게이트를 거친다.
+- `last`: 외부 스케줄러의 마지막 시도. `--last-attempt` 가 붙는다.
+
+이것이 없으면 외부에서 하루 여러 번 부를 때마다 같은 날을 다시 계산하고
+커밋한다. GitHub 의 예약 네 번은 예비로 그대로 둔다. 먼저 일한 쪽이 기록하면
+나머지는 모두 물러난다.
+
+**설정.** 토큰과 cron-job.org 작업은 저장소 밖의 일이라 `docs/operations.md` 의
+"외부 스케줄러 (cron-job.org)" 절에 절차를 적었다 (fine-grained 토큰, 이 저장소의
+Actions 읽기·쓰기만; 11:07 · 13:07 · 15:07 `scheduled`, 18:07 `last`, 화~토 KST).
+
+**확인.** GitHub 표현식은 로컬에서 돌릴 수 없으므로, 게이트 스텝의 표현식과 입력
+정의, `LAST_ATTEMPT_CRON` 이 예약 중 가장 늦은 것인지를 테스트로 고정했다.
+실제 동작은 배포 뒤 `gh workflow run daily_monitor.yml -f attempt=scheduled` 로 본다.

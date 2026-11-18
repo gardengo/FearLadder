@@ -30,9 +30,17 @@ PY
 
 ### 정상 동작
 
-`daily-monitor` 는 미국 거래일 다음 날 아침(화~토 UTC)에 **네 번 예약**되어 있다:
-01:17 · 03:17 · 05:17 · 08:17 UTC (한국 시간 10:17 · 12:17 · 14:17 · 17:17).
-하루에 실제로 일하는 것은 그중 한 번이다.
+`daily-monitor` 는 미국 거래일 다음 날(화~토)에 여러 번 시작된다. 하루에 실제로
+일하는 것은 그중 한 번이다.
+
+| 누가 | 언제 (한국 시간) | 입력 |
+| --- | --- | --- |
+| cron-job.org (외부, 주 경로) | 11:07 · 13:07 · 15:07 | `attempt: scheduled` |
+| cron-job.org (외부, 주 경로) | 18:07 | `attempt: last` |
+| GitHub 예약 (예비) | 10:17 · 12:17 · 14:17 · 17:17 (01:17 ~ 08:17 UTC) — 실제로는 몇 시간 늦게 | 마지막이 `--last-attempt` |
+
+외부 cron 이 주 경로인 이유는 아래와 같다 (TASK-195). 설정 방법은
+"외부 스케줄러 (cron-job.org)" 절에 있다.
 
 여러 번인 이유는 GitHub 가 예약 실행을 제때 시작하지 않아서다. 06:00 UTC 한 번만
 예약했던 2026-09-15 ~ 11-14 의 45번 모두 실제 시작은 09:56 ~ 14:23 UTC 였고
@@ -40,18 +48,27 @@ PY
 설정으로 줄일 수 없으므로
 기회를 여러 번 주고, 그날이 준비된 것을 처음 확인한 실행이 일을 한다.
 
+네 번으로 나눈 첫날(2026-11-17)에도 7.9 ~ 9.3시간 늦었다. 예약 실행(`schedule`)은
+GitHub 가 한가할 때 돌리는 것이고, `workflow_dispatch` 는 요청한 때 바로 시작한다
+(11/11 의 수동 실행은 요청 1분 안에 끝났다). 그래서 외부 cron 이 REST API 로
+워크플로를 시작시키고, GitHub 의 예약은 외부 cron 이 실패했을 때의 예비로 둔다.
+
 각 실행은 먼저 `Is there anything to do?` 스텝(`scripts/batch_gate.py`)에 묻는다:
 
 | 상황 | 결과 |
 | --- | --- |
-| 수동 실행 (`workflow_dispatch`) | 항상 실행 |
+| 사람의 수동 실행 (`attempt: manual`, 기본값) | 항상 실행 |
 | 직전 거래일이 이미 기록됨 | 건너뜀 — 같은 날을 두 번 계산하지 않는다 |
-| 마지막 예약(08:17)인데 아직 기록 안 됨 | 피드 상태와 무관하게 실행 |
-| 그 앞 예약 | QQQ · QLD · TQQQ · VIX · CNN 이 **모두** 새 날짜를 갖고 있을 때만 실행 |
+| 마지막 시도(외부 `last` 또는 GitHub 08:17 예약)인데 아직 기록 안 됨 | 피드 상태와 무관하게 실행 |
+| 그 앞 시도(외부 `scheduled`, GitHub 의 앞 세 예약) | QQQ · QLD · TQQQ · VIX · CNN 이 **모두** 새 날짜를 갖고 있을 때만 실행 |
 
 건너뛴 실행은 `Nothing to do` 알림 한 줄을 남기고 성공으로 끝난다. DB 를 읽기
-전용으로만 열기 때문에 커밋도 없다. 그래서 Actions 목록에 하루 네 줄이 보이고
-그중 하나만 1분 넘게 걸리는 것이 정상이다.
+전용으로만 열기 때문에 커밋도 없다. 그래서 Actions 목록에 하루 여덟 줄(외부 넷,
+GitHub 넷)이 보이고 그중 하나만 1분 넘게 걸리는 것이 정상이다.
+
+마지막 시도는 둘이다 (외부 18:07, GitHub 08:17 UTC 예약). 평일에는 먼저 일한
+쪽이 기록하므로 나중 것은 물러난다. 휴장일 다음 날에는 둘 다 돌아 각자 실행
+기록만 다른 DB 를 커밋한다 — 해마다 열흘 남짓이고 해가 없다.
 
 같은 날을 두 번 계산하지 않는 데는 이유가 있다. CNN 은 하루의 값을 그 뒤 하루
 이틀 동안 고친다 (2026-11-10 의 값이 04:46 UTC 에는 33.5, 13:19 UTC 에는 37.1,
@@ -96,11 +113,16 @@ stored 1 earlier session(s) no run had recorded, none of which changed the signa
   했거나 날짜를 착각한 경우다. 문제가 아니다.
 - 마지막 예약(08:17)이 `--last-attempt` 없이 돌았다 — 워크플로의 예약 목록과
   `LAST_ATTEMPT_CRON` 이 어긋난 것이다. 둘은 같은 문자열이어야 한다.
+- 외부 18:07 실행이 `--last-attempt` 없이 돌았다 — cron-job.org 의 마지막 작업
+  본문이 `"attempt":"last"` 가 아니다.
+- 외부 실행이 아예 없다 — cron-job.org 작업이 꺼졌거나 토큰이 만료됐다. 아래
+  "외부 스케줄러" 절의 확인 순서를 따른다. 그동안은 GitHub 예약이 늦게나마 돈다.
 - `could not read ...` — 그 피드가 아침 내내 응답하지 않았다. 마지막 예약은 그래도
   돌았어야 하므로 그 실행의 `Daily run` 로그를 본다.
 
 급하면 수동 실행이 가장 빠르다: `gh workflow run daily_monitor.yml --ref main`.
-수동 실행은 게이트를 거치지 않고, 같은 날을 다시 계산한다.
+수동 실행은 게이트를 거치지 않고, 같은 날을 다시 계산한다. 게이트를 거치게 하려면
+`-f attempt=scheduled` 를 붙인다.
 
 ### "Strategy is not frozen" 으로 실패한다
 
@@ -132,6 +154,54 @@ Actions → `daily-monitor` → Run workflow. 입력:
 | `date` | 특정 날짜로 재실행 (멱등) |
 | `dry_run` | 계산·저장은 하되 알림은 보내지 않음 |
 | `profile` | `placeholder` 로 두면 개발용 임시값으로 시험 실행 (실제 신호 아님) |
+| `attempt` | `manual`(기본): 항상 실행. `scheduled` / `last`: 외부 스케줄러용 — 예약과 같은 게이트 |
+
+### 외부 스케줄러 (cron-job.org)
+
+TASK-195. GitHub REST API 의 workflow dispatch 를 정해진 시각에 호출한다. 서버는
+필요 없다.
+
+**1. 토큰 (GitHub)** — Settings → Developer settings → Personal access tokens →
+Fine-grained tokens → Generate new token.
+
+| 항목 | 값 |
+| --- | --- |
+| Token name | `fearladder-cron` |
+| Expiration | 1년 (만료일을 달력에 적어 둔다) |
+| Repository access | Only select repositories → `gardengo/FearLadder` |
+| Repository permissions | **Actions: Read and write** (Metadata: Read-only 는 자동). 그 밖에는 없음 |
+
+이 토큰으로 할 수 있는 것은 이 저장소의 워크플로 실행 · 취소 · 재실행과 실행
+기록 삭제뿐이다. 코드와 DB 는 바꿀 수 없다. 새어 나갔다고 의심되면 GitHub 에서
+바로 폐기하고 새로 만든다.
+
+**2. 작업 (cron-job.org)** — 작업 두 개를 만든다. 본문만 다르다.
+
+| 항목 | 값 |
+| --- | --- |
+| URL | `https://api.github.com/repos/gardengo/FearLadder/actions/workflows/daily_monitor.yml/dispatches` |
+| 시간대 | `Asia/Seoul` |
+| 요일 | 화 · 수 · 목 · 금 · 토 |
+| 작업 A 시각 | 11:07, 13:07, 15:07 |
+| 작업 B 시각 | 18:07 |
+| Request method | `POST` |
+| Headers | `Accept: application/vnd.github+json`<br>`Authorization: Bearer <토큰>`<br>`X-GitHub-Api-Version: 2022-11-28`<br>`Content-Type: application/json` |
+| 작업 A 본문 | `{"ref":"main","inputs":{"attempt":"scheduled"}}` |
+| 작업 B 본문 | `{"ref":"main","inputs":{"attempt":"last"}}` |
+| 실패 알림 | 켠다 (이메일) |
+
+성공하면 GitHub 가 **204 No Content** 를 돌려준다. 401 은 토큰, 404 는 URL 이나
+토큰의 저장소 범위, 422 는 본문(입력값 이름이나 `ref`) 문제다.
+
+시각을 이렇게 둔 이유: 미국 장 마감은 한국 시간 06:00(서머타임 05:00)이지만
+가격 피드가 그 봉을 내놓는 시각은 들쑥날쑥하다 (09:45 에는 없었고 13:45 에는
+있었다). 이른 시도는 물러날 뿐 비용이 거의 없으니 11:07 부터 두 시간 간격으로
+묻고, 18:07 에 마지막으로 무조건 돈다. 미국 개장(23:30, 서머타임 22:30)보다
+넉넉히 앞선다.
+
+**3. 확인** — Actions 목록에서 이벤트가 `workflow_dispatch` 인 실행이 위 시각에
+생기는지, `Is there anything to do?` 로그에 `RUN` / `SKIP` 판정이 남는지 본다.
+cron-job.org 의 실행 기록에 응답 코드 204 가 찍혀야 한다.
 
 ---
 

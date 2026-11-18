@@ -32,6 +32,15 @@ name: daily-monitor
 # market holiday it is the only one that does anything: the pipeline finds no
 # new data, reports the last trading day it already has, and commits a
 # database that differs only by the run it logged.
+#
+# TASK-195 — the schedules GitHub keeps are the fallback. On 2026-11-17 the
+# four of them started 7.9 to 9.3 hours late. A `workflow_dispatch` starts when
+# it is asked to, so an external cron service (cron-job.org) dispatches the
+# workflow through the REST API with `attempt: scheduled` (and `attempt: last`
+# for its final call of the day). Those dispatches go through the same gate as
+# the schedules; a person's dispatch keeps the default `attempt: manual`, which
+# always runs. Whichever attempt finds the day first does the work, and every
+# later one, external or GitHub's, stands down. See docs/operations.md §1.
 
 on:
   schedule:
@@ -56,6 +65,12 @@ on:
         type: choice
         options: [operational, placeholder]
         default: operational
+      attempt:
+        description: "manual: always run. scheduled / last: an external scheduler's attempt, gated like the schedules below"
+        required: false
+        type: choice
+        options: [manual, scheduled, last]
+        default: manual
 
 # Never let two runs write the same SQLite file at once.
 concurrency:
@@ -98,10 +113,11 @@ jobs:
       - name: Is there anything to do?
         id: gate
         continue-on-error: true
+        # A dispatch that names no attempt is a person's, and runs.
         run: |
           python scripts/batch_gate.py \
-            ${{ github.event_name == 'workflow_dispatch' && '--manual' || '' }} \
-            ${{ github.event.schedule == env.LAST_ATTEMPT_CRON && '--last-attempt' || '' }}
+            ${{ github.event_name == 'workflow_dispatch' && (inputs.attempt || 'manual') == 'manual' && '--manual' || '' }} \
+            ${{ (github.event.schedule == env.LAST_ATTEMPT_CRON || (github.event_name == 'workflow_dispatch' && inputs.attempt == 'last')) && '--last-attempt' || '' }}
 
       - name: Stand down
         if: steps.gate.outputs.run == 'false'
